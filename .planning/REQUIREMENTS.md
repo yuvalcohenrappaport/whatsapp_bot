@@ -43,8 +43,8 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Operations
 
-- [ ] **OPS-01**: Bot runs as a persistent PM2-managed service on Ubuntu server
-- [ ] **OPS-02**: Bot session data persists across server reboots
+- [x] **OPS-01**: Bot runs as a persistent PM2-managed service on Ubuntu server
+- [x] **OPS-02**: Bot session data persists across server reboots
 - [ ] **OPS-03**: Bot sends health/heartbeat alerts when it goes silent or disconnects
 - [ ] **OPS-04**: Bot deduplicates messages to prevent double-replies
 
@@ -111,8 +111,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DASH-03 | Phase 4 | Pending |
 | DASH-04 | Phase 4 | Pending |
 | DASH-05 | Phase 4 | Pending |
-| OPS-01 | Phase 1 | Pending |
-| OPS-02 | Phase 1 | Pending |
+| OPS-01 | Phase 1 | Complete |
+| OPS-02 | Phase 1 | Complete |
 | OPS-03 | Phase 5 | Pending |
 | OPS-04 | Phase 1 | Pending |
 

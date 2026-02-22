@@ -33,7 +33,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 3 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Project scaffold: TypeScript ESM project, Drizzle + SQLite schema, PM2 config, environment setup
+- [x] 01-01-PLAN.md — Project scaffold: TypeScript ESM project, Drizzle + SQLite schema, PM2 config, environment setup
 - [ ] 01-02-PLAN.md — Baileys connection: QR auth, session persistence on disk, reconnect with exponential backoff
 - [ ] 01-03-PLAN.md — Message pipeline: receive, deduplicate, persist messages; send with randomized delay; group JID filter
 
@@ -106,7 +106,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. WhatsApp Foundation | 0/3 | Not started | - |
+| 1. WhatsApp Foundation | 1/3 | In progress | - |
 | 2. AI Response Engine | 0/3 | Not started | - |
 | 3. Style Learning and Auto Mode | 0/2 | Not started | - |
 | 4. Web Dashboard | 0/4 | Not started | - |
