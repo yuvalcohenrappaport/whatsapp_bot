@@ -89,38 +89,38 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| WA-01 | — | Pending |
-| WA-02 | — | Pending |
-| WA-03 | — | Pending |
-| WA-04 | — | Pending |
-| WA-05 | — | Pending |
-| WA-06 | — | Pending |
-| WA-07 | — | Pending |
-| AI-01 | — | Pending |
-| AI-02 | — | Pending |
-| AI-03 | — | Pending |
-| AI-04 | — | Pending |
-| AI-05 | — | Pending |
-| CM-01 | — | Pending |
-| CM-02 | — | Pending |
-| CM-03 | — | Pending |
-| CM-04 | — | Pending |
-| CM-05 | — | Pending |
-| DASH-01 | — | Pending |
-| DASH-02 | — | Pending |
-| DASH-03 | — | Pending |
-| DASH-04 | — | Pending |
-| DASH-05 | — | Pending |
-| OPS-01 | — | Pending |
-| OPS-02 | — | Pending |
-| OPS-03 | — | Pending |
-| OPS-04 | — | Pending |
+| WA-01 | Phase 1 | Pending |
+| WA-02 | Phase 1 | Pending |
+| WA-03 | Phase 1 | Pending |
+| WA-04 | Phase 1 | Pending |
+| WA-05 | Phase 1 | Pending |
+| WA-06 | Phase 1 | Pending |
+| WA-07 | Phase 1 | Pending |
+| AI-01 | Phase 2 | Pending |
+| AI-02 | Phase 2 | Pending |
+| AI-03 | Phase 2 | Pending |
+| AI-04 | Phase 3 | Pending |
+| AI-05 | Phase 2 | Pending |
+| CM-01 | Phase 2 | Pending |
+| CM-02 | Phase 2 | Pending |
+| CM-03 | Phase 2 | Pending |
+| CM-04 | Phase 2 | Pending |
+| CM-05 | Phase 3 | Pending |
+| DASH-01 | Phase 4 | Pending |
+| DASH-02 | Phase 4 | Pending |
+| DASH-03 | Phase 4 | Pending |
+| DASH-04 | Phase 4 | Pending |
+| DASH-05 | Phase 4 | Pending |
+| OPS-01 | Phase 1 | Pending |
+| OPS-02 | Phase 1 | Pending |
+| OPS-03 | Phase 5 | Pending |
+| OPS-04 | Phase 1 | Pending |
 
 **Coverage:**
 - v1 requirements: 26 total
-- Mapped to phases: 0
-- Unmapped: 26
+- Mapped to phases: 26
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-22*
-*Last updated: 2026-02-22 after initial definition*
+*Last updated: 2026-02-22 after roadmap creation*
