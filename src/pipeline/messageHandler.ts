@@ -110,7 +110,7 @@ async function handleOwnerCommand(
       return true;
     }
     const until = Date.now() + snoozeMs;
-    setSnoozeUntil(lastNotifiedJid, until);
+    setSnoozeUntil(lastNotifiedJid, until).run();
     const name = getContact(lastNotifiedJid)?.name ?? lastNotifiedJid;
     const durationLabel = text.replace(/snooze\s*/i, '').trim() || '1h';
     await sock.sendMessage(config.USER_JID, {
@@ -127,7 +127,7 @@ async function handleOwnerCommand(
       });
       return true;
     }
-    setSnoozeUntil(lastNotifiedJid, null);
+    setSnoozeUntil(lastNotifiedJid, null).run();
     const name = getContact(lastNotifiedJid)?.name ?? lastNotifiedJid;
     await sock.sendMessage(config.USER_JID, {
       text: `Resumed notifications for ${name}.`,
@@ -148,15 +148,15 @@ async function handleOwnerCommand(
   }
 
   if (approvalTrimmed === '✅') {
-    markDraftSent(draft.id);
+    markDraftSent(draft.id).run();
     await sendWithDelay(sock, draft.contactJid, draft.body);
     // Reset auto count on draft approval per locked decision
-    resetAutoCount(draft.contactJid);
+    resetAutoCount(draft.contactJid).run();
     await sock.sendMessage(config.USER_JID, {
       text: `Sent to ${draft.contactJid}.`,
     });
   } else {
-    markDraftRejected(draft.id);
+    markDraftRejected(draft.id).run();
     await sock.sendMessage(config.USER_JID, {
       text: 'Draft rejected.',
     });
@@ -211,8 +211,8 @@ async function processMessage(sock: WASocket, msg: WAMessage): Promise<void> {
         fromMe: true,
         body: text,
         timestamp,
-      });
-      resetAutoCount(contactJid);
+      }).run();
+      resetAutoCount(contactJid).run();
       logger.debug(
         { contactJid },
         'Persisted manual message for live learning, reset auto count',
@@ -230,11 +230,11 @@ async function processMessage(sock: WASocket, msg: WAMessage): Promise<void> {
     fromMe: false,
     body: text,
     timestamp,
-  });
+  }).run();
 
   // Auto-create contact if new
   const pushName = msg.pushName ?? null;
-  upsertContact(contactJid, pushName);
+  upsertContact(contactJid, pushName).run();
 
   // Route by contact mode
   const contact = getContact(contactJid);
@@ -263,8 +263,8 @@ async function processMessage(sock: WASocket, msg: WAMessage): Promise<void> {
     const autoCount = contact?.consecutiveAutoCount ?? 0;
     if (autoCount >= AUTO_CAP) {
       // Cap reached — switch to draft mode, notify owner
-      updateContactMode(contactJid, 'draft');
-      resetAutoCount(contactJid);
+      updateContactMode(contactJid, 'draft').run();
+      resetAutoCount(contactJid).run();
       const name = contact?.name ?? contactJid;
       lastNotifiedJid = contactJid;
       await sock.sendMessage(config.USER_JID, {
@@ -280,7 +280,7 @@ async function processMessage(sock: WASocket, msg: WAMessage): Promise<void> {
     // All clear — send auto-reply
     await sendWithDelay(sock, contactJid, reply);
     lastAutoReplyTime.set(contactJid, Date.now());
-    incrementAutoCount(contactJid);
+    incrementAutoCount(contactJid).run();
   } else if (mode === 'draft') {
     const draftId = createDraft(contactJid, msg.key.id!, reply);
     const name = contact?.name ?? contactJid;
