@@ -9,6 +9,7 @@ import {
   type ConnectionCallbacks,
 } from './whatsapp/reconnect.js';
 import { createMessageHandler } from './pipeline/messageHandler.js';
+import { importChats } from './importer/importChats.js';
 
 const logger = pino({
   level: config.LOG_LEVEL,
@@ -23,6 +24,9 @@ async function main(): Promise<void> {
 
   initDb();
   logger.info('Database initialized');
+
+  await importChats(config.IMPORT_DIR, config.PROCESSED_DIR, config.OWNER_EXPORT_NAME);
+  logger.info('Chat import complete');
 
   await startSocket();
 }
