@@ -10,6 +10,9 @@ const envSchema = z.object({
     .default('info'),
   AUTH_DIR: z.string().default('./data/auth'),
   DB_PATH: z.string().default('./data/bot.db'),
+  GEMINI_API_KEY: z.string(),
+  USER_JID: z.string(), // Bot owner's WhatsApp JID, e.g. 972501234567@s.whatsapp.net
+  GEMINI_MODEL: z.string().default('gemini-2.5-flash'),
 });
 
 export type Config = z.infer<typeof envSchema>;

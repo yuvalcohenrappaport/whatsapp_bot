@@ -22,10 +22,24 @@ export const contacts = sqliteTable('contacts', {
   jid: text('jid').primaryKey(),
   name: text('name'),
   mode: text('mode').notNull().default('off'), // 'off' | 'draft' | 'auto'
+  relationship: text('relationship'),
+  customInstructions: text('custom_instructions'),
   createdAt: integer('created_at')
     .notNull()
     .$defaultFn(() => Date.now()),
   updatedAt: integer('updated_at')
     .notNull()
     .$defaultFn(() => Date.now()),
+});
+
+export const drafts = sqliteTable('drafts', {
+  id: text('id').primaryKey(), // UUID
+  contactJid: text('contact_jid').notNull(),
+  inReplyToMessageId: text('in_reply_to_message_id').notNull(),
+  body: text('body').notNull(),
+  status: text('status').notNull().default('pending'), // 'pending' | 'sent' | 'rejected'
+  createdAt: integer('created_at')
+    .notNull()
+    .$defaultFn(() => Date.now()),
+  actionedAt: integer('actioned_at'),
 });

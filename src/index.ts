@@ -8,6 +8,7 @@ import {
   handleConnectionUpdate,
   type ConnectionCallbacks,
 } from './whatsapp/reconnect.js';
+import { createMessageHandler } from './pipeline/messageHandler.js';
 
 const logger = pino({
   level: config.LOG_LEVEL,
@@ -76,6 +77,8 @@ async function startSocket(): Promise<void> {
   sock.ev.on('connection.update', (update) => {
     handleConnectionUpdate(update, callbacks);
   });
+
+  sock.ev.on('messages.upsert', createMessageHandler(sock));
 }
 
 // Graceful shutdown handlers
