@@ -11,10 +11,10 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 
 Phase: 1 of 5 (WhatsApp Foundation)
 Plan: 0 of 3 in current phase
-Status: Ready to plan
-Last activity: 2026-02-22 — Roadmap created (5 phases, 26 requirements mapped)
+Status: Planned — ready to execute
+Last activity: 2026-02-22 — Phase 1 planned (3 plans, 3 waves, verification passed)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░] 5%
 
 ## Performance Metrics
 
@@ -60,5 +60,16 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Roadmap and STATE.md created, ready to begin Phase 1 planning
+Stopped at: Phase 1 planning complete, verification passed. Ready to execute.
+Resume with: `/gsd:execute-phase 1`
 Resume file: None
+
+### Phase 1 Plan Summary
+
+| Wave | Plan | Autonomous | What it builds |
+|------|------|------------|----------------|
+| 1 | 01-01 | yes | TypeScript ESM scaffold, Drizzle + SQLite schema, PM2 config |
+| 2 | 01-02 | no (QR checkpoint) | Baileys connection, QR auth, session persistence, reconnect |
+| 3 | 01-03 | no (pipeline checkpoint) | Message receive pipeline (filter, dedup, persist) + send with delay |
+
+Plans at: `.planning/phases/01-whatsapp-foundation/01-{01,02,03}-PLAN.md`
