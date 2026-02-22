@@ -63,8 +63,21 @@ None yet.
 
 Last session: 2026-02-22
 Stopped at: Plan 01-02 checkpoint — awaiting human verification of QR scan, session persistence, and reconnect on hardware.
-Resume with: `/gsd:execute-phase 1` (continuation — Tasks 1-2 committed, resume at Task 3 verification)
+Resume with: `/gsd:execute-phase 1` (will skip completed 01-01, resume 01-02 at checkpoint Task 3)
 Resume file: .planning/phases/01-whatsapp-foundation/01-02-PLAN.md
+
+### Checkpoint Pending
+
+**Plan 01-02, Task 3:** Verify WhatsApp connection on actual hardware
+**What to do before resuming:**
+1. Run `cd /home/yuval/whatsapp-bot && npx tsx src/index.ts`
+2. Scan the QR code with WhatsApp (Settings > Linked Devices > Link a Device)
+3. Confirm "Connected to WhatsApp" appears in terminal
+4. Check `ls data/auth/` shows session files
+5. Stop (Ctrl+C) and restart — confirm reconnects WITHOUT new QR
+6. (Optional) Test network disconnect/reconnect
+
+When ready, run `/gsd:execute-phase 1` and type "approved" at the checkpoint.
 
 ### Phase 1 Plan Summary
 
