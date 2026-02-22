@@ -1,4 +1,4 @@
-import { eq, desc } from 'drizzle-orm';
+import { and, eq, desc } from 'drizzle-orm';
 import { db } from '../client.js';
 import { messages } from '../schema.js';
 
@@ -29,7 +29,7 @@ export function getStyleExamples(contactJid: string, limit = 200): Promise<strin
   return db
     .select({ body: messages.body })
     .from(messages)
-    .where(eq(messages.contactJid, contactJid))
+    .where(and(eq(messages.contactJid, contactJid), eq(messages.fromMe, true)))
     .orderBy(desc(messages.timestamp))
     .limit(limit)
     .then((rows) => rows.map((r) => r.body));
