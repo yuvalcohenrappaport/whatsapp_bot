@@ -30,12 +30,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Bot can send a text reply through WhatsApp with a randomized human-like delay before sending
   4. Bot automatically reconnects with exponential backoff after a network drop, without user intervention
   5. Bot deduplicates incoming messages so no message is processed twice even under rapid delivery
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: Project scaffold — TypeScript ESM monorepo, Drizzle + SQLite schema, PM2 config, environment setup
-- [ ] 01-02: Baileys connection — QR auth, session persistence on disk, reconnect with exponential backoff
-- [ ] 01-03: Message pipeline — receive, deduplicate, persist messages; send with randomized delay; group JID filter
+- [ ] 01-01-PLAN.md — Project scaffold: TypeScript ESM project, Drizzle + SQLite schema, PM2 config, environment setup
+- [ ] 01-02-PLAN.md — Baileys connection: QR auth, session persistence on disk, reconnect with exponential backoff
+- [ ] 01-03-PLAN.md — Message pipeline: receive, deduplicate, persist messages; send with randomized delay; group JID filter
 
 ### Phase 2: AI Response Engine
 **Goal**: The bot generates replies in the user's voice using Gemini and queues them for approval before any message is sent
