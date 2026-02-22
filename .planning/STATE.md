@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 ## Current Position
 
 Phase: 1 of 5 (WhatsApp Foundation)
-Plan: 1 of 3 in current phase
-Status: Executing — Plan 01-01 complete, ready for 01-02
-Last activity: 2026-02-22 — Plan 01-01 executed (project scaffold, DB schema, PM2 config)
+Plan: 2 of 3 in current phase
+Status: Checkpoint — Plan 01-02 Task 3 (human-verify: QR scan + session persistence on hardware)
+Last activity: 2026-02-22 — Plan 01-02 Tasks 1-2 complete (connection factory, reconnect, wiring)
 
 Progress: [██░░░░░░░░] 12%
 
@@ -62,9 +62,9 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 01-01-PLAN.md (project scaffold). Ready for 01-02 (Baileys connection).
-Resume with: `/gsd:execute-phase 1`
-Resume file: None
+Stopped at: Plan 01-02 checkpoint — awaiting human verification of QR scan, session persistence, and reconnect on hardware.
+Resume with: `/gsd:execute-phase 1` (continuation — Tasks 1-2 committed, resume at Task 3 verification)
+Resume file: .planning/phases/01-whatsapp-foundation/01-02-PLAN.md
 
 ### Phase 1 Plan Summary
 
