@@ -24,3 +24,13 @@ export function getRecentMessages(contactJid: string, limit = 50) {
     .limit(limit)
     .then((rows) => rows.reverse()); // chronological order
 }
+
+export function getStyleExamples(contactJid: string, limit = 200): Promise<string[]> {
+  return db
+    .select({ body: messages.body })
+    .from(messages)
+    .where(eq(messages.contactJid, contactJid))
+    .orderBy(desc(messages.timestamp))
+    .limit(limit)
+    .then((rows) => rows.map((r) => r.body));
+}

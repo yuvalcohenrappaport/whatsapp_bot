@@ -24,6 +24,9 @@ export const contacts = sqliteTable('contacts', {
   mode: text('mode').notNull().default('off'), // 'off' | 'draft' | 'auto'
   relationship: text('relationship'),
   customInstructions: text('custom_instructions'),
+  styleSummary: text('style_summary'), // Gemini-generated style analysis text, nullable
+  snoozeUntil: integer('snooze_until'), // Unix ms timestamp for snooze expiry, null = not snoozed
+  consecutiveAutoCount: integer('consecutive_auto_count').default(0), // counter for auto-reply cap
   createdAt: integer('created_at')
     .notNull()
     .$defaultFn(() => Date.now()),
