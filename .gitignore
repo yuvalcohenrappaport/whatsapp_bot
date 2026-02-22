@@ -4,3 +4,6 @@ data/
 .env
 logs/
 *.db
+*.md
+!README.md
+.planning/
