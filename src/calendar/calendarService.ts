@@ -195,6 +195,42 @@ export async function createCalendarEvent(params: {
 }
 
 /**
+ * List upcoming calendar events within a time window.
+ * Returns an array of event summaries or empty array if calendar not configured or on error.
+ */
+export async function listUpcomingEvents(
+  calendarId: string,
+  daysAhead = 14,
+): Promise<{ title: string; date: string; description?: string }[]> {
+  const client = getCalendarClient();
+  if (!client) return [];
+
+  try {
+    const timeMin = new Date().toISOString();
+    const timeMax = new Date(Date.now() + daysAhead * 86400000).toISOString();
+
+    const res = await client.events.list({
+      calendarId,
+      timeMin,
+      timeMax,
+      singleEvents: true,
+      orderBy: 'startTime',
+      maxResults: 50,
+    });
+
+    const items = res.data.items ?? [];
+    return items.map((event) => ({
+      title: event.summary ?? '(No title)',
+      date: event.start?.dateTime ?? event.start?.date ?? '',
+      description: event.description ?? undefined,
+    }));
+  } catch (err) {
+    logger.error({ err, calendarId }, 'Failed to list upcoming calendar events');
+    return [];
+  }
+}
+
+/**
  * Delete an event from a calendar.
  * Returns true on success, false on failure.
  */
