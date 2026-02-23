@@ -30,6 +30,7 @@
     "@types/react": "^19.2.14",
     "@whiskeysockets/baileys": "^7.0.0-rc.9",
     "better-sqlite3": "^12.6.2",
+    "chrono-node": "^2.9.0",
     "commander": "^14.0.3",
     "dotenv": "^17.3.1",
     "drizzle-orm": "^0.45.1",
@@ -43,7 +44,8 @@
     "pm2": "^6.0.14",
     "qrcode-terminal": "^0.12.0",
     "react": "^19.2.4",
-    "zod": "^4.3.6"
+    "zod": "^4.3.6",
+    "zod-to-json-schema": "^3.25.1"
   },
   "devDependencies": {
     "@tsconfig/node20": "^20.1.9",
