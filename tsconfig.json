@@ -8,8 +8,9 @@
     "strict": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "jsx": "react-jsx"
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "cli/**/*"],
   "exclude": ["node_modules", "dist"]
 }
