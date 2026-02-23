@@ -18,6 +18,8 @@ import {
 } from '../db/queries/drafts.js';
 import { sendWithDelay } from '../whatsapp/sender.js';
 import { generateReply } from '../ai/gemini.js';
+import { getGroup } from '../db/queries/groups.js';
+import { insertGroupMessage } from '../db/queries/groupMessages.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
 
@@ -44,6 +46,22 @@ const AUTO_COUNT_RESET_MS = 30 * 60 * 1000; // 30 minutes
  * Module-scoped — always refers to the most recently notified contact.
  */
 let lastNotifiedJid: string | null = null;
+
+// --- Group message callback hook ---
+
+/** Callback for downstream pipeline (e.g., date extraction) to process group messages. */
+let groupMessageCallback: ((
+  groupJid: string,
+  msg: { id: string; senderJid: string; senderName: string | null; body: string; timestamp: number },
+  quotedMessageId: string | null,
+) => void) | null = null;
+
+/** Register a callback to be invoked after each group message is persisted. */
+export function setGroupMessageCallback(
+  cb: typeof groupMessageCallback,
+) {
+  groupMessageCallback = cb;
+}
 
 // --- Helper functions ---
 
@@ -201,15 +219,44 @@ async function processMessage(sock: WASocket, msg: WAMessage): Promise<void> {
       : Number(msg.messageTimestamp) * 1000
     : Date.now();
 
-  // Group messages: store and return (no reply pipeline)
+  // Group messages: persist tracked group messages with sender info
   if (remoteJid.endsWith('@g.us')) {
-    insertMessage({
+    // Ignore bot's own outgoing messages in groups
+    if (fromMe) {
+      logger.debug({ groupJid: remoteJid }, 'Ignoring own group message');
+      return;
+    }
+
+    // Only persist messages from tracked, active groups
+    const group = getGroup(remoteJid);
+    if (!group || group.active !== true) {
+      return; // Silently drop non-tracked/inactive group messages
+    }
+
+    // Extract sender info from Baileys group message structure
+    const senderJid = msg.key.participant ?? '';
+    const senderName = msg.pushName ?? null;
+
+    // Persist to dedicated groupMessages table
+    insertGroupMessage({
       id: msg.key.id!,
-      contactJid: remoteJid,
+      groupJid: remoteJid,
+      senderJid,
+      senderName,
       fromMe,
       body: text,
       timestamp,
     }).run();
+
+    // Invoke downstream pipeline callback (e.g., date extraction)
+    const quotedMessageId =
+      msg.message?.extendedTextMessage?.contextInfo?.stanzaId ?? null;
+    groupMessageCallback?.(
+      remoteJid,
+      { id: msg.key.id!, senderJid, senderName, body: text, timestamp },
+      quotedMessageId,
+    );
+
     return;
   }
 
