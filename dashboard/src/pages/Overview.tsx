@@ -1,31 +1,82 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { MessageSquare, Users, UsersRound } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { apiFetch } from '@/api/client';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
-const stats = [
-  { title: 'Pending Drafts', icon: MessageSquare, value: '...' },
-  { title: 'Active Contacts', icon: Users, value: '...' },
-  { title: 'Tracked Groups', icon: UsersRound, value: '...' },
-];
+interface Draft {
+  status: string;
+}
+
+interface Contact {
+  mode: string;
+}
+
+interface Group {
+  active: boolean;
+}
 
 export default function Overview() {
+  const { data: drafts } = useQuery({
+    queryKey: ['drafts'],
+    queryFn: () => apiFetch<Draft[]>('/api/drafts'),
+  });
+  const { data: contacts } = useQuery({
+    queryKey: ['contacts'],
+    queryFn: () => apiFetch<Contact[]>('/api/contacts'),
+  });
+  const { data: groups } = useQuery({
+    queryKey: ['groups'],
+    queryFn: () => apiFetch<Group[]>('/api/groups'),
+  });
+
+  const pendingDrafts = drafts?.length ?? 0;
+  const activeContacts = contacts?.filter((c) => c.mode !== 'off').length ?? 0;
+  const trackedGroups = groups?.filter((g) => g.active).length ?? 0;
+
   return (
     <div>
-      <h1 className="text-2xl font-semibold mb-6">Overview</h1>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {stats.map((stat) => (
-          <Card key={stat.title} className="py-6">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                {stat.title}
-              </CardTitle>
-              <stat.icon className="size-5 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold">{stat.value}</p>
-            </CardContent>
-          </Card>
-        ))}
+      <h1 className="text-2xl font-semibold mb-8">Overview</h1>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <StatCard
+          title="Pending Drafts"
+          value={pendingDrafts}
+          description="Replies awaiting your approval"
+          highlight={pendingDrafts > 0}
+        />
+        <StatCard
+          title="Active Contacts"
+          value={activeContacts}
+          description="Contacts with draft or auto mode"
+        />
+        <StatCard
+          title="Tracked Groups"
+          value={trackedGroups}
+          description="WhatsApp groups being monitored"
+        />
       </div>
     </div>
+  );
+}
+
+function StatCard({
+  title,
+  value,
+  description,
+  highlight = false,
+}: {
+  title: string;
+  value: number;
+  description: string;
+  highlight?: boolean;
+}) {
+  return (
+    <Card className={`p-8 ${highlight ? 'border-primary' : ''}`}>
+      <CardHeader className="p-0 mb-4">
+        <CardTitle className="text-base font-medium text-muted-foreground">{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="p-0">
+        <p className={`text-5xl font-bold ${highlight ? 'text-primary' : ''}`}>{value}</p>
+        <p className="text-sm text-muted-foreground mt-2">{description}</p>
+      </CardContent>
+    </Card>
   );
 }
