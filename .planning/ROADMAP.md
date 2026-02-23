@@ -123,7 +123,7 @@ Plans:
 
 Plans:
 - [ ] 08-01-PLAN.md — DB schema extensions (group_messages, calendar_events tables, reminderHour column), group message pipeline upgrade (fromMe guard, active-group filter, sender metadata), GCP service account setup
-- [ ] 08-02-PLAN.md — Google Calendar service module: googleapis + service account JWT auth, createGroupCalendar, createCalendarEvent, shareCalendar, deleteCalendarEvent
+- [x] 08-02-PLAN.md — Google Calendar service module: googleapis + service account JWT auth, createGroupCalendar, createCalendarEvent, shareCalendar, deleteCalendarEvent
 - [ ] 08-03-PLAN.md — Date extraction pipeline: chrono-node pre-filter, Gemini structured extraction, 10s batch debounce, calendar event creation, in-group confirmation messages, reply-to-delete
 - [ ] 08-04-PLAN.md — Weekly reminder scheduler: node-cron per-group jobs, Gemini digest generation (events + tasks + notes), language-matched posting, empty-week skip
 
@@ -153,5 +153,5 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9
 | 3. Style Learning and Auto Mode | v1.0 | 3/3 | Complete | 2026-02-22 |
 | 6. Web Dashboard | v1.1 | 4/4 | Complete | 2026-02-23 |
 | 7. CLI Dashboard | v1.1 | 3/3 | Complete | 2026-02-23 |
-| 8. Group Monitoring and Calendar | v1.1 | 0/4 | Not started | - |
+| 8. Group Monitoring and Calendar | v1.1 | 2/4 | In progress | - |
 | 9. Travel Search | v1.1 | 0/2 | Not started | - |

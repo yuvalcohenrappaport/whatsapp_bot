@@ -9,17 +9,17 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 ## Current Position
 
-Phase: 7 of 9 (CLI Dashboard) -- COMPLETE
-Plan: 3 of 3 in current phase
-Status: Phase Complete
-Last activity: 2026-02-23 — Phase 7 UAT passed (7/7), phase complete
+Phase: 8 of 9 (Group Monitoring and Calendar)
+Plan: 2 of 4 in current phase
+Status: Executing
+Last activity: 2026-02-23 — Phase 8 Plan 02 complete (calendar service module)
 
-Progress: [██████░░░░] 50% (phases 1-3 + phase 6 + phase 7 complete)
+Progress: [██████░░░░] 55% (phases 1-3 + phase 6 + phase 7 complete, phase 8 in progress)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 16 (phases 1-3 + phase 6 + phase 7)
+- Total plans completed: 18 (phases 1-3 + phase 6 + phase 7 + phase 8 plans 01-02)
 - Average duration: unknown
 - Total execution time: unknown
 
@@ -37,6 +37,7 @@ Progress: [██████░░░░] 50% (phases 1-3 + phase 6 + phase 7 c
 | Phase 07 P01 | 3min | 2 tasks | 7 files |
 | Phase 07 P02 | 3min | 2 tasks | 4 files |
 | Phase 07 P03 | 4min | 2 tasks | 3 files |
+| Phase 08 P02 | 9min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -70,6 +71,9 @@ Recent decisions affecting current work:
 - CLI drafts approve marks status in DB only (no WhatsApp send): CLI has no WASocket access
 - Partial ID matching for draft approve/reject via SQL LIKE: 8-char prefix suffices
 - JID normalization appends @g.us if no @ present: consistent with WhatsApp JID format
+- google.auth.JWT over GoogleAuth for service account: simpler, no GOOGLE_APPLICATION_CREDENTIALS env var needed
+- Lazy cached calendar client init: initCalendarAuth called once on first use, cached in module-level variable
+- Graceful null degradation for calendar: all functions return null/false/void when calendar not configured
 
 ### Pending Todos
 
@@ -85,9 +89,9 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Phase 7 complete + UAT passed (7/7). Phase 8 not yet planned.
-Resume with: `/gsd:plan-phase 8` (Phase 8: Group Monitoring and Calendar)
-Resume file: N/A — phase 8 plans not yet created
+Stopped at: Completed 08-02-PLAN.md (calendar service module)
+Resume with: `/gsd:execute-phase 08` on 08-03-PLAN.md (date extraction pipeline)
+Resume file: .planning/phases/08-group-monitoring-and-calendar/08-03-PLAN.md
 
 ### Hot fixes applied this session (not part of any phase):
 - **messageHandler.ts**: Fixed `.run()` calls on `upsertContact`, `updateContactMode`, `markDraftSent`, `markDraftRejected` — these functions were changed to call `.run()` internally during Phase 6 UAT, but the messageHandler still called `.run()` on their (now void) return values, crashing on every incoming message.

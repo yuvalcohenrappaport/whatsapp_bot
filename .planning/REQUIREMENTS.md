@@ -71,9 +71,9 @@ Requirements for milestone v1.1: Dashboard & Groups. Each maps to roadmap phases
 ### Google Calendar
 
 - [ ] **CAL-01**: Bot uses its own dedicated Gmail account for Google Calendar operations
-- [ ] **CAL-02**: Bot creates a dedicated Google Calendar for each tracked group
+- [x] **CAL-02**: Bot creates a dedicated Google Calendar for each tracked group
 - [ ] **CAL-03**: Gemini extracts dates from group messages and creates calendar events with smart titles, correct date/time, and original message as description
-- [ ] **CAL-04**: Bot shares the group calendar with all group members' email addresses
+- [x] **CAL-04**: Bot shares the group calendar with all group members' email addresses
 - [ ] **CAL-05**: Bot confirms in the group chat when an event is added to the calendar (e.g., "Added: Flight landing March 15 at 3pm")
 
 ### Weekly Reminders
@@ -153,9 +153,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GRP-04 | Phase 8 | Pending |
 | GRP-05 | Phase 9 | Pending |
 | CAL-01 | Phase 8 | Pending |
-| CAL-02 | Phase 8 | Pending |
+| CAL-02 | Phase 8 | Complete |
 | CAL-03 | Phase 8 | Pending |
-| CAL-04 | Phase 8 | Pending |
+| CAL-04 | Phase 8 | Complete |
 | CAL-05 | Phase 8 | Pending |
 | REM-01 | Phase 8 | Pending |
 | REM-02 | Phase 8 | Pending |
