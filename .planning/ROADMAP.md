@@ -119,13 +119,13 @@ Plans:
   3. After creating a calendar event, the bot sends a confirmation message in the group (e.g., "Added: Flight landing March 15 at 3pm")
   4. Each tracked group has its own Google Calendar shared with configured group member email addresses
   5. Every week the bot posts a read-only AI-inferred summary of unresolved tasks and upcoming commitments into each tracked group
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 08-01: DB schema and group message pipeline — `groups` and `group_messages` tables; parallel Baileys `messages.upsert` handler for `@g.us` JIDs; `fromMe` guard; persist group messages
-- [ ] 08-02: Google Calendar service — GCP service account setup; `createGroupCalendar()`, `createEvent()`, ACL sharing; calendar ID persisted to SQLite immediately after creation
-- [ ] 08-03: Date extraction pipeline — `chrono-node` pre-filter (number presence); Gemini structured output for `{title, date, confidence}`; 10-second batch debounce; in-group confirmation message on event creation
-- [ ] 08-04: Weekly reminder scheduler — `node-cron` weekly job; `gemini.inferTasks()` over last 7 days of group messages (capped at 200); post reminder to group via `socketRef.sock`; skip if disconnected
+- [ ] 08-01-PLAN.md — DB schema extensions (group_messages, calendar_events tables, reminderHour column), group message pipeline upgrade (fromMe guard, active-group filter, sender metadata), GCP service account setup
+- [ ] 08-02-PLAN.md — Google Calendar service module: googleapis + service account JWT auth, createGroupCalendar, createCalendarEvent, shareCalendar, deleteCalendarEvent
+- [ ] 08-03-PLAN.md — Date extraction pipeline: chrono-node pre-filter, Gemini structured extraction, 10s batch debounce, calendar event creation, in-group confirmation messages, reply-to-delete
+- [ ] 08-04-PLAN.md — Weekly reminder scheduler: node-cron per-group jobs, Gemini digest generation (events + tasks + notes), language-matched posting, empty-week skip
 
 ### Phase 9: Travel Search
 **Goal**: Group members can ask the bot for travel recommendations via @mention and receive formatted search results in the group chat
@@ -144,7 +144,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 6 → 7 → 8 → 9
+Phases execute in numeric order: 6 -> 7 -> 8 -> 9
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
