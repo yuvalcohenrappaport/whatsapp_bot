@@ -9,17 +9,17 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 ## Current Position
 
-Phase: 7 of 9 (CLI Dashboard)
+Phase: 7 of 9 (CLI Dashboard) -- COMPLETE
 Plan: 3 of 3 in current phase
-Status: In Progress
-Last activity: 2026-02-23 — Completed 07-02-PLAN.md (Contact, Group & Import Commands)
+Status: Phase Complete
+Last activity: 2026-02-23 — Completed 07-03-PLAN.md (Draft Management & Calendar Members)
 
-Progress: [█████░░░░░] 45% (phases 1-3 + phase 6 complete + 07-01, 07-02 complete)
+Progress: [██████░░░░] 50% (phases 1-3 + phase 6 + phase 7 complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 15 (phases 1-3 + phase 6 + 07-01, 07-02)
+- Total plans completed: 16 (phases 1-3 + phase 6 + phase 7)
 - Average duration: unknown
 - Total execution time: unknown
 
@@ -31,11 +31,12 @@ Progress: [█████░░░░░] 45% (phases 1-3 + phase 6 complete + 
 | 2. AI Response Engine | 3/3 | — | — |
 | 3. Style Learning | 3/3 | — | — |
 | 6. Web Dashboard | 4/4 | 16min | 4min |
-| 7. CLI Dashboard | 2/3 | 6min | 3min |
+| 7. CLI Dashboard | 3/3 | 10min | 3.3min |
 
 *Updated after each plan completion*
 | Phase 07 P01 | 3min | 2 tasks | 7 files |
 | Phase 07 P02 | 3min | 2 tasks | 4 files |
+| Phase 07 P03 | 4min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -66,6 +67,9 @@ Recent decisions affecting current work:
 - renderToString for one-shot CLI table output: simpler than render+waitUntilExit for non-interactive display
 - Dynamic import of importChats after dotenv.config(): ensures .env loaded before src/config.ts Zod validation
 - process.exit(0) after import: Gemini client leaves open handles preventing natural exit
+- CLI drafts approve marks status in DB only (no WhatsApp send): CLI has no WASocket access
+- Partial ID matching for draft approve/reject via SQL LIKE: 8-char prefix suffices
+- JID normalization appends @g.us if no @ present: consistent with WhatsApp JID format
 
 ### Pending Todos
 
@@ -81,6 +85,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 07-02-PLAN.md (Contact, Group & Import Commands)
-Resume with: `/gsd:execute-phase 07` (Phase 7: CLI Dashboard — continue with 07-03)
-Resume file: .planning/phases/07-cli-dashboard/07-03-PLAN.md
+Stopped at: Completed 07-03-PLAN.md (Draft Management & Calendar Members) -- Phase 7 complete
+Resume with: `/gsd:execute-phase 08` (Phase 8: Calendar Reminders)
+Resume file: .planning/phases/08-calendar-reminders/
