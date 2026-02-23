@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 8 of 9 (Group Monitoring and Calendar)
-Plan: 2 of 4 in current phase
+Plan: 3 of 4 in current phase
 Status: Executing
-Last activity: 2026-02-23 — Phase 8 Plan 02 complete (calendar service module)
+Last activity: 2026-02-23 — Phase 8 Plan 03 complete (date extraction pipeline)
 
 Progress: [██████░░░░] 55% (phases 1-3 + phase 6 + phase 7 complete, phase 8 in progress)
 
@@ -39,6 +39,7 @@ Progress: [██████░░░░] 55% (phases 1-3 + phase 6 + phase 7 c
 | Phase 07 P03 | 4min | 2 tasks | 3 files |
 | Phase 08 P02 | 9min | 2 tasks | 3 files |
 | Phase 08 P01 | 10min | 2 tasks | 9 files |
+| Phase 08 P03 | 24min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,10 @@ Recent decisions affecting current work:
 - Lazy cached calendar client init: initCalendarAuth called once on first use, cached in module-level variable
 - Graceful null degradation for calendar: all functions return null/false/void when calendar not configured
 - [Phase 08]: Callback registration pattern (setGroupMessageCallback) for downstream pipeline: allows Plan 03 date extraction to register without modifying messageHandler again
+- zod/v3 compat import for zod-to-json-schema: zod v4 defs incompatible with zod-to-json-schema@3.x; use 'zod/v3' subpath within date extraction module
+- chrono-node installed but not used as pre-filter: Hebrew not supported; digit regex (/\d/) is sole pre-filter gate
+- In-memory calendarId cache per group: avoids re-parsing calendarLink URL on every event; warm from cache or decode from URL on first use
+- Reply-to-delete is non-debounced: immediate handling before debounce buffer for instant user feedback
 
 ### Pending Todos
 
@@ -91,9 +96,9 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: 08-01-PLAN.md fully complete (all 3 tasks done including GCP service account human-action)
-Resume with: `/gsd:execute-phase 08` on 08-03-PLAN.md (date extraction pipeline)
-Resume file: .planning/phases/08-group-monitoring-and-calendar/08-03-PLAN.md
+Stopped at: 08-03-PLAN.md fully complete (date extraction pipeline, group message pipeline, debounce)
+Resume with: `/gsd:execute-phase 08` on 08-04-PLAN.md (weekly digest/reminder cron)
+Resume file: .planning/phases/08-group-monitoring-and-calendar/08-04-PLAN.md
 
 ### Hot fixes applied this session (not part of any phase):
 - **messageHandler.ts**: Fixed `.run()` calls on `upsertContact`, `updateContactMode`, `markDraftSent`, `markDraftRejected` — these functions were changed to call `.run()` internally during Phase 6 UAT, but the messageHandler still called `.run()` on their (now void) return values, crashing on every incoming message.

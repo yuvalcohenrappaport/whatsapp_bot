@@ -64,7 +64,7 @@ Requirements for milestone v1.1: Dashboard & Groups. Each maps to roadmap phases
 
 - [x] **GRP-01**: User can designate WhatsApp groups for the bot to monitor (via dashboard or CLI)
 - [x] **GRP-02**: Bot receives and persists messages from tracked groups
-- [ ] **GRP-03**: Bot pre-filters group messages — only messages containing numbers are sent to Gemini for date extraction
+- [x] **GRP-03**: Bot pre-filters group messages — only messages containing numbers are sent to Gemini for date extraction
 - [x] **GRP-04**: Bot ignores its own outgoing messages in groups (fromMe guard)
 - [ ] **GRP-05**: Bot responds to @mentions by name in tracked groups for travel search requests
 
@@ -72,9 +72,9 @@ Requirements for milestone v1.1: Dashboard & Groups. Each maps to roadmap phases
 
 - [x] **CAL-01**: Bot uses its own dedicated Gmail account for Google Calendar operations
 - [x] **CAL-02**: Bot creates a dedicated Google Calendar for each tracked group
-- [ ] **CAL-03**: Gemini extracts dates from group messages and creates calendar events with smart titles, correct date/time, and original message as description
+- [x] **CAL-03**: Gemini extracts dates from group messages and creates calendar events with smart titles, correct date/time, and original message as description
 - [x] **CAL-04**: Bot shares the group calendar with all group members' email addresses
-- [ ] **CAL-05**: Bot confirms in the group chat when an event is added to the calendar (e.g., "Added: Flight landing March 15 at 3pm")
+- [x] **CAL-05**: Bot confirms in the group chat when an event is added to the calendar (e.g., "Added: Flight landing March 15 at 3pm")
 
 ### Weekly Reminders
 
@@ -149,14 +149,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CLI-07 | Phase 7 | Complete |
 | GRP-01 | Phase 8 | Complete |
 | GRP-02 | Phase 8 | Complete |
-| GRP-03 | Phase 8 | Pending |
+| GRP-03 | Phase 8 | Complete |
 | GRP-04 | Phase 8 | Complete |
 | GRP-05 | Phase 9 | Pending |
 | CAL-01 | Phase 8 | Complete |
 | CAL-02 | Phase 8 | Complete |
-| CAL-03 | Phase 8 | Pending |
+| CAL-03 | Phase 8 | Complete |
 | CAL-04 | Phase 8 | Complete |
-| CAL-05 | Phase 8 | Pending |
+| CAL-05 | Phase 8 | Complete |
 | REM-01 | Phase 8 | Pending |
 | REM-02 | Phase 8 | Pending |
 | TRAV-01 | Phase 9 | Pending |
