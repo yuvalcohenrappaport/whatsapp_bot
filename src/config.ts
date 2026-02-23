@@ -16,6 +16,9 @@ const envSchema = z.object({
   OWNER_EXPORT_NAME: z.string(), // User's display name as it appears in WhatsApp export files (e.g. "Yuval Cohen Rappaport")
   IMPORT_DIR: z.string().default('./data/imports'),
   PROCESSED_DIR: z.string().default('./data/processed'),
+  JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
+  DASHBOARD_PASSWORD: z.string().min(6, 'DASHBOARD_PASSWORD must be at least 6 characters'),
+  API_PORT: z.coerce.number().default(3000),
 });
 
 export type Config = z.infer<typeof envSchema>;

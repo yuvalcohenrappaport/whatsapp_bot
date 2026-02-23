@@ -46,3 +46,18 @@ export const drafts = sqliteTable('drafts', {
     .$defaultFn(() => Date.now()),
   actionedAt: integer('actioned_at'),
 });
+
+export const groups = sqliteTable('groups', {
+  id: text('id').primaryKey(), // WhatsApp group JID (e.g. 123456789@g.us)
+  name: text('name'),
+  active: integer('active', { mode: 'boolean' }).notNull().default(true),
+  reminderDay: text('reminder_day'), // 'monday' | 'tuesday' | ... | 'sunday'
+  calendarLink: text('calendar_link'),
+  memberEmails: text('member_emails'), // JSON array stored as text e.g. '["a@b.com"]'
+  createdAt: integer('created_at')
+    .notNull()
+    .$defaultFn(() => Date.now()),
+  updatedAt: integer('updated_at')
+    .notNull()
+    .$defaultFn(() => Date.now()),
+});
