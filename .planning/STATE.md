@@ -83,7 +83,7 @@ None yet.
 
 ### Blockers/Concerns
 
-- [Phase 8]: GCP service account setup must happen at Phase 8 start — do not defer to end of phase
+- [Phase 8]: GCP service account setup complete — data/service-account-key.json exists, GOOGLE_SERVICE_ACCOUNT_KEY_PATH configured in .env
 - [Phase 8]: SQLite WAL mode + busy_timeout must be set on ALL DB connections before Phase 8 writes group messages concurrently
 - [Phase 8]: Baileys 7.0.0-rc.9 `key.fromMe` behavior in group context needs validation via debug log during early Phase 8 development
 - Baileys v7.0.0-rc.9 is a release candidate — monitor stability in production
@@ -91,8 +91,8 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: 08-01-PLAN.md Task 3 (checkpoint: GCP service account setup required before calendar API calls)
-Resume with: Complete GCP service account setup (see 08-01-SUMMARY.md User Setup section), then `/gsd:execute-phase 08` on 08-03-PLAN.md (date extraction pipeline)
+Stopped at: 08-01-PLAN.md fully complete (all 3 tasks done including GCP service account human-action)
+Resume with: `/gsd:execute-phase 08` on 08-03-PLAN.md (date extraction pipeline)
 Resume file: .planning/phases/08-group-monitoring-and-calendar/08-03-PLAN.md
 
 ### Hot fixes applied this session (not part of any phase):

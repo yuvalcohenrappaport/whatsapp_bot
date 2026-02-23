@@ -71,7 +71,7 @@ completed: 2026-02-23
 - **Duration:** ~10 min
 - **Started:** 2026-02-23
 - **Completed:** 2026-02-23
-- **Tasks:** 2 of 3 (Task 3 is a human-action checkpoint for GCP service account setup)
+- **Tasks:** 3 of 3
 - **Files modified:** 8
 
 ## Accomplishments
@@ -89,7 +89,7 @@ Each task was committed atomically:
 
 1. **Task 1: DB schema extensions and query modules** - `9190fbf` (feat)
 2. **Task 2: Upgrade group message pipeline in messageHandler** - `91ade76` (feat)
-3. **Task 3: GCP Service Account Setup** - *Checkpoint: human action required*
+3. **Task 3: GCP Service Account Setup** - *Human action (confirmed complete)*
 
 ## Files Created/Modified
 
@@ -117,26 +117,13 @@ None - plan was executed exactly as written. All required schema definitions, qu
 
 None - all files compiled and migrations ran cleanly. Bot startup confirmed "Database initialized" before port conflict with already-running instance (expected in dev environment).
 
-## User Setup Required
+## User Setup
 
-**GCP Service Account setup required before calendar features work.** Task 3 is a blocking human-action checkpoint:
+**GCP Service Account setup (Task 3) confirmed complete:**
 
-1. Go to https://console.cloud.google.com/
-2. Create or select a GCP project (e.g., "whatsapp-bot")
-3. Enable Google Calendar API: APIs and Services -> Library -> Search "Google Calendar API" -> Enable
-4. Create Service Account: IAM and Admin -> Service Accounts -> Create -> Name: "whatsapp-bot-calendar" -> Done
-5. Create JSON key: Click service account -> Keys tab -> Add Key -> Create new key -> JSON -> Download
-6. Save the key to `/home/yuval/whatsapp-bot/data/service-account-key.json`
-7. Add `GOOGLE_SERVICE_ACCOUNT_KEY_PATH=./data/service-account-key.json` to `.env`
-
-**Verification:**
-```bash
-cat /home/yuval/whatsapp-bot/data/service-account-key.json | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['type'])"
-# Should print: service_account
-
-grep "GOOGLE_SERVICE_ACCOUNT_KEY_PATH" /home/yuval/whatsapp-bot/.env
-# Should show the env var is set
-```
+- `data/service-account-key.json` exists and contains valid `service_account` credentials
+- `GOOGLE_SERVICE_ACCOUNT_KEY_PATH=./data/service-account-key.json` confirmed in `.env`
+- Google Calendar API enabled in the associated GCP project (confirmed by user)
 
 ## Next Phase Readiness
 
@@ -144,8 +131,7 @@ grep "GOOGLE_SERVICE_ACCOUNT_KEY_PATH" /home/yuval/whatsapp-bot/.env
 - Group message pipeline stores messages from tracked active groups with full sender metadata
 - Callback hook ready for Plan 03 date extraction to register
 - Plan 02 (calendar service module) already complete (committed as 08-02)
-- Plan 03 (date extraction) can proceed once GCP service account is configured
-- Concern: GCP service account must be set up before Plan 03/04 calendar API calls will work
+- GCP service account configured — Plan 03 (date extraction) can proceed immediately
 
 ---
 *Phase: 08-group-monitoring-and-calendar*
