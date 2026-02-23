@@ -26,11 +26,17 @@ const logger = pino({ level: config.LOG_LEVEL });
 /** In-memory map of JID → timestamp (ms) of last auto-reply. Ephemeral — resets on restart. */
 const lastAutoReplyTime = new Map<string, number>();
 
+/** In-memory map of JID → timestamp (ms) of first auto-reply in current counting window. */
+const autoCountWindowStart = new Map<string, number>();
+
 /** Minimum milliseconds between auto-replies to the same contact. */
-const COOLDOWN_MS = 30_000; // 30 seconds
+const COOLDOWN_MS = 5_000; // 5 seconds
 
 /** Maximum consecutive auto-replies before switching to draft mode. */
-const AUTO_CAP = 10;
+const AUTO_CAP = 20;
+
+/** Auto-reply counter resets after this many milliseconds. */
+const AUTO_COUNT_RESET_MS = 30 * 60 * 1000; // 30 minutes
 
 /**
  * Tracks which contact the bot most recently sent a notification about.
@@ -49,11 +55,10 @@ function getMessageText(msg: WAMessage): string | null {
   );
 }
 
-function getContactJid(msg: WAMessage): string | null {
+function getRemoteJid(msg: WAMessage): string | null {
   const jid = msg.key.remoteJid;
   if (!jid) return null;
-  // Skip groups and status broadcasts
-  if (jid.endsWith('@g.us') || jid === 'status@broadcast') return null;
+  if (jid === 'status@broadcast') return null;
   return jid;
 }
 
@@ -148,7 +153,7 @@ async function handleOwnerCommand(
   }
 
   if (approvalTrimmed === '✅') {
-    markDraftSent(draft.id).run();
+    markDraftSent(draft.id);
     await sendWithDelay(sock, draft.contactJid, draft.body);
     // Reset auto count on draft approval per locked decision
     resetAutoCount(draft.contactJid).run();
@@ -156,7 +161,7 @@ async function handleOwnerCommand(
       text: `Sent to ${draft.contactJid}.`,
     });
   } else {
-    markDraftRejected(draft.id).run();
+    markDraftRejected(draft.id);
     await sock.sendMessage(config.USER_JID, {
       text: 'Draft rejected.',
     });
@@ -184,8 +189,8 @@ async function processMessage(sock: WASocket, msg: WAMessage): Promise<void> {
   const text = getMessageText(msg);
   if (text === null) return; // skip non-text messages
 
-  const contactJid = getContactJid(msg);
-  if (!contactJid) return; // skip groups / broadcasts
+  const remoteJid = getRemoteJid(msg);
+  if (!remoteJid) return; // skip broadcasts
 
   const fromMe = msg.key.fromMe ?? false;
 
@@ -195,6 +200,20 @@ async function processMessage(sock: WASocket, msg: WAMessage): Promise<void> {
       ? msg.messageTimestamp * 1000
       : Number(msg.messageTimestamp) * 1000
     : Date.now();
+
+  // Group messages: store and return (no reply pipeline)
+  if (remoteJid.endsWith('@g.us')) {
+    insertMessage({
+      id: msg.key.id!,
+      contactJid: remoteJid,
+      fromMe,
+      body: text,
+      timestamp,
+    }).run();
+    return;
+  }
+
+  const contactJid = remoteJid;
 
   // Self-message to own chat: route to owner command handler (draft approval, snooze, etc.)
   if (fromMe && contactJid === config.USER_JID) {
@@ -234,7 +253,7 @@ async function processMessage(sock: WASocket, msg: WAMessage): Promise<void> {
 
   // Auto-create contact if new
   const pushName = msg.pushName ?? null;
-  upsertContact(contactJid, pushName).run();
+  upsertContact(contactJid, pushName);
 
   // Route by contact mode
   const contact = getContact(contactJid);
@@ -259,11 +278,20 @@ async function processMessage(sock: WASocket, msg: WAMessage): Promise<void> {
       return;
     }
 
+    // Reset counter if 30-minute window has elapsed
+    const windowStart = autoCountWindowStart.get(contactJid);
+    if (windowStart && Date.now() - windowStart >= AUTO_COUNT_RESET_MS) {
+      resetAutoCount(contactJid).run();
+      autoCountWindowStart.delete(contactJid);
+      logger.debug({ contactJid }, 'Auto-reply counter reset (30min window elapsed)');
+    }
+
     // Check consecutive cap
-    const autoCount = contact?.consecutiveAutoCount ?? 0;
+    const freshContact = getContact(contactJid);
+    const autoCount = freshContact?.consecutiveAutoCount ?? 0;
     if (autoCount >= AUTO_CAP) {
       // Cap reached — switch to draft mode, notify owner
-      updateContactMode(contactJid, 'draft').run();
+      updateContactMode(contactJid, 'draft');
       resetAutoCount(contactJid).run();
       const name = contact?.name ?? contactJid;
       lastNotifiedJid = contactJid;
@@ -280,6 +308,9 @@ async function processMessage(sock: WASocket, msg: WAMessage): Promise<void> {
     // All clear — send auto-reply
     await sendWithDelay(sock, contactJid, reply);
     lastAutoReplyTime.set(contactJid, Date.now());
+    if (!autoCountWindowStart.has(contactJid)) {
+      autoCountWindowStart.set(contactJid, Date.now());
+    }
     incrementAutoCount(contactJid).run();
   } else if (mode === 'draft') {
     const draftId = createDraft(contactJid, msg.key.id!, reply);

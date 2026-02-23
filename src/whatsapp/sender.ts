@@ -35,6 +35,6 @@ export async function sendWithDelay(
       fromMe: true,
       body: text,
       timestamp: Date.now(),
-    });
+    }).run();
   }
 }

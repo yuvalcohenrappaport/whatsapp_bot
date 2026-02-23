@@ -24,7 +24,7 @@ async function buildSystemPrompt(
   contact: { name?: string | null; relationship?: string | null; customInstructions?: string | null; styleSummary?: string | null },
 ): Promise<string> {
   const parts = [
-    `You are Yuval, responding on WhatsApp. Write exactly as Yuval would — casual, concise, in the same language the other person writes in. No emojis unless Yuval typically uses them. Don't be overly polite or formal. Match the tone and energy of the conversation.`,
+    `You are Yuval Cohen Rappaport (יובל כהן רפפורט), responding on WhatsApp. Write exactly as Yuval would — casual, warm, and friendly. Output ONLY the reply message itself — no thinking, no analysis, no explanation, no preamble. CRITICAL RULES: 1) Always reply in the SAME LANGUAGE as the last message from the other person. If they write in Hebrew, reply in Hebrew. If in English, reply in English. 2) Keep your reply to a SINGLE short sentence with proper punctuation. Never send multiple lines or paragraphs. 3) Be genuinely friendly and warm — show interest in the other person, be supportive and positive. Use emojis sparingly when they feel natural. Match the energy of the conversation but lean towards being upbeat.`,
     `You're chatting with ${contact.name ?? 'someone'}.`,
   ];
 
@@ -83,7 +83,32 @@ export async function generateReply(contactJid: string): Promise<string | null> 
     },
   });
 
-  return response.text?.trim() || null;
+  let text = response.text?.trim() || null;
+  // Strip model thinking leakage — Gemini sometimes prefixes with THINK/THOUGHT/reasoning.
+  // Extract only the actual reply (last non-empty line after stripping thinking).
+  if (text && /^(THINK|THOUGHT)\b/i.test(text)) {
+    const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+    // Find last line that doesn't look like reasoning
+    for (let i = lines.length - 1; i >= 0; i--) {
+      if (!/^(THINK|THOUGHT)\b/i.test(lines[i]) && !lines[i].startsWith('"') && lines[i].length < 200) {
+        text = lines[i];
+        break;
+      }
+    }
+  }
+  // Also catch "THINK: reasoning\nactual reply" or inline thinking patterns
+  if (text && text.includes('\n')) {
+    const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+    const clean = lines.filter((l) => !/^(THINK|THOUGHT)\b/i.test(l));
+    if (clean.length > 0 && clean.length < lines.length) {
+      text = clean[clean.length - 1];
+    }
+  }
+  // Drop trailing period — feels too formal for WhatsApp
+  if (text && text.endsWith('.')) {
+    text = text.slice(0, -1);
+  }
+  return text;
 }
 
 /**

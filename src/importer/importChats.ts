@@ -100,7 +100,7 @@ export async function importChats(
         logger.warn({ filename, jid }, 'No owner messages found in export — skipping style import but moving file');
       } else {
         // Ensure contact exists in DB
-        upsertContact(jid, null).run();
+        upsertContact(jid, null);
 
         // Bulk insert messages with synthetic IDs for dedup
         const rows = parsed.map((body, index) => ({
@@ -111,7 +111,12 @@ export async function importChats(
           timestamp: 0,
         }));
 
-        db.insert(messagesTable).values(rows).onConflictDoNothing().run();
+        // Batch insert in chunks of 100 to avoid SQLite variable limit
+        const BATCH_SIZE = 100;
+        for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+          const batch = rows.slice(i, i + BATCH_SIZE);
+          db.insert(messagesTable).values(batch).onConflictDoNothing().run();
+        }
 
         // Generate style summary if enough messages
         if (parsed.length >= 10) {

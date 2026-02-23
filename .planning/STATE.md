@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
-**Current focus:** Milestone v1.1 — Phase 7: CLI Dashboard
+**Current focus:** Milestone v1.1 — Phase 8: Group Monitoring and Calendar
 
 ## Current Position
 
 Phase: 7 of 9 (CLI Dashboard) -- COMPLETE
 Plan: 3 of 3 in current phase
 Status: Phase Complete
-Last activity: 2026-02-23 — Completed 07-03-PLAN.md (Draft Management & Calendar Members)
+Last activity: 2026-02-23 — Phase 7 UAT passed (7/7), phase complete
 
 Progress: [██████░░░░] 50% (phases 1-3 + phase 6 + phase 7 complete)
 
@@ -85,6 +85,11 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 07-03-PLAN.md (Draft Management & Calendar Members) -- Phase 7 complete
-Resume with: `/gsd:execute-phase 08` (Phase 8: Calendar Reminders)
-Resume file: .planning/phases/08-calendar-reminders/
+Stopped at: Phase 7 complete + UAT passed (7/7). Phase 8 not yet planned.
+Resume with: `/gsd:plan-phase 8` (Phase 8: Group Monitoring and Calendar)
+Resume file: N/A — phase 8 plans not yet created
+
+### Hot fixes applied this session (not part of any phase):
+- **messageHandler.ts**: Fixed `.run()` calls on `upsertContact`, `updateContactMode`, `markDraftSent`, `markDraftRejected` — these functions were changed to call `.run()` internally during Phase 6 UAT, but the messageHandler still called `.run()` on their (now void) return values, crashing on every incoming message.
+- **importChats.ts**: Same `.run()` fix for `upsertContact` call.
+- **messageHandler.ts**: Added group message storage — `@g.us` messages now persisted to messages table (store only, no reply pipeline).
