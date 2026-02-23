@@ -12,7 +12,7 @@ export function AppLayout() {
       <div className="flex h-screen w-full bg-background text-foreground">
         <AppSidebar />
         <div className="flex flex-col flex-1 min-w-0">
-          <Topbar status={status} qr={qr} onReauth={() => {/* QR modal handled in plan 04 */}} />
+          <Topbar status={status} qr={qr} />
           <main className="flex-1 overflow-auto p-6">
             <Outlet />
           </main>
