@@ -5,7 +5,7 @@ export interface Draft {
   id: string;
   contactJid: string;
   contactName: string | null;
-  inboundMessage: string;
+  inboundMessage: { body: string; timestamp: number } | null;
   body: string;
   createdAt: number;
 }

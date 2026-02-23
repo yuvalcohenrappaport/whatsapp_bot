@@ -3,6 +3,7 @@ import { UserPlus, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog,
@@ -80,6 +81,7 @@ function AddContactDialog({
 }) {
   const { data: recentChats, isLoading } = useRecentChats();
   const addContact = useAddContact();
+  const [phone, setPhone] = useState('');
 
   function handleAdd(jid: string) {
     addContact.mutate(
@@ -87,10 +89,21 @@ function AddContactDialog({
       {
         onSuccess: () => {
           toast.success('Contact added');
+          setPhone('');
           onOpenChange(false);
         },
       },
     );
+  }
+
+  function handleAddByPhone(e: React.FormEvent) {
+    e.preventDefault();
+    const cleaned = phone.replace(/[\s\-\(\)]/g, '').replace(/^\+/, '');
+    if (!cleaned || !/^\d{7,15}$/.test(cleaned)) {
+      toast.error('Enter a valid phone number');
+      return;
+    }
+    handleAdd(`${cleaned}@s.whatsapp.net`);
   }
 
   return (
@@ -99,6 +112,20 @@ function AddContactDialog({
         <DialogHeader>
           <DialogTitle>Add Contact</DialogTitle>
         </DialogHeader>
+
+        {/* Add by phone number */}
+        <form onSubmit={handleAddByPhone} className="flex gap-2">
+          <Input
+            placeholder="Phone number (e.g. 972501234567)"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+          />
+          <Button type="submit" size="sm" disabled={addContact.isPending || !phone.trim()}>
+            Add
+          </Button>
+        </form>
+
+        <div className="text-xs text-muted-foreground -mt-2">Or pick from recent chats:</div>
 
         <div className="overflow-y-auto -mx-6 px-6 max-h-[50vh]">
           {isLoading && (
@@ -121,7 +148,7 @@ function AddContactDialog({
                 <button
                   key={chat.jid}
                   className="w-full flex items-center gap-3 p-3 rounded-lg text-left hover:bg-accent/50 transition-colors disabled:opacity-50"
-                  disabled={addContact.isPending}
+                  disabled={addContact.isPending || chat.alreadyContact}
                   onClick={() => handleAdd(chat.jid)}
                 >
                   <div className="flex-1 min-w-0">
@@ -132,7 +159,11 @@ function AddContactDialog({
                       </p>
                     )}
                   </div>
-                  <UserPlus className="size-4 text-muted-foreground shrink-0" />
+                  {chat.alreadyContact ? (
+                    <span className="text-xs text-muted-foreground shrink-0">Added</span>
+                  ) : (
+                    <UserPlus className="size-4 text-muted-foreground shrink-0" />
+                  )}
                 </button>
               ))}
             </div>

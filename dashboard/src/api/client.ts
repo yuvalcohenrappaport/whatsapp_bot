@@ -5,14 +5,23 @@ function getToken(): string {
 }
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${getToken()}`,
+    ...(init?.headers as Record<string, string> ?? {}),
+  };
+  // Only set Content-Type for requests that have a body
+  if (init?.body) {
+    headers['Content-Type'] = 'application/json';
+  }
   const res = await fetch(`${BASE}${path}`, {
     ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${getToken()}`,
-      ...(init?.headers ?? {}),
-    },
+    headers,
   });
+  if (res.status === 401) {
+    localStorage.removeItem('jwt');
+    window.location.href = '/login';
+    throw new Error('Unauthorized');
+  }
   if (!res.ok) {
     const text = await res.text();
     throw new Error(text || `HTTP ${res.status}`);

@@ -1,19 +1,27 @@
 import { createBrowserRouter } from 'react-router-dom';
+import { AuthGuard } from '@/components/AuthGuard';
 import { AppLayout } from '@/components/layout/AppLayout';
+import Login from '@/pages/Login';
 import Overview from '@/pages/Overview';
 import Contacts from '@/pages/Contacts';
 import Drafts from '@/pages/Drafts';
 import Groups from '@/pages/Groups';
 
 export const router = createBrowserRouter([
+  { path: '/login', element: <Login /> },
   {
     path: '/',
-    element: <AppLayout />,
+    element: <AuthGuard />,
     children: [
-      { index: true, element: <Overview /> },
-      { path: 'contacts', element: <Contacts /> },
-      { path: 'drafts', element: <Drafts /> },
-      { path: 'groups', element: <Groups /> },
+      {
+        element: <AppLayout />,
+        children: [
+          { index: true, element: <Overview /> },
+          { path: 'contacts', element: <Contacts /> },
+          { path: 'drafts', element: <Drafts /> },
+          { path: 'groups', element: <Groups /> },
+        ],
+      },
     ],
   },
 ]);

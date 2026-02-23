@@ -24,7 +24,7 @@ export function DraftRow({ draft }: DraftRowProps) {
             {draft.contactName ?? draft.contactJid}
           </div>
           <p className="text-sm text-muted-foreground truncate">
-            {draft.inboundMessage}
+            {draft.inboundMessage?.body ?? 'No message'}
           </p>
           {editing ? (
             <TextareaAutosize

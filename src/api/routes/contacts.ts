@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { eq, desc, notInArray, sql } from 'drizzle-orm';
+import { eq, desc, sql } from 'drizzle-orm';
 import { db } from '../../db/client.js';
 import { contacts, messages } from '../../db/schema.js';
 import { upsertContact, updateContactMode } from '../../db/queries/contacts.js';
@@ -37,37 +37,29 @@ export default async function contactRoutes(fastify: FastifyInstance) {
     },
   );
 
-  // GET /api/contacts/recent - JIDs from messages NOT already in contacts table
+  // GET /api/contacts/recent - last 10 distinct chats by most recent message
   fastify.get(
     '/api/contacts/recent',
     { onRequest: [fastify.authenticate] },
     async () => {
-      const existingJids = db
-        .select({ jid: contacts.jid })
-        .from(contacts)
-        .all()
-        .map((c) => c.jid);
-
-      const query = db
-        .selectDistinct({
+      const recentJids = db
+        .select({
           jid: messages.contactJid,
+          lastTimestamp: sql<number>`MAX(${messages.timestamp})`,
         })
-        .from(messages);
+        .from(messages)
+        .groupBy(messages.contactJid)
+        .orderBy(sql`MAX(${messages.timestamp}) DESC`)
+        .limit(10)
+        .all();
 
-      const recentJids =
-        existingJids.length > 0
-          ? query
-              .where(notInArray(messages.contactJid, existingJids))
-              .all()
-          : query.all();
+      const existingJids = new Set(
+        db.select({ jid: contacts.jid }).from(contacts).where(sql`${contacts.mode} != 'off'`).all().map((c) => c.jid),
+      );
 
-      // Get the latest message for each JID to display a name/preview
-      const result = recentJids.map((r) => {
+      return recentJids.map((r) => {
         const latest = db
-          .select({
-            body: messages.body,
-            timestamp: messages.timestamp,
-          })
+          .select({ body: messages.body, timestamp: messages.timestamp })
           .from(messages)
           .where(eq(messages.contactJid, r.jid))
           .orderBy(desc(messages.timestamp))
@@ -77,10 +69,9 @@ export default async function contactRoutes(fastify: FastifyInstance) {
         return {
           jid: r.jid,
           lastMessage: latest ?? null,
+          alreadyContact: existingJids.has(r.jid),
         };
       });
-
-      return result;
     },
   );
 

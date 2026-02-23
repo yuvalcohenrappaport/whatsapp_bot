@@ -13,6 +13,7 @@ export interface Contact {
 export interface RecentChat {
   jid: string;
   lastMessage: { body: string; timestamp: number } | null;
+  alreadyContact: boolean;
 }
 
 export function useContacts() {

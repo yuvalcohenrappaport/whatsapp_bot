@@ -20,15 +20,15 @@ export function getLatestPendingDraft() {
 }
 
 export function markDraftSent(id: string) {
-  return db
-    .update(drafts)
+  db.update(drafts)
     .set({ status: 'sent', actionedAt: Date.now() })
-    .where(and(eq(drafts.id, id), eq(drafts.status, 'pending')));
+    .where(and(eq(drafts.id, id), eq(drafts.status, 'pending')))
+    .run();
 }
 
 export function markDraftRejected(id: string) {
-  return db
-    .update(drafts)
+  db.update(drafts)
     .set({ status: 'rejected', actionedAt: Date.now() })
-    .where(and(eq(drafts.id, id), eq(drafts.status, 'pending')));
+    .where(and(eq(drafts.id, id), eq(drafts.status, 'pending')))
+    .run();
 }

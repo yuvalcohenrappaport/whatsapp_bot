@@ -7,17 +7,17 @@ export function getContact(jid: string) {
 }
 
 export function upsertContact(jid: string, name?: string | null) {
-  return db
-    .insert(contacts)
+  db.insert(contacts)
     .values({ jid, name: name ?? null })
-    .onConflictDoNothing({ target: contacts.jid });
+    .onConflictDoNothing({ target: contacts.jid })
+    .run();
 }
 
 export function updateContactMode(jid: string, mode: 'off' | 'draft' | 'auto') {
-  return db
-    .update(contacts)
+  db.update(contacts)
     .set({ mode, updatedAt: Date.now() })
-    .where(eq(contacts.jid, jid));
+    .where(eq(contacts.jid, jid))
+    .run();
 }
 
 export function setStyleSummary(jid: string, summary: string) {
