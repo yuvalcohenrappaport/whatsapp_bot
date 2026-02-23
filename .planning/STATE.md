@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 6 of 9 (Web Dashboard)
-Plan: 0 of 4 in current phase
-Status: Ready to plan
-Last activity: 2026-02-23 — Roadmap created for milestone v1.1
+Plan: 1 of 4 in current phase
+Status: Executing
+Last activity: 2026-02-23 — Completed 06-01-PLAN.md (API Backend)
 
-Progress: [██░░░░░░░░] 23% (phases 1-3 complete out of 6 total v1.1 phases starting at 6)
+Progress: [███░░░░░░░] 27% (phases 1-3 complete + plan 1/4 of phase 6)
 
 ## Performance Metrics
 
@@ -30,6 +30,7 @@ Progress: [██░░░░░░░░] 23% (phases 1-3 complete out of 6 tot
 | 1. WhatsApp Foundation | 3/3 | — | — |
 | 2. AI Response Engine | 3/3 | — | — |
 | 3. Style Learning | 3/3 | — | — |
+| 6. Web Dashboard | 1/4 | 4min | 4min |
 
 *Updated after each plan completion*
 
@@ -45,6 +46,10 @@ Recent decisions affecting current work:
 - chrono-node pre-filter before Gemini: eliminates 80-90% of Gemini calls on group messages
 - CLI imports Drizzle directly (no HTTP): same DB layer, no Fastify dependency
 - node-cron inside process (not PM2 cron_restart): PM2 restart kills WhatsApp session
+- JWT secret from Zod-validated env config, SSE uses ?token= query param for EventSource auth
+- Static plugin skips gracefully if dashboard/dist not yet built
+- Contacts DELETE is soft-delete (mode='off') to preserve message history
+- Draft approve uses shared in-process state for sock.sendMessage, returns 503 if disconnected
 
 ### Pending Todos
 
@@ -60,6 +65,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Phase 6 context gathered
-Resume with: `/gsd:plan-phase 6`
-Resume file: .planning/phases/06-web-dashboard/06-CONTEXT.md
+Stopped at: Completed 06-01-PLAN.md (API Backend)
+Resume with: `/gsd:execute-phase 06` (plan 06-02 next)
+Resume file: .planning/phases/06-web-dashboard/06-02-PLAN.md

@@ -43,12 +43,12 @@ Requirements for milestone v1.1: Dashboard & Groups. Each maps to roadmap phases
 
 ### Web Dashboard
 
-- [ ] **DASH-01**: User can view active conversations the bot is handling
-- [ ] **DASH-02**: User can approve, edit, or reject draft replies from the dashboard
-- [ ] **DASH-03**: User can manage the contact whitelist from the dashboard (add/remove/configure)
-- [ ] **DASH-04**: User can see bot connection status (connected/disconnected/reconnecting)
-- [ ] **DASH-05**: User can manage tracked groups from the dashboard (add/remove/configure)
-- [ ] **DASH-06**: User can trigger QR re-auth from the browser
+- [x] **DASH-01**: User can view active conversations the bot is handling
+- [x] **DASH-02**: User can approve, edit, or reject draft replies from the dashboard
+- [x] **DASH-03**: User can manage the contact whitelist from the dashboard (add/remove/configure)
+- [x] **DASH-04**: User can see bot connection status (connected/disconnected/reconnecting)
+- [x] **DASH-05**: User can manage tracked groups from the dashboard (add/remove/configure)
+- [x] **DASH-06**: User can trigger QR re-auth from the browser
 
 ### CLI Dashboard
 
@@ -134,12 +134,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AI-01 through AI-05 | Phase 2-3 | Complete |
 | CM-01 through CM-05 | Phase 2-3 | Complete |
 | OPS-01, OPS-02, OPS-04 | Phase 1 | Complete |
-| DASH-01 | Phase 6 | Pending |
-| DASH-02 | Phase 6 | Pending |
-| DASH-03 | Phase 6 | Pending |
-| DASH-04 | Phase 6 | Pending |
-| DASH-05 | Phase 6 | Pending |
-| DASH-06 | Phase 6 | Pending |
+| DASH-01 | Phase 6 | Complete |
+| DASH-02 | Phase 6 | Complete |
+| DASH-03 | Phase 6 | Complete |
+| DASH-04 | Phase 6 | Complete |
+| DASH-05 | Phase 6 | Complete |
+| DASH-06 | Phase 6 | Complete |
 | CLI-01 | Phase 7 | Pending |
 | CLI-02 | Phase 7 | Pending |
 | CLI-03 | Phase 7 | Pending |
