@@ -23,6 +23,7 @@ export function updateGroup(
     name: string;
     active: boolean;
     reminderDay: string;
+    reminderHour: number;
     calendarLink: string;
     memberEmails: string;
   }>,
@@ -36,4 +37,8 @@ export function updateGroup(
 
 export function deleteGroup(id: string) {
   return db.delete(groups).where(eq(groups.id, id)).run();
+}
+
+export function getActiveGroups() {
+  return db.select().from(groups).where(eq(groups.active, true)).all();
 }
