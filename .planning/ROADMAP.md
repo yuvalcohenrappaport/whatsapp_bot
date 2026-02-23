@@ -102,12 +102,12 @@ Plans:
   3. User can view pending drafts and approve or reject them from the CLI with a single command
   4. User can import a WhatsApp .txt chat history file for a contact from the CLI
   5. User can manage group member email addresses for calendar sharing from the CLI
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 07-01: CLI scaffold — Commander.js 14 + Ink 6 in `cli/` subdirectory; `status`, `contacts`, `groups`, `drafts`, `import`, `calendar` subcommand structure; direct Drizzle DB import (no HTTP)
-- [ ] 07-02: Contact and group commands — `contacts list/add/remove/configure`, `groups list/add/remove/set-reminder`; `import <file> --contact <jid>`
-- [ ] 07-03: Draft and calendar commands — `drafts list`, `drafts approve <id>`, `drafts reject <id>`; `calendar members add/remove --group <jid>`
+- [ ] 07-01-PLAN.md — CLI scaffold: Commander.js 14 + Ink 6, standalone DB client, reusable Table component, `bot status` command with PM2 programmatic API
+- [ ] 07-02-PLAN.md — Contact, group, and import commands: `contacts list/add/remove/configure`, `groups list/add/remove/set-reminder`, `import <file> --contact <jid>`
+- [ ] 07-03-PLAN.md — Draft and calendar commands: `drafts list/approve/reject`, `calendar members list/add/remove --group <jid>`
 
 ### Phase 8: Group Monitoring and Calendar
 **Goal**: The bot passively monitors designated WhatsApp groups, extracts date mentions into per-group Google Calendars, confirms extractions in-group, and posts weekly AI-inferred task reminders
