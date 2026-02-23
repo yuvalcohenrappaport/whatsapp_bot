@@ -42,3 +42,12 @@ export function deleteGroup(id: string) {
 export function getActiveGroups() {
   return db.select().from(groups).where(eq(groups.active, true)).all();
 }
+
+export function getActiveGroupIds(): string[] {
+  return db
+    .select({ id: groups.id })
+    .from(groups)
+    .where(eq(groups.active, true))
+    .all()
+    .map((row) => row.id);
+}

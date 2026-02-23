@@ -12,6 +12,7 @@ import { createMessageHandler } from './pipeline/messageHandler.js';
 import { importChats } from './importer/importChats.js';
 import { updateState } from './api/state.js';
 import { createServer } from './api/server.js';
+import { initGroupPipeline } from './groups/groupMessagePipeline.js';
 
 const logger = pino({
   level: config.LOG_LEVEL,
@@ -33,6 +34,9 @@ async function main(): Promise<void> {
   const server = await createServer();
   await server.listen({ port: config.API_PORT, host: '0.0.0.0' });
   logger.info(`API server listening on port ${config.API_PORT}`);
+
+  initGroupPipeline();
+  logger.info('Group pipeline initialized');
 
   await startSocket();
 }
