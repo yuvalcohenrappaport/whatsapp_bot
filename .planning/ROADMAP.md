@@ -67,7 +67,7 @@ Plans:
 
 **Milestone Goal:** Add web and CLI dashboards for bot management, and group chat monitoring that extracts dates to Google Calendar with weekly AI-inferred task reminders and travel search via @mention.
 
-- [ ] **Phase 6: Web Dashboard** - Fastify REST API and React SPA for managing contacts, drafts, groups, and bot status in the browser
+- [x] **Phase 6: Web Dashboard** - Fastify REST API and React SPA for managing contacts, drafts, groups, and bot status in the browser
 - [ ] **Phase 7: CLI Dashboard** - Commander.js + Ink TUI for server-side management of contacts, groups, drafts, and chat history import over SSH
 - [ ] **Phase 8: Group Monitoring and Calendar** - Group message ingestion, Google Calendar event extraction via Gemini, per-group calendar creation, in-group confirmations, and weekly AI task reminders
 - [ ] **Phase 9: Travel Search** - @mention-triggered travel search (flights, hotels, restaurants) using Gemini intent parsing and Google search scraping
@@ -87,10 +87,10 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 06-01-PLAN.md — Fastify API server: groups table schema, shared bot state module, REST endpoints (contacts, drafts, groups, status/SSE, auth), JWT plugin, static file serving
-- [ ] 06-02-PLAN.md — React dashboard scaffold: Vite 7 + React 19 + shadcn/ui + Tailwind 4 + TanStack Query; app shell (sidebar, topbar, connection badge); API client with JWT; SSE connection status hook
-- [ ] 06-03-PLAN.md — Contacts and Overview UI: ContactCard + ContactPanel (mode selector, relationship, custom instructions), add-contact picker from recent chats; Overview stat cards
-- [ ] 06-04-PLAN.md — Drafts and Groups UI: DraftRow inline edit + approve/reject; GroupCard + GroupPanel (emails, reminder day, calendar link); QR re-auth modal; end-to-end verification
+- [x] 06-01-PLAN.md — Fastify API server: groups table schema, shared bot state module, REST endpoints (contacts, drafts, groups, status/SSE, auth), JWT plugin, static file serving
+- [x] 06-02-PLAN.md — React dashboard scaffold: Vite 7 + React 19 + shadcn/ui + Tailwind 4 + TanStack Query; app shell (sidebar, topbar, connection badge); API client with JWT; SSE connection status hook
+- [x] 06-03-PLAN.md — Contacts and Overview UI: ContactCard + ContactPanel (mode selector, relationship, custom instructions), add-contact picker from recent chats; Overview stat cards
+- [x] 06-04-PLAN.md — Drafts and Groups UI: DraftRow inline edit + approve/reject; GroupCard + GroupPanel (emails, reminder day, calendar link); QR re-auth modal; end-to-end verification
 
 ### Phase 7: CLI Dashboard
 **Goal**: User can manage the bot from an SSH terminal using a one-shot CLI tool without opening a browser
@@ -151,7 +151,7 @@ Phases execute in numeric order: 6 → 7 → 8 → 9
 | 1. WhatsApp Foundation | v1.0 | 3/3 | Complete | 2026-02-22 |
 | 2. AI Response Engine | v1.0 | 3/3 | Complete | 2026-02-22 |
 | 3. Style Learning and Auto Mode | v1.0 | 3/3 | Complete | 2026-02-22 |
-| 6. Web Dashboard | v1.1 | 0/4 | Not started | - |
+| 6. Web Dashboard | v1.1 | 4/4 | Complete | 2026-02-23 |
 | 7. CLI Dashboard | v1.1 | 0/3 | Not started | - |
 | 8. Group Monitoring and Calendar | v1.1 | 0/4 | Not started | - |
 | 9. Travel Search | v1.1 | 0/2 | Not started | - |
