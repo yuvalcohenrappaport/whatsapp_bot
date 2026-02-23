@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 6 of 9 (Web Dashboard)
-Plan: 2 of 4 in current phase
+Plan: 3 of 4 in current phase
 Status: Executing
-Last activity: 2026-02-23 — Completed 06-02-PLAN.md (Dashboard Scaffold)
+Last activity: 2026-02-23 — Completed 06-03-PLAN.md (Contacts & Overview Pages)
 
-Progress: [████░░░░░░] 31% (phases 1-3 complete + plans 1-2/4 of phase 6)
+Progress: [████░░░░░░] 33% (phases 1-3 complete + plans 1-3/4 of phase 6)
 
 ## Performance Metrics
 
@@ -30,7 +30,7 @@ Progress: [████░░░░░░] 31% (phases 1-3 complete + plans 1-2/
 | 1. WhatsApp Foundation | 3/3 | — | — |
 | 2. AI Response Engine | 3/3 | — | — |
 | 3. Style Learning | 3/3 | — | — |
-| 6. Web Dashboard | 2/4 | 10min | 5min |
+| 6. Web Dashboard | 3/4 | 13min | 4.3min |
 
 *Updated after each plan completion*
 
@@ -52,6 +52,8 @@ Recent decisions affecting current work:
 - Draft approve uses shared in-process state for sock.sendMessage, returns 503 if disconnected
 - shadcn Sidebar with collapsible='none' for always-visible fixed sidebar (single user dashboard)
 - Path alias @/ in both tsconfig.json (shadcn detection) and tsconfig.app.json (TS compilation)
+- Contact mode changes save immediately on click; relationship/instructions save on blur
+- Card grid + Sheet side panel pattern for contact (and group) configuration
 
 ### Pending Todos
 
@@ -67,6 +69,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 06-02-PLAN.md (Dashboard Scaffold)
-Resume with: `/gsd:execute-phase 06` (plan 06-03 next)
-Resume file: .planning/phases/06-web-dashboard/06-03-PLAN.md
+Stopped at: Completed 06-03-PLAN.md (Contacts & Overview Pages)
+Resume with: `/gsd:execute-phase 06` (plan 06-04 next)
+Resume file: .planning/phases/06-web-dashboard/06-04-PLAN.md
