@@ -10,6 +10,8 @@ import {
 } from './whatsapp/reconnect.js';
 import { createMessageHandler } from './pipeline/messageHandler.js';
 import { importChats } from './importer/importChats.js';
+import { updateState } from './api/state.js';
+import { createServer } from './api/server.js';
 
 const logger = pino({
   level: config.LOG_LEVEL,
@@ -28,6 +30,10 @@ async function main(): Promise<void> {
   await importChats(config.IMPORT_DIR, config.PROCESSED_DIR, config.OWNER_EXPORT_NAME);
   logger.info('Chat import complete');
 
+  const server = await createServer();
+  await server.listen({ port: config.API_PORT, host: '0.0.0.0' });
+  logger.info(`API server listening on port ${config.API_PORT}`);
+
   await startSocket();
 }
 
@@ -39,19 +45,23 @@ async function main(): Promise<void> {
  */
 async function startSocket(): Promise<void> {
   const { sock } = await createSocket();
+  updateState({ sock });
 
   const callbacks: ConnectionCallbacks = {
     onQR(qr: string) {
       logger.info('QR code received — scan with your WhatsApp app');
       qrcode.generate(qr, { small: true });
+      updateState({ connection: 'qr_pending', qr });
     },
 
     onOpen() {
       logger.info('Connected to WhatsApp');
+      updateState({ connection: 'connected', qr: null, sock });
     },
 
     onReconnect(delayMs: number) {
       logger.warn({ delayMs }, 'Scheduling reconnect...');
+      updateState({ connection: 'reconnecting', qr: null });
       setTimeout(() => {
         startSocket().catch((err) => {
           logger.error(err, 'Failed to reconnect');
@@ -63,6 +73,7 @@ async function startSocket(): Promise<void> {
       logger.error(
         'Session expired or invalidated — deleting auth state and exiting',
       );
+      updateState({ connection: 'disconnected', qr: null, sock: null });
       await fs.rm(config.AUTH_DIR, { recursive: true, force: true });
       logger.info(
         'Auth state deleted. Restart the bot to scan a new QR code.',
