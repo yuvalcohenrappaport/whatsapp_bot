@@ -10,16 +10,16 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 6 of 9 (Web Dashboard)
-Plan: 1 of 4 in current phase
+Plan: 2 of 4 in current phase
 Status: Executing
-Last activity: 2026-02-23 — Completed 06-01-PLAN.md (API Backend)
+Last activity: 2026-02-23 — Completed 06-02-PLAN.md (Dashboard Scaffold)
 
-Progress: [███░░░░░░░] 27% (phases 1-3 complete + plan 1/4 of phase 6)
+Progress: [████░░░░░░] 31% (phases 1-3 complete + plans 1-2/4 of phase 6)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 9 (phases 1-3)
+- Total plans completed: 11 (phases 1-3 + 2 of phase 6)
 - Average duration: unknown
 - Total execution time: unknown
 
@@ -30,7 +30,7 @@ Progress: [███░░░░░░░] 27% (phases 1-3 complete + plan 1/4 o
 | 1. WhatsApp Foundation | 3/3 | — | — |
 | 2. AI Response Engine | 3/3 | — | — |
 | 3. Style Learning | 3/3 | — | — |
-| 6. Web Dashboard | 1/4 | 4min | 4min |
+| 6. Web Dashboard | 2/4 | 10min | 5min |
 
 *Updated after each plan completion*
 
@@ -50,6 +50,8 @@ Recent decisions affecting current work:
 - Static plugin skips gracefully if dashboard/dist not yet built
 - Contacts DELETE is soft-delete (mode='off') to preserve message history
 - Draft approve uses shared in-process state for sock.sendMessage, returns 503 if disconnected
+- shadcn Sidebar with collapsible='none' for always-visible fixed sidebar (single user dashboard)
+- Path alias @/ in both tsconfig.json (shadcn detection) and tsconfig.app.json (TS compilation)
 
 ### Pending Todos
 
@@ -65,6 +67,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 06-01-PLAN.md (API Backend)
-Resume with: `/gsd:execute-phase 06` (plan 06-02 next)
-Resume file: .planning/phases/06-web-dashboard/06-02-PLAN.md
+Stopped at: Completed 06-02-PLAN.md (Dashboard Scaffold)
+Resume with: `/gsd:execute-phase 06` (plan 06-03 next)
+Resume file: .planning/phases/06-web-dashboard/06-03-PLAN.md
