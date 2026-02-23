@@ -134,41 +134,43 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AI-01 through AI-05 | Phase 2-3 | Complete |
 | CM-01 through CM-05 | Phase 2-3 | Complete |
 | OPS-01, OPS-02, OPS-04 | Phase 1 | Complete |
-| DASH-01 | — | Pending |
-| DASH-02 | — | Pending |
-| DASH-03 | — | Pending |
-| DASH-04 | — | Pending |
-| DASH-05 | — | Pending |
-| DASH-06 | — | Pending |
-| CLI-01 | — | Pending |
-| CLI-02 | — | Pending |
-| CLI-03 | — | Pending |
-| CLI-04 | — | Pending |
-| CLI-05 | — | Pending |
-| CLI-06 | — | Pending |
-| CLI-07 | — | Pending |
-| GRP-01 | — | Pending |
-| GRP-02 | — | Pending |
-| GRP-03 | — | Pending |
-| GRP-04 | — | Pending |
-| GRP-05 | — | Pending |
-| CAL-01 | — | Pending |
-| CAL-02 | — | Pending |
-| CAL-03 | — | Pending |
-| CAL-04 | — | Pending |
-| CAL-05 | — | Pending |
-| REM-01 | — | Pending |
-| REM-02 | — | Pending |
-| TRAV-01 | — | Pending |
-| TRAV-02 | — | Pending |
-| TRAV-03 | — | Pending |
-| TRAV-04 | — | Pending |
+| DASH-01 | Phase 6 | Pending |
+| DASH-02 | Phase 6 | Pending |
+| DASH-03 | Phase 6 | Pending |
+| DASH-04 | Phase 6 | Pending |
+| DASH-05 | Phase 6 | Pending |
+| DASH-06 | Phase 6 | Pending |
+| CLI-01 | Phase 7 | Pending |
+| CLI-02 | Phase 7 | Pending |
+| CLI-03 | Phase 7 | Pending |
+| CLI-04 | Phase 7 | Pending |
+| CLI-05 | Phase 7 | Pending |
+| CLI-06 | Phase 7 | Pending |
+| CLI-07 | Phase 7 | Pending |
+| GRP-01 | Phase 8 | Pending |
+| GRP-02 | Phase 8 | Pending |
+| GRP-03 | Phase 8 | Pending |
+| GRP-04 | Phase 8 | Pending |
+| GRP-05 | Phase 9 | Pending |
+| CAL-01 | Phase 8 | Pending |
+| CAL-02 | Phase 8 | Pending |
+| CAL-03 | Phase 8 | Pending |
+| CAL-04 | Phase 8 | Pending |
+| CAL-05 | Phase 8 | Pending |
+| REM-01 | Phase 8 | Pending |
+| REM-02 | Phase 8 | Pending |
+| TRAV-01 | Phase 9 | Pending |
+| TRAV-02 | Phase 9 | Pending |
+| TRAV-03 | Phase 9 | Pending |
+| TRAV-04 | Phase 9 | Pending |
 
 **Coverage:**
-- v1.1 requirements: 28 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 28
+- v1.1 requirements: 29 total (DASH: 6, CLI: 7, GRP: 5, CAL: 5, REM: 2, TRAV: 4)
+- Mapped to phases: 29/29
+- Unmapped: 0
+
+Note: The file previously stated 28 total; an accurate count of all listed requirements is 29. All 29 are mapped.
 
 ---
 *Requirements defined: 2026-02-22*
-*Last updated: 2026-02-23 after milestone v1.1 definition*
+*Last updated: 2026-02-23 after milestone v1.1 roadmap created*
