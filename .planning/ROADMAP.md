@@ -84,13 +84,13 @@ Plans:
   3. User can add, remove, or reconfigure a contact on the whitelist from the dashboard without touching the database
   4. Dashboard shows live bot connection status (connected/disconnected/reconnecting) and a QR code re-auth button that triggers re-authentication in the browser
   5. User can add, remove, or configure tracked groups from the dashboard group management page
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 06-01: Fastify API server — REST endpoints for contacts, drafts, conversations, groups, and bot status; JWT auth; WAL+busy_timeout pragmas; static file serving for dashboard build
-- [ ] 06-02: React dashboard scaffold — Vite 7 + React 19 + shadcn/ui + Tailwind 4 + TanStack Query; routing (Contacts, Drafts, Groups, Status pages); API client; connection status indicator
-- [ ] 06-03: Contacts and conversations UI — contact list with mode toggle (off/draft/auto), per-contact configuration, active conversations view
-- [ ] 06-04: Drafts and groups UI — draft approval queue with inline edit and approve/reject; group management page; QR re-auth flow
+- [ ] 06-01-PLAN.md — Fastify API server: groups table schema, shared bot state module, REST endpoints (contacts, drafts, groups, status/SSE, auth), JWT plugin, static file serving
+- [ ] 06-02-PLAN.md — React dashboard scaffold: Vite 7 + React 19 + shadcn/ui + Tailwind 4 + TanStack Query; app shell (sidebar, topbar, connection badge); API client with JWT; SSE connection status hook
+- [ ] 06-03-PLAN.md — Contacts and Overview UI: ContactCard + ContactPanel (mode selector, relationship, custom instructions), add-contact picker from recent chats; Overview stat cards
+- [ ] 06-04-PLAN.md — Drafts and Groups UI: DraftRow inline edit + approve/reject; GroupCard + GroupPanel (emails, reminder day, calendar link); QR re-auth modal; end-to-end verification
 
 ### Phase 7: CLI Dashboard
 **Goal**: User can manage the bot from an SSH terminal using a one-shot CLI tool without opening a browser
