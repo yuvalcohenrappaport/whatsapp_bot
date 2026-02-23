@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
-**Current focus:** Milestone v1.1 — Phase 8: Group Monitoring and Calendar
+**Current focus:** Milestone v1.1 — Phase 8: Group Monitoring and Calendar (complete) — Ready for Phase 9
 
 ## Current Position
 
 Phase: 8 of 9 (Group Monitoring and Calendar)
-Plan: 3 of 4 in current phase
-Status: Executing
-Last activity: 2026-02-23 — Phase 8 Plan 03 complete (date extraction pipeline)
+Plan: 4 of 4 in current phase — COMPLETE
+Status: Phase 8 complete
+Last activity: 2026-02-23 — Phase 8 Plan 04 complete (weekly reminder scheduler)
 
-Progress: [██████░░░░] 55% (phases 1-3 + phase 6 + phase 7 complete, phase 8 in progress)
+Progress: [███████░░░] 65% (phases 1-3 + phase 6 + phase 7 + phase 8 complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 18 (phases 1-3 + phase 6 + phase 7 + phase 8 plans 01-02)
+- Total plans completed: 22 (phases 1-3 + phase 6 + phase 7 + phase 8 all 4 plans)
 - Average duration: unknown
 - Total execution time: unknown
 
@@ -40,6 +40,7 @@ Progress: [██████░░░░] 55% (phases 1-3 + phase 6 + phase 7 c
 | Phase 08 P02 | 9min | 2 tasks | 3 files |
 | Phase 08 P01 | 10min | 2 tasks | 9 files |
 | Phase 08 P03 | 24min | 2 tasks | 6 files |
+| Phase 08 P04 | 3min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -81,6 +82,9 @@ Recent decisions affecting current work:
 - chrono-node installed but not used as pre-filter: Hebrew not supported; digit regex (/\d/) is sole pre-filter gate
 - In-memory calendarId cache per group: avoids re-parsing calendarLink URL on every event; warm from cache or decode from URL on first use
 - Reply-to-delete is non-debounced: immediate handling before debounce buffer for instant user feedback
+- Per-group cron job map (scheduledJobs Map): allows stop/replace on config change without restarting all jobs
+- generateWeeklyDigest returns null for empty content: caller skips post, no empty messages sent to group
+- listUpcomingEvents added to calendarService (not inline in scheduler): reusable, consistent with service pattern
 
 ### Pending Todos
 
@@ -96,9 +100,9 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: 08-03-PLAN.md fully complete (date extraction pipeline, group message pipeline, debounce)
-Resume with: `/gsd:execute-phase 08` on 08-04-PLAN.md (weekly digest/reminder cron)
-Resume file: .planning/phases/08-group-monitoring-and-calendar/08-04-PLAN.md
+Stopped at: 08-04-PLAN.md fully complete — Phase 8 complete (weekly digest/reminder cron scheduler)
+Resume with: `/gsd:execute-phase 09` for Phase 9
+Resume file: .planning/phases/ (next phase)
 
 ### Hot fixes applied this session (not part of any phase):
 - **messageHandler.ts**: Fixed `.run()` calls on `upsertContact`, `updateContactMode`, `markDraftSent`, `markDraftRejected` — these functions were changed to call `.run()` internally during Phase 6 UAT, but the messageHandler still called `.run()` on their (now void) return values, crashing on every incoming message.

@@ -78,8 +78,8 @@ Requirements for milestone v1.1: Dashboard & Groups. Each maps to roadmap phases
 
 ### Weekly Reminders
 
-- [ ] **REM-01**: Bot posts a weekly read-only summary into each tracked group on a fixed day
-- [ ] **REM-02**: Summary contains AI-inferred unresolved tasks and upcoming commitments from the past week's chat history
+- [x] **REM-01**: Bot posts a weekly read-only summary into each tracked group on a fixed day
+- [x] **REM-02**: Summary contains AI-inferred unresolved tasks and upcoming commitments from the past week's chat history
 
 ### Travel Search
 
@@ -157,8 +157,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CAL-03 | Phase 8 | Complete |
 | CAL-04 | Phase 8 | Complete |
 | CAL-05 | Phase 8 | Complete |
-| REM-01 | Phase 8 | Pending |
-| REM-02 | Phase 8 | Pending |
+| REM-01 | Phase 8 | Complete |
+| REM-02 | Phase 8 | Complete |
 | TRAV-01 | Phase 9 | Pending |
 | TRAV-02 | Phase 9 | Pending |
 | TRAV-03 | Phase 9 | Pending |
