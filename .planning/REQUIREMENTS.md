@@ -52,7 +52,7 @@ Requirements for milestone v1.1: Dashboard & Groups. Each maps to roadmap phases
 
 ### CLI Dashboard
 
-- [ ] **CLI-01**: User can check bot status (connection, uptime, active contacts/groups)
+- [x] **CLI-01**: User can check bot status (connection, uptime, active contacts/groups)
 - [ ] **CLI-02**: User can manage contacts from CLI (add/remove/configure mode/instructions)
 - [ ] **CLI-03**: User can manage tracked groups from CLI (add/remove, set reminder day)
 - [ ] **CLI-04**: User can view recent conversations and pending drafts from CLI
@@ -140,7 +140,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DASH-04 | Phase 6 | Complete |
 | DASH-05 | Phase 6 | Complete |
 | DASH-06 | Phase 6 | Complete |
-| CLI-01 | Phase 7 | Pending |
+| CLI-01 | Phase 7 | Complete |
 | CLI-02 | Phase 7 | Pending |
 | CLI-03 | Phase 7 | Pending |
 | CLI-04 | Phase 7 | Pending |

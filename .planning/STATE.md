@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
-**Current focus:** Milestone v1.1 — Phase 6: Web Dashboard
+**Current focus:** Milestone v1.1 — Phase 7: CLI Dashboard
 
 ## Current Position
 
-Phase: 6 of 9 (Web Dashboard)
-Plan: 4 of 4 in current phase
-Status: Phase Complete
-Last activity: 2026-02-23 — Completed 06-04-PLAN.md (Drafts, Groups, QR Modal)
+Phase: 7 of 9 (CLI Dashboard)
+Plan: 2 of 3 in current phase
+Status: In Progress
+Last activity: 2026-02-23 — Completed 07-01-PLAN.md (CLI Foundation)
 
-Progress: [████░░░░░░] 38% (phases 1-3 complete + phase 6 complete)
+Progress: [█████░░░░░] 42% (phases 1-3 + phase 6 complete + 07-01 complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 13 (phases 1-3 + 4 of phase 6)
+- Total plans completed: 14 (phases 1-3 + phase 6 + 07-01)
 - Average duration: unknown
 - Total execution time: unknown
 
@@ -31,9 +31,10 @@ Progress: [████░░░░░░] 38% (phases 1-3 complete + phase 6 co
 | 2. AI Response Engine | 3/3 | — | — |
 | 3. Style Learning | 3/3 | — | — |
 | 6. Web Dashboard | 4/4 | 16min | 4min |
+| 7. CLI Dashboard | 1/3 | 3min | 3min |
 
 *Updated after each plan completion*
-| Phase 06 P04 | 3min | 3 tasks | 12 files |
+| Phase 07 P01 | 3min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -59,6 +60,8 @@ Recent decisions affecting current work:
 - GroupPanel saves on blur/change for immediate persistence
 - Member emails stored as JSON array string, parsed on render
 - DraftRow inline edit: local body state preserved across edit/blur cycles, sent on Approve
+- Static Ink render (no useApp/exit) for CLI status: pure functional component, Ink exits naturally
+- PM2 installed as local dep for CLI programmatic API: global pm2 not importable from ESM
 
 ### Pending Todos
 
@@ -74,6 +77,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 06-04-PLAN.md (Drafts, Groups, QR Modal) — Phase 6 complete
-Resume with: `/gsd:execute-phase 07` (Phase 7: CLI Dashboard)
-Resume file: .planning/phases/07-cli-dashboard/07-01-PLAN.md
+Stopped at: Completed 07-01-PLAN.md (CLI Foundation)
+Resume with: `/gsd:execute-phase 07` (Phase 7: CLI Dashboard — continue with 07-02)
+Resume file: .planning/phases/07-cli-dashboard/07-02-PLAN.md
