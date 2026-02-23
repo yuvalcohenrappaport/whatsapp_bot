@@ -60,5 +60,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Roadmap created for milestone v1.1 — ready to plan Phase 6
+Stopped at: Phase 6 context gathered
 Resume with: `/gsd:plan-phase 6`
+Resume file: .planning/phases/06-web-dashboard/06-CONTEXT.md
