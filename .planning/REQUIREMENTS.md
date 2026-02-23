@@ -53,11 +53,11 @@ Requirements for milestone v1.1: Dashboard & Groups. Each maps to roadmap phases
 ### CLI Dashboard
 
 - [x] **CLI-01**: User can check bot status (connection, uptime, active contacts/groups)
-- [ ] **CLI-02**: User can manage contacts from CLI (add/remove/configure mode/instructions)
-- [ ] **CLI-03**: User can manage tracked groups from CLI (add/remove, set reminder day)
+- [x] **CLI-02**: User can manage contacts from CLI (add/remove/configure mode/instructions)
+- [x] **CLI-03**: User can manage tracked groups from CLI (add/remove, set reminder day)
 - [ ] **CLI-04**: User can view recent conversations and pending drafts from CLI
 - [ ] **CLI-05**: User can approve or reject drafts from CLI
-- [ ] **CLI-06**: User can import WhatsApp chat history (.txt) from CLI
+- [x] **CLI-06**: User can import WhatsApp chat history (.txt) from CLI
 - [ ] **CLI-07**: User can manage group member emails for calendar sharing from CLI
 
 ### Group Monitoring
@@ -141,11 +141,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DASH-05 | Phase 6 | Complete |
 | DASH-06 | Phase 6 | Complete |
 | CLI-01 | Phase 7 | Complete |
-| CLI-02 | Phase 7 | Pending |
-| CLI-03 | Phase 7 | Pending |
+| CLI-02 | Phase 7 | Complete |
+| CLI-03 | Phase 7 | Complete |
 | CLI-04 | Phase 7 | Pending |
 | CLI-05 | Phase 7 | Pending |
-| CLI-06 | Phase 7 | Pending |
+| CLI-06 | Phase 7 | Complete |
 | CLI-07 | Phase 7 | Pending |
 | GRP-01 | Phase 8 | Pending |
 | GRP-02 | Phase 8 | Pending |

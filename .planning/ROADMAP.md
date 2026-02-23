@@ -105,8 +105,8 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 07-01-PLAN.md — CLI scaffold: Commander.js 14 + Ink 6, standalone DB client, reusable Table component, `bot status` command with PM2 programmatic API
-- [ ] 07-02-PLAN.md — Contact, group, and import commands: `contacts list/add/remove/configure`, `groups list/add/remove/set-reminder`, `import <file> --contact <jid>`
+- [x] 07-01-PLAN.md — CLI scaffold: Commander.js 14 + Ink 6, standalone DB client, reusable Table component, `bot status` command with PM2 programmatic API
+- [x] 07-02-PLAN.md — Contact, group, and import commands: `contacts list/add/remove/configure`, `groups list/add/remove/set-reminder`, `import <file> --contact <jid>`
 - [ ] 07-03-PLAN.md — Draft and calendar commands: `drafts list/approve/reject`, `calendar members list/add/remove --group <jid>`
 
 ### Phase 8: Group Monitoring and Calendar
@@ -152,6 +152,6 @@ Phases execute in numeric order: 6 → 7 → 8 → 9
 | 2. AI Response Engine | v1.0 | 3/3 | Complete | 2026-02-22 |
 | 3. Style Learning and Auto Mode | v1.0 | 3/3 | Complete | 2026-02-22 |
 | 6. Web Dashboard | v1.1 | 4/4 | Complete | 2026-02-23 |
-| 7. CLI Dashboard | v1.1 | 0/3 | Not started | - |
+| 7. CLI Dashboard | v1.1 | 2/3 | In Progress | - |
 | 8. Group Monitoring and Calendar | v1.1 | 0/4 | Not started | - |
 | 9. Travel Search | v1.1 | 0/2 | Not started | - |
