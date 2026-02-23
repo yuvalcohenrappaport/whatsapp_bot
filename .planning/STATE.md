@@ -38,6 +38,7 @@ Progress: [██████░░░░] 55% (phases 1-3 + phase 6 + phase 7 c
 | Phase 07 P02 | 3min | 2 tasks | 4 files |
 | Phase 07 P03 | 4min | 2 tasks | 3 files |
 | Phase 08 P02 | 9min | 2 tasks | 3 files |
+| Phase 08 P01 | 10min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -74,6 +75,7 @@ Recent decisions affecting current work:
 - google.auth.JWT over GoogleAuth for service account: simpler, no GOOGLE_APPLICATION_CREDENTIALS env var needed
 - Lazy cached calendar client init: initCalendarAuth called once on first use, cached in module-level variable
 - Graceful null degradation for calendar: all functions return null/false/void when calendar not configured
+- [Phase 08]: Callback registration pattern (setGroupMessageCallback) for downstream pipeline: allows Plan 03 date extraction to register without modifying messageHandler again
 
 ### Pending Todos
 
@@ -89,8 +91,8 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 08-02-PLAN.md (calendar service module)
-Resume with: `/gsd:execute-phase 08` on 08-03-PLAN.md (date extraction pipeline)
+Stopped at: 08-01-PLAN.md Task 3 (checkpoint: GCP service account setup required before calendar API calls)
+Resume with: Complete GCP service account setup (see 08-01-SUMMARY.md User Setup section), then `/gsd:execute-phase 08` on 08-03-PLAN.md (date extraction pipeline)
 Resume file: .planning/phases/08-group-monitoring-and-calendar/08-03-PLAN.md
 
 ### Hot fixes applied this session (not part of any phase):
