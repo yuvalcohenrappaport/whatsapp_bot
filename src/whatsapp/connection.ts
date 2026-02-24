@@ -21,7 +21,7 @@ export async function createSocket() {
   const sock = makeWASocket({
     auth: state,
     logger,
-    browser: Browsers.ubuntu('Chrome'),
+    browser: Browsers.macOS('Chrome'),
     markOnlineOnConnect: false, // Prevents stopping phone notifications
     getMessage: async () => undefined, // Stub — real DB lookup added in Phase 2+
   });

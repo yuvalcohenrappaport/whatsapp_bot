@@ -31,7 +31,7 @@ export interface ConnectionCallbacks {
  * Handles Baileys connection.update events and routes to the appropriate callback.
  *
  * Disconnect reason routing:
- * - 401 (loggedOut), 403 (forbidden), 500 (badSession): session invalidated -> onLoggedOut
+ * - 401 (loggedOut), 403 (forbidden), 405 (connectionClosed), 500 (badSession): session invalidated -> onLoggedOut
  * - 440 (connectionReplaced): another session took over -> log warning, no reconnect
  * - All others (408, 411, 428, 515, 503, etc.): transient -> exponential backoff reconnect
  * - connection === 'open': reset retry count -> onOpen
@@ -52,9 +52,12 @@ export function handleConnectionUpdate(
     const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
 
     // Session permanently invalidated — delete and require re-auth
+    // 401 = loggedOut, 403 = forbidden, 405 = connectionClosed (stale session),
+    // 500 = badSession
     if (
       statusCode === DisconnectReason.loggedOut ||
       statusCode === DisconnectReason.forbidden ||
+      statusCode === DisconnectReason.connectionClosed ||
       statusCode === DisconnectReason.badSession
     ) {
       callbacks.onLoggedOut();

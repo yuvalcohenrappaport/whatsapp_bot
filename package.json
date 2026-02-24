@@ -12,7 +12,8 @@
     "start": "tsx src/index.ts",
     "cli": "tsx cli/bot.ts",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "postinstall": "patch-package"
   },
   "keywords": [],
   "author": "",
