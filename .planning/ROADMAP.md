@@ -125,7 +125,7 @@ Plans:
 - [x] 08-01-PLAN.md — DB schema extensions (group_messages, calendar_events tables, reminderHour column), group message pipeline upgrade (fromMe guard, active-group filter, sender metadata), GCP service account setup
 - [x] 08-02-PLAN.md — Google Calendar service module: googleapis + service account JWT auth, createGroupCalendar, createCalendarEvent, shareCalendar, deleteCalendarEvent
 - [x] 08-03-PLAN.md — Date extraction pipeline: chrono-node pre-filter, Gemini structured extraction, 10s batch debounce, calendar event creation, in-group confirmation messages, reply-to-delete
-- [ ] 08-04-PLAN.md — Weekly reminder scheduler: node-cron per-group jobs, Gemini digest generation (events + tasks + notes), language-matched posting, empty-week skip
+- [x] 08-04-PLAN.md — Weekly reminder scheduler: node-cron per-group jobs, Gemini digest generation (events + tasks + notes), language-matched posting, empty-week skip
 
 ### Phase 9: Travel Search
 **Goal**: Group members can ask the bot for travel recommendations via @mention and receive formatted search results in the group chat
@@ -135,11 +135,11 @@ Plans:
   1. A group member can @mention the bot with a travel request (flight, hotel, restaurant) and the bot responds in the group
   2. Bot correctly parses destination, dates, and travel type from the @mention message using Gemini
   3. Bot sends a formatted message with 3-5 travel options (name, price, link) directly into the group chat
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 09-01: @mention detection — extend group monitor handler to detect bot's own JID in message mentions; route to travel search pipeline
-- [ ] 09-02: Travel search — Gemini intent parsing for destination, dates, and type; Google search scraper on server (`playwright` or `node-fetch` + HTML parse); format and send top 3-5 results to group
+- [ ] 09-01-PLAN.md — @mention detection and Gemini intent parsing: extend callback to pass mentionedJids, bot identity in state, travel handler with dual mention detection, travelParser with Zod schema structured output
+- [ ] 09-02-PLAN.md — Travel search and formatting: cheerio Google scraper with multi-selector cascade, Gemini knowledge fallback, rich card formatter, reply chain tracking, per-group rate limiting
 
 ## Progress
 
@@ -153,5 +153,5 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9
 | 3. Style Learning and Auto Mode | v1.0 | 3/3 | Complete | 2026-02-22 |
 | 6. Web Dashboard | v1.1 | 4/4 | Complete | 2026-02-23 |
 | 7. CLI Dashboard | v1.1 | 3/3 | Complete | 2026-02-23 |
-| 8. Group Monitoring and Calendar | 4/4 | Complete    | 2026-02-23 | - |
+| 8. Group Monitoring and Calendar | v1.1 | 4/4 | Complete | 2026-02-23 |
 | 9. Travel Search | v1.1 | 0/2 | Not started | - |
