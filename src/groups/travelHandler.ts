@@ -60,7 +60,6 @@ function isBotMentioned(
   body: string,
   mentionedJids: string[],
   botJid: string,
-  botDisplayName: string | null,
 ): boolean {
   // Native @mention: match on numeric prefix (handles @s.whatsapp.net vs @lid)
   const botNumericPrefix = botJid.split('@')[0];
@@ -69,12 +68,9 @@ function isBotMentioned(
   );
   if (jidMatches) return true;
 
-  // Text mention: user typed "@BotName" or "BotName" in message body
-  if (botDisplayName) {
-    const lowerBody = body.toLowerCase();
-    const lowerName = botDisplayName.toLowerCase();
-    if (lowerBody.includes(lowerName)) return true;
-  }
+  // Text mention: user typed "@bot" or "בוט" in message body
+  const lowerBody = body.toLowerCase();
+  if (lowerBody.includes('@bot') || lowerBody.includes('בוט')) return true;
 
   return false;
 }
@@ -132,7 +128,7 @@ export async function handleTravelMention(
     quotedMessageId !== null && travelResultMessages.has(quotedMessageId);
 
   // Check if bot is mentioned (or this is a reply chain follow-up)
-  if (!isReplyToTravelResult && !isBotMentioned(msg.body, mentionedJids, botJid, botDisplayName)) {
+  if (!isReplyToTravelResult && !isBotMentioned(msg.body, mentionedJids, botJid)) {
     return false;
   }
 

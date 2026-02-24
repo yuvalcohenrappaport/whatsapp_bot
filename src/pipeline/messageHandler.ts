@@ -222,13 +222,7 @@ async function processMessage(sock: WASocket, msg: WAMessage): Promise<void> {
 
   // Group messages: persist tracked group messages with sender info
   if (remoteJid.endsWith('@g.us')) {
-    // Ignore bot's own outgoing messages in groups
-    if (fromMe) {
-      logger.debug({ groupJid: remoteJid }, 'Ignoring own group message');
-      return;
-    }
-
-    // Only persist messages from tracked, active groups
+    // Only process messages from tracked, active groups
     const group = getGroup(remoteJid);
     if (!group || group.active !== true) {
       return; // Silently drop non-tracked/inactive group messages
@@ -237,6 +231,25 @@ async function processMessage(sock: WASocket, msg: WAMessage): Promise<void> {
     // Extract sender info from Baileys group message structure
     const senderJid = msg.key.participant ?? '';
     const senderName = msg.pushName ?? null;
+
+    // Extract reply/mention context (needed for travel handler even on fromMe)
+    const quotedMessageId =
+      msg.message?.extendedTextMessage?.contextInfo?.stanzaId ?? null;
+    const mentionedJids: string[] =
+      (msg.message?.extendedTextMessage?.contextInfo?.mentionedJid as string[] | undefined) ?? [];
+
+    // Skip persistence and date extraction for own messages,
+    // but still invoke the downstream pipeline callback so travel @mentions work
+    // (the bot runs on the user's own account, so user messages are fromMe)
+    if (fromMe) {
+      groupMessageCallback?.(
+        remoteJid,
+        { id: msg.key.id!, senderJid, senderName, body: text, timestamp },
+        quotedMessageId,
+        mentionedJids,
+      );
+      return;
+    }
 
     // Persist to dedicated groupMessages table
     insertGroupMessage({
@@ -250,10 +263,6 @@ async function processMessage(sock: WASocket, msg: WAMessage): Promise<void> {
     }).run();
 
     // Invoke downstream pipeline callback (e.g., date extraction, travel search)
-    const quotedMessageId =
-      msg.message?.extendedTextMessage?.contextInfo?.stanzaId ?? null;
-    const mentionedJids: string[] =
-      (msg.message?.extendedTextMessage?.contextInfo?.mentionedJid as string[] | undefined) ?? [];
     groupMessageCallback?.(
       remoteJid,
       { id: msg.key.id!, senderJid, senderName, body: text, timestamp },
