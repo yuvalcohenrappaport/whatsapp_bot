@@ -20,6 +20,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { useUpdateGroup, useDeleteGroup } from '@/hooks/useGroups';
 import type { Group } from '@/hooks/useGroups';
+import { KeywordRuleList } from './KeywordRuleList';
 
 interface GroupPanelProps {
   group: Group;
@@ -227,6 +228,9 @@ export function GroupPanel({ group, onClose }: GroupPanelProps) {
             </Button>
           </div>
         </div>
+
+        <Separator />
+        <KeywordRuleList groupJid={group.id} />
       </div>
 
       <div className="p-4 border-t border-border">
