@@ -2,24 +2,53 @@ import pino from 'pino';
 import { config } from '../config.js';
 import { getState } from '../api/state.js';
 import { parseTravelIntent, type TravelIntent } from './travelParser.js';
+import { searchTravel } from './travelSearch.js';
+import { formatTravelResults, formatHelpText } from './travelFormatter.js';
 import { getGroupMessagesSince } from '../db/queries/groupMessages.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
 
-// Re-export TravelIntent so Plan 02 can import from this module
+// Re-export TravelIntent so downstream modules can import from this module
 export type { TravelIntent };
 
-// --- Reply chain context stub ---
+// --- Reply chain context ---
 
 /**
  * In-memory map of bot travel result message IDs to their context.
- * Plan 02 will populate this after sending search results.
  * Ephemeral -- resets on restart (follow-up replies fall through to clarification naturally).
+ * Capped at 500 entries to prevent unbounded memory growth.
  */
 export const travelResultMessages = new Map<
   string,
   { query: string; results: string; groupJid: string }
 >();
+
+const TRAVEL_RESULT_MAP_MAX = 500;
+
+/**
+ * Store a travel result message in the Map, evicting the oldest entry if over cap.
+ */
+function storeTravelResult(
+  msgId: string,
+  entry: { query: string; results: string; groupJid: string },
+): void {
+  if (travelResultMessages.size >= TRAVEL_RESULT_MAP_MAX) {
+    // Delete the oldest entry (first key in Map iteration order)
+    const firstKey = travelResultMessages.keys().next().value;
+    if (firstKey !== undefined) {
+      travelResultMessages.delete(firstKey);
+    }
+  }
+  travelResultMessages.set(msgId, entry);
+}
+
+// --- Per-group rate limiting ---
+
+/** Per-group last request timestamp for rate limiting (groupJid -> epoch ms). */
+const lastRequestTime = new Map<string, number>();
+
+/** Minimum interval between travel search requests per group (30 seconds). */
+const RATE_LIMIT_MS = 30_000;
 
 // --- Bot mention detection ---
 
@@ -62,32 +91,14 @@ async function getDetectGroupLanguage(): Promise<(groupJid: string) => Promise<'
   return detectGroupLanguageFn;
 }
 
-// --- Help text ---
-
-function buildHelpText(lang: 'he' | 'en', botName: string): string {
-  if (lang === 'he') {
-    return (
-      `היי! אני יכול לעזור לך למצוא דילים לטיולים. נסו לתייג אותי עם משהו כמו:\n\n` +
-      `@${botName} טיסות לרומא שבוע הבא\n` +
-      `@${botName} מלונות בברצלונה 10-15 במרץ\n` +
-      `@${botName} מסעדות ליד מגדל אייפל\n\n` +
-      `אחפש ואשתף את האפשרויות הכי טובות כאן!`
-    );
-  }
-  return (
-    `Hey! I can help you find travel deals. Try mentioning me with something like:\n\n` +
-    `@${botName} flights to Rome next week\n` +
-    `@${botName} hotels in Barcelona March 10-15\n` +
-    `@${botName} restaurants near the Eiffel Tower\n\n` +
-    `I'll search and share the best options right here!`
-  );
-}
-
 // --- Main handler ---
 
 /**
  * Handle a potential travel @mention in a group message.
  * Returns true if the message was an @mention (handled), false if not (caller continues to debounce).
+ *
+ * Also handles reply chain follow-ups: replying to a travel result message
+ * triggers a follow-up search with context from the original query, even without @mention.
  *
  * Runs immediately -- not debounced. Same pattern as reply-to-delete.
  */
@@ -114,15 +125,21 @@ export async function handleTravelMention(
     return false;
   }
 
-  // Check if bot is mentioned
-  if (!isBotMentioned(msg.body, mentionedJids, botJid, botDisplayName)) {
+  // --- Reply chain detection ---
+  // If the message is a reply to a previous travel result, treat it as a travel
+  // follow-up regardless of @mention presence.
+  const isReplyToTravelResult =
+    quotedMessageId !== null && travelResultMessages.has(quotedMessageId);
+
+  // Check if bot is mentioned (or this is a reply chain follow-up)
+  if (!isReplyToTravelResult && !isBotMentioned(msg.body, mentionedJids, botJid, botDisplayName)) {
     return false;
   }
 
-  // Bot is mentioned -- handle immediately
+  // Bot is mentioned or this is a follow-up reply -- handle immediately
   logger.info(
-    { groupJid, msgId: msg.id, senderJid: msg.senderJid },
-    'Bot @mention detected in group message',
+    { groupJid, msgId: msg.id, senderJid: msg.senderJid, isReplyToTravelResult },
+    'Bot @mention or travel reply chain detected in group message',
   );
 
   if (!sock) {
@@ -133,6 +150,18 @@ export async function handleTravelMention(
   // Detect language for responses
   const detectGroupLanguage = await getDetectGroupLanguage();
   const lang = await detectGroupLanguage(groupJid);
+
+  // --- Per-group rate limiting ---
+  const lastTime = lastRequestTime.get(groupJid);
+  if (lastTime && Date.now() - lastTime < RATE_LIMIT_MS) {
+    const rateLimitText =
+      lang === 'he'
+        ? 'בבקשה המתינו רגע לפני החיפוש הבא.'
+        : 'Please wait a moment before the next search.';
+    await sock.sendMessage(groupJid, { text: rateLimitText });
+    return true;
+  }
+  lastRequestTime.set(groupJid, Date.now());
 
   // Send "Searching..." indicator immediately (before Gemini parsing)
   const searchingText = lang === 'he' ? '...מחפש' : 'Searching...';
@@ -156,7 +185,7 @@ export async function handleTravelMention(
     : null;
   if (priorContext) {
     recentContext =
-      `[Previous travel query: ${priorContext.query}]\n[Previous results: ${priorContext.results}]\n\n` +
+      `Previous search query: ${priorContext.query}\nPrevious results:\n${priorContext.results}\n\nUser follow-up: ${msg.body}\n\n` +
       recentContext;
   }
 
@@ -165,7 +194,7 @@ export async function handleTravelMention(
 
   // Non-travel mention or parsing failed: send help text
   if (!intent || intent.isTravelRelated === false) {
-    const helpText = buildHelpText(lang, botDisplayName);
+    const helpText = formatHelpText(botDisplayName, lang);
     await sock.sendMessage(groupJid, { text: helpText });
     return true;
   }
@@ -176,24 +205,55 @@ export async function handleTravelMention(
     return true;
   }
 
-  // Clear travel request: placeholder for Plan 02 (actual search + format)
+  // Clear travel request: search + format + send
   if (intent.isTravelRelated === true && intent.isVague === false) {
-    const placeholderText =
-      lang === 'he'
-        ? `חיפוש טיולים בקרוב! שאילתה: ${intent.searchQuery ?? msg.body}`
-        : `Travel search coming soon! Query: ${intent.searchQuery ?? msg.body}`;
+    try {
+      const queryText = intent.searchQuery ?? msg.body;
 
-    logger.info(
-      { groupJid, intent },
-      'Travel intent parsed -- placeholder response (Plan 02 will add search)',
-    );
+      logger.info(
+        { groupJid, queryText, intent },
+        'Travel intent parsed -- executing search',
+      );
 
-    await sock.sendMessage(groupJid, { text: placeholderText });
+      const { results, isFallback } = await searchTravel(queryText, lang);
+      const formattedMessage = formatTravelResults(results, lang, isFallback);
+
+      const sent = await sock.sendMessage(groupJid, { text: formattedMessage });
+
+      // Store the sent message ID for reply chain follow-ups
+      const sentMsgId = sent?.key?.id;
+      if (sentMsgId) {
+        storeTravelResult(sentMsgId, {
+          query: queryText,
+          results: formattedMessage,
+          groupJid,
+        });
+        logger.debug(
+          { sentMsgId, query: queryText },
+          'Travel result message stored for reply chain',
+        );
+      }
+    } catch (err) {
+      logger.error(
+        { err, groupJid, msgId: msg.id },
+        'Error during travel search + format pipeline',
+      );
+
+      // Send friendly error message -- never crash the pipeline
+      const errorText =
+        lang === 'he'
+          ? 'סליחה, משהו השתבש בחיפוש. נסו שוב.'
+          : 'Sorry, something went wrong with the search. Please try again.';
+      await sock.sendMessage(groupJid, { text: errorText }).catch((sendErr) => {
+        logger.error({ sendErr, groupJid }, 'Failed to send error message to group');
+      });
+    }
+
     return true;
   }
 
   // Fallback: help text for any unhandled @mention state
-  const helpText = buildHelpText(lang, botDisplayName);
+  const helpText = formatHelpText(botDisplayName, lang);
   await sock.sendMessage(groupJid, { text: helpText });
   return true;
 }
