@@ -19,6 +19,7 @@ import {
 import { getState } from '../api/state.js';
 import { setGroupMessageCallback } from '../pipeline/messageHandler.js';
 import { handleTravelMention } from './travelHandler.js';
+import { handleKeywordRules } from './keywordHandler.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
 
@@ -401,11 +402,14 @@ export function initGroupPipeline(): void {
       mentionedJids: string[],
     ) => {
       try {
-        // Travel @mention -- runs immediately, not debounced
+        // Travel @mention -- runs immediately, terminal
         const wasTravel = await handleTravelMention(groupJid, msg, quotedMessageId, mentionedJids);
         if (wasTravel) return;
 
-        // Reply-to-delete -- runs immediately, not debounced
+        // Keyword auto-response -- runs immediately, non-terminal
+        await handleKeywordRules(groupJid, msg);
+
+        // Reply-to-delete -- runs immediately, terminal
         const wasDelete = await handleReplyToDelete(groupJid, msg, quotedMessageId);
         if (wasDelete) return;
 
