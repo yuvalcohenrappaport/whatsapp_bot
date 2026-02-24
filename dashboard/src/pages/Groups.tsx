@@ -4,40 +4,19 @@ import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from '@/components/ui/dialog';
 import { GroupCard } from '@/components/groups/GroupCard';
-import { useGroups, useAddGroup } from '@/hooks/useGroups';
+import { useGroups, useAddGroup, useParticipatingGroups } from '@/hooks/useGroups';
 
 export default function Groups() {
   const { data: groups, isLoading } = useGroups();
-  const addGroup = useAddGroup();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [newJid, setNewJid] = useState('');
-  const [newName, setNewName] = useState('');
-
-  function handleAdd() {
-    const jid = newJid.trim();
-    if (!jid) return;
-    addGroup.mutate(
-      { id: jid, name: newName.trim() || undefined },
-      {
-        onSuccess: () => {
-          toast.success('Group added');
-          setDialogOpen(false);
-          setNewJid('');
-          setNewName('');
-        },
-      },
-    );
-  }
 
   return (
     <div>
@@ -75,41 +54,107 @@ export default function Groups() {
         </div>
       )}
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Add Group</DialogTitle>
-            <DialogDescription>
-              Enter the WhatsApp group JID and an optional name.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Group JID</Label>
-              <Input
-                value={newJid}
-                onChange={(e) => setNewJid(e.target.value)}
-                placeholder="123456789@g.us"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Name (optional)</Label>
-              <Input
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                placeholder="Trip Planning"
-              />
-            </div>
-            <Button
-              className="w-full"
-              onClick={handleAdd}
-              disabled={!newJid.trim() || addGroup.isPending}
-            >
-              Add Group
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <AddGroupDialog open={dialogOpen} onOpenChange={setDialogOpen} />
     </div>
+  );
+}
+
+function AddGroupDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { data: participating, isLoading } = useParticipatingGroups();
+  const addGroup = useAddGroup();
+  const [jid, setJid] = useState('');
+
+  function handleAdd(groupJid: string, name?: string) {
+    addGroup.mutate(
+      { id: groupJid, name },
+      {
+        onSuccess: () => {
+          toast.success('Group added');
+          setJid('');
+          onOpenChange(false);
+        },
+      },
+    );
+  }
+
+  function handleAddByJid(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmed = jid.trim();
+    if (!trimmed) return;
+    handleAdd(trimmed);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[70vh]">
+        <DialogHeader>
+          <DialogTitle>Add Group</DialogTitle>
+        </DialogHeader>
+
+        <form onSubmit={handleAddByJid} className="flex gap-2">
+          <Input
+            placeholder="Group JID (e.g. 123456789@g.us)"
+            value={jid}
+            onChange={(e) => setJid(e.target.value)}
+          />
+          <Button type="submit" size="sm" disabled={addGroup.isPending || !jid.trim()}>
+            Add
+          </Button>
+        </form>
+
+        <div className="text-xs text-muted-foreground -mt-2">Or pick from your WhatsApp groups:</div>
+
+        <div className="overflow-y-auto -mx-6 px-6 max-h-[50vh]">
+          {isLoading && (
+            <div className="space-y-3 py-2">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          )}
+
+          {!isLoading && (!participating || participating.length === 0) && (
+            <div className="py-8 text-center text-muted-foreground">
+              <p>No WhatsApp groups found</p>
+            </div>
+          )}
+
+          {!isLoading && participating && participating.length > 0 && (
+            <div className="space-y-1 py-2">
+              {participating.map((group) => (
+                <button
+                  key={group.jid}
+                  className="w-full flex items-center gap-3 p-3 rounded-lg text-left hover:bg-accent/50 transition-colors disabled:opacity-50"
+                  disabled={addGroup.isPending || group.alreadyTracked}
+                  onClick={() => handleAdd(group.jid, group.name ?? undefined)}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate">
+                      {group.name ?? group.jid}
+                    </p>
+                    {group.name && (
+                      <p className="text-xs text-muted-foreground truncate mt-0.5">
+                        {group.jid}
+                      </p>
+                    )}
+                  </div>
+                  {group.alreadyTracked ? (
+                    <span className="text-xs text-muted-foreground shrink-0">Added</span>
+                  ) : (
+                    <UsersRound className="size-4 text-muted-foreground shrink-0" />
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

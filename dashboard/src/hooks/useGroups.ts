@@ -12,10 +12,23 @@ export interface Group {
   updatedAt: number;
 }
 
+export interface ParticipatingGroup {
+  jid: string;
+  name: string | null;
+  alreadyTracked: boolean;
+}
+
 export function useGroups() {
   return useQuery({
     queryKey: ['groups'],
     queryFn: () => apiFetch<Group[]>('/api/groups'),
+  });
+}
+
+export function useParticipatingGroups() {
+  return useQuery({
+    queryKey: ['participating-groups'],
+    queryFn: () => apiFetch<ParticipatingGroup[]>('/api/groups/participating'),
   });
 }
 
@@ -24,7 +37,10 @@ export function useAddGroup() {
   return useMutation({
     mutationFn: (data: { id: string; name?: string }) =>
       apiFetch('/api/groups', { method: 'POST', body: JSON.stringify(data) }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['groups'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['groups'] });
+      qc.invalidateQueries({ queryKey: ['participating-groups'] });
+    },
   });
 }
 
