@@ -26,10 +26,10 @@ Requirements for milestone v1.2: Group Auto-Response. Per-group keyword monitori
 
 ### Dashboard Management
 
-- [ ] **DASH-10**: User can view all keyword rules for a group from the dashboard
-- [ ] **DASH-11**: User can create, edit, and delete keyword rules from the dashboard
-- [ ] **DASH-12**: User can toggle rules on/off from the dashboard
-- [ ] **DASH-13**: Dashboard shows rule match count / last triggered time for each rule
+- [x] **DASH-10**: User can view all keyword rules for a group from the dashboard
+- [x] **DASH-11**: User can create, edit, and delete keyword rules from the dashboard
+- [x] **DASH-12**: User can toggle rules on/off from the dashboard
+- [x] **DASH-13**: Dashboard shows rule match count / last triggered time for each rule
 
 ## Future Requirements
 
@@ -61,10 +61,10 @@ Requirements for milestone v1.2: Group Auto-Response. Per-group keyword monitori
 | AR-02 | Phase 10 | Pending |
 | AR-03 | Phase 10 | Pending |
 | AR-04 | Phase 10 | Pending |
-| DASH-10 | Phase 11 | Pending |
-| DASH-11 | Phase 11 | Pending |
-| DASH-12 | Phase 11 | Pending |
-| DASH-13 | Phase 11 | Pending |
+| DASH-10 | Phase 11 | Complete |
+| DASH-11 | Phase 11 | Complete |
+| DASH-12 | Phase 11 | Complete |
+| DASH-13 | Phase 11 | Complete |
 
 **Coverage:**
 - v1.2 requirements: 15 total (KW: 7, AR: 4, DASH: 4)
