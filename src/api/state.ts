@@ -6,6 +6,8 @@ interface BotState {
   connection: ConnectionStatus;
   qr: string | null;
   sock: WASocket | null;
+  botJid: string | null;
+  botDisplayName: string | null;
   listeners: Set<(state: BotState) => void>;
 }
 
@@ -13,6 +15,8 @@ const state: BotState = {
   connection: 'disconnected',
   qr: null,
   sock: null,
+  botJid: null,
+  botDisplayName: null,
   listeners: new Set(),
 };
 
@@ -29,5 +33,11 @@ export function subscribe(fn: (state: BotState) => void): () => void {
 }
 
 export function getState() {
-  return { connection: state.connection, qr: state.qr, sock: state.sock };
+  return {
+    connection: state.connection,
+    qr: state.qr,
+    sock: state.sock,
+    botJid: state.botJid,
+    botDisplayName: state.botDisplayName,
+  };
 }

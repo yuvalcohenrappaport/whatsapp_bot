@@ -64,7 +64,9 @@ async function startSocket(): Promise<void> {
 
     onOpen() {
       logger.info('Connected to WhatsApp');
-      updateState({ connection: 'connected', qr: null, sock });
+      const botJid = sock.user?.id ?? null;
+      const botDisplayName = sock.user?.notify ?? sock.user?.name ?? null;
+      updateState({ connection: 'connected', qr: null, sock, botJid, botDisplayName });
     },
 
     onReconnect(delayMs: number) {

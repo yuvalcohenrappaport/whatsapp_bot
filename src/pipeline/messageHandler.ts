@@ -49,11 +49,12 @@ let lastNotifiedJid: string | null = null;
 
 // --- Group message callback hook ---
 
-/** Callback for downstream pipeline (e.g., date extraction) to process group messages. */
+/** Callback for downstream pipeline (e.g., date extraction, travel search) to process group messages. */
 let groupMessageCallback: ((
   groupJid: string,
   msg: { id: string; senderJid: string; senderName: string | null; body: string; timestamp: number },
   quotedMessageId: string | null,
+  mentionedJids: string[],
 ) => void) | null = null;
 
 /** Register a callback to be invoked after each group message is persisted. */
@@ -248,13 +249,16 @@ async function processMessage(sock: WASocket, msg: WAMessage): Promise<void> {
       timestamp,
     }).run();
 
-    // Invoke downstream pipeline callback (e.g., date extraction)
+    // Invoke downstream pipeline callback (e.g., date extraction, travel search)
     const quotedMessageId =
       msg.message?.extendedTextMessage?.contextInfo?.stanzaId ?? null;
+    const mentionedJids: string[] =
+      (msg.message?.extendedTextMessage?.contextInfo?.mentionedJid as string[] | undefined) ?? [];
     groupMessageCallback?.(
       remoteJid,
       { id: msg.key.id!, senderJid, senderName, body: text, timestamp },
       quotedMessageId,
+      mentionedJids,
     );
 
     return;
