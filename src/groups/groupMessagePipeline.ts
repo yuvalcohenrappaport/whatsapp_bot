@@ -18,6 +18,7 @@ import {
 } from '../calendar/calendarService.js';
 import { getState } from '../api/state.js';
 import { setGroupMessageCallback } from '../pipeline/messageHandler.js';
+import { handleTravelMention } from './travelHandler.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
 
@@ -80,7 +81,7 @@ function formatDateForDisplay(date: Date): string {
  * Detect whether the group predominantly uses Hebrew based on recent messages.
  * Counts Hebrew chars (U+0590-U+05FF) vs Latin chars.
  */
-async function detectGroupLanguage(groupJid: string): Promise<'he' | 'en'> {
+export async function detectGroupLanguage(groupJid: string): Promise<'he' | 'en'> {
   try {
     const sinceMs = Date.now() - 7 * 24 * 60 * 60 * 1000; // Last 7 days
     const recentMsgs = getGroupMessagesSince(groupJid, sinceMs, 10);
@@ -397,13 +398,18 @@ export function initGroupPipeline(): void {
       groupJid: string,
       msg: { id: string; senderJid: string; senderName: string | null; body: string; timestamp: number },
       quotedMessageId: string | null,
+      mentionedJids: string[],
     ) => {
       try {
-        // Reply-to-delete check runs immediately (not debounced)
+        // Travel @mention -- runs immediately, not debounced
+        const wasTravel = await handleTravelMention(groupJid, msg, quotedMessageId, mentionedJids);
+        if (wasTravel) return;
+
+        // Reply-to-delete -- runs immediately, not debounced
         const wasDelete = await handleReplyToDelete(groupJid, msg, quotedMessageId);
         if (wasDelete) return;
 
-        // Add to debounce buffer for batch processing
+        // Batch for calendar date extraction
         addToDebounce(groupJid, msg);
       } catch (err) {
         logger.error(
