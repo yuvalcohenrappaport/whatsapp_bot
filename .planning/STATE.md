@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
-**Current focus:** Milestone v1.1 — Phase 8: Group Monitoring and Calendar (complete) — Ready for Phase 9
+**Current focus:** Milestone v1.1 — Phase 9: Travel Search (in progress)
 
 ## Current Position
 
-Phase: 8 of 9 (Group Monitoring and Calendar)
-Plan: 4 of 4 in current phase — COMPLETE
-Status: Phase 8 complete
-Last activity: 2026-02-23 — Phase 8 Plan 04 complete (weekly reminder scheduler)
+Phase: 9 of 9 (Travel Search)
+Plan: 1 of 2 in current phase — COMPLETE
+Status: Phase 9 Plan 01 complete
+Last activity: 2026-02-24 — Phase 9 Plan 01 complete (@mention detection + intent parsing)
 
-Progress: [███████░░░] 65% (phases 1-3 + phase 6 + phase 7 + phase 8 complete)
+Progress: [████████░░] 80% (phases 1-3 + phase 6 + phase 7 + phase 8 + phase 9 plan 01 complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 22 (phases 1-3 + phase 6 + phase 7 + phase 8 all 4 plans)
+- Total plans completed: 23 (phases 1-3 + phase 6 + phase 7 + phase 8 all 4 plans + phase 9 plan 01)
 - Average duration: unknown
 - Total execution time: unknown
 
@@ -41,6 +41,7 @@ Progress: [███████░░░] 65% (phases 1-3 + phase 6 + phase 7 +
 | Phase 08 P01 | 10min | 2 tasks | 9 files |
 | Phase 08 P03 | 24min | 2 tasks | 6 files |
 | Phase 08 P04 | 3min | 2 tasks | 5 files |
+| Phase 09 P01 | 4min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -85,10 +86,13 @@ Recent decisions affecting current work:
 - Per-group cron job map (scheduledJobs Map): allows stop/replace on config change without restarting all jobs
 - generateWeeklyDigest returns null for empty content: caller skips post, no empty messages sent to group
 - listUpcomingEvents added to calendarService (not inline in scheduler): reusable, consistent with service pattern
+- [Phase 09]: JID prefix matching (split('@')[0]) for @mention detection: handles LID format mismatch in Baileys v7 RC
+- [Phase 09]: Lazy dynamic import of detectGroupLanguage in travelHandler: avoids circular dependency
+- [Phase 09]: Travel handler runs BEFORE reply-to-delete in pipeline dispatch: reply to travel result routes to travel handler
 
 ### Pending Todos
 
-None yet.
+- **Group keyword monitor + auto-response**: Monitor groups for specific messages (user-defined keywords/patterns), and send automatic responses based on user-configured templates. Separate from travel search — general-purpose group trigger/response system.
 
 ### Blockers/Concerns
 
@@ -99,10 +103,10 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-23
-Stopped at: 08-04-PLAN.md fully complete — Phase 8 complete (weekly digest/reminder cron scheduler)
-Resume with: `/gsd:execute-phase 09` for Phase 9
-Resume file: .planning/phases/ (next phase)
+Last session: 2026-02-24
+Stopped at: 09-01-PLAN.md complete — @mention detection + Gemini travel intent parsing
+Resume with: Continue Phase 9 Plan 02 (travel search scraping + formatting)
+Resume file: .planning/phases/09-travel-search/09-02-PLAN.md
 
 ### Hot fixes applied this session (not part of any phase):
 - **messageHandler.ts**: Fixed `.run()` calls on `upsertContact`, `updateContactMode`, `markDraftSent`, `markDraftRejected` — these functions were changed to call `.run()` internally during Phase 6 UAT, but the messageHandler still called `.run()` on their (now void) return values, crashing on every incoming message.

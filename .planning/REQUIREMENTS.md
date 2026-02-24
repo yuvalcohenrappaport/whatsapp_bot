@@ -66,7 +66,7 @@ Requirements for milestone v1.1: Dashboard & Groups. Each maps to roadmap phases
 - [x] **GRP-02**: Bot receives and persists messages from tracked groups
 - [x] **GRP-03**: Bot pre-filters group messages — only messages containing numbers are sent to Gemini for date extraction
 - [x] **GRP-04**: Bot ignores its own outgoing messages in groups (fromMe guard)
-- [ ] **GRP-05**: Bot responds to @mentions by name in tracked groups for travel search requests
+- [x] **GRP-05**: Bot responds to @mentions by name in tracked groups for travel search requests
 
 ### Google Calendar
 
@@ -83,8 +83,8 @@ Requirements for milestone v1.1: Dashboard & Groups. Each maps to roadmap phases
 
 ### Travel Search
 
-- [ ] **TRAV-01**: Group members can @mention the bot to request travel searches (flights, hotels, restaurants)
-- [ ] **TRAV-02**: Bot uses Gemini to parse the search intent (destination, dates, type) from the message
+- [x] **TRAV-01**: Group members can @mention the bot to request travel searches (flights, hotels, restaurants)
+- [x] **TRAV-02**: Bot uses Gemini to parse the search intent (destination, dates, type) from the message
 - [ ] **TRAV-03**: Bot scrapes Google search results on the server for the requested travel query
 - [ ] **TRAV-04**: Bot sends top 3-5 results to the group (name, price, link) in a formatted message
 
@@ -151,7 +151,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GRP-02 | Phase 8 | Complete |
 | GRP-03 | Phase 8 | Complete |
 | GRP-04 | Phase 8 | Complete |
-| GRP-05 | Phase 9 | Pending |
+| GRP-05 | Phase 9 | Complete |
 | CAL-01 | Phase 8 | Complete |
 | CAL-02 | Phase 8 | Complete |
 | CAL-03 | Phase 8 | Complete |
@@ -159,8 +159,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CAL-05 | Phase 8 | Complete |
 | REM-01 | Phase 8 | Complete |
 | REM-02 | Phase 8 | Complete |
-| TRAV-01 | Phase 9 | Pending |
-| TRAV-02 | Phase 9 | Pending |
+| TRAV-01 | Phase 9 | Complete |
+| TRAV-02 | Phase 9 | Complete |
 | TRAV-03 | Phase 9 | Pending |
 | TRAV-04 | Phase 9 | Pending |
 
