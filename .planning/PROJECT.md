@@ -1,0 +1,93 @@
+# WhatsApp Bot
+
+## What This Is
+
+An AI-powered WhatsApp bot that impersonates the user in private conversations and provides group utilities. It connects to WhatsApp via Baileys, learns the user's communication style from chat history, and replies to selected contacts automatically or via draft approval. For groups, it monitors messages, extracts dates to Google Calendar, posts weekly task reminders, and responds to @mention travel searches. Managed through a web dashboard, CLI, and runs 24/7 on a home server.
+
+## Core Value
+
+The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
+
+## Current State
+
+**Shipped:** v1.0 Foundation + v1.1 Dashboard & Groups
+**Codebase:** ~7,700 LOC TypeScript (backend 3,570 + dashboard 3,254 + CLI 880)
+**Tech stack:** Baileys v7 + Gemini 2.5 Flash + Fastify 5 + React 19 + shadcn/ui + Drizzle/SQLite + Commander.js/Ink + googleapis
+
+## Requirements
+
+### Validated
+
+- ✓ WhatsApp connection with QR auth, session persistence, auto-reconnect — v1.0
+- ✓ Gemini AI replies with per-contact context isolation and persona prompts — v1.0
+- ✓ Draft queue (pending/approved/rejected) with WhatsApp approval commands — v1.0
+- ✓ Style learning from imported .txt chat exports — v1.0
+- ✓ Auto-reply mode with safety guardrails (cap, cooldown, snooze) — v1.0
+- ✓ Contact whitelist with mode, relationship, and custom instructions — v1.0
+- ✓ Web dashboard for contacts, drafts, groups, connection status, QR re-auth — v1.1
+- ✓ CLI for contacts, groups, drafts, imports, calendar members — v1.1
+- ✓ Group message monitoring with Google Calendar date extraction — v1.1
+- ✓ Per-group calendars shared with member emails — v1.1
+- ✓ In-group calendar confirmations with reply-to-delete — v1.1
+- ✓ Weekly AI task reminder scheduler — v1.1
+- ✓ @mention travel search with Gemini intent parsing and Google Search grounding — v1.1
+
+## Current Milestone: v1.2 Group Auto-Response
+
+**Goal:** Add per-group keyword monitoring with configurable auto-responses (fixed text or AI-generated), managed from the web dashboard.
+
+**Target features:**
+- Per-group keyword rules with contains matching (optional regex)
+- Two response types per rule: fixed template text or Gemini AI-generated with custom instructions
+- Web dashboard page for creating, editing, and deleting keyword rules per group
+- Rate limiting and cooldown to prevent spam
+
+### Active
+
+- [ ] Per-group keyword rules with auto-response
+- [ ] Web dashboard for managing keyword rules
+
+### Out of Scope
+
+- Bot replying conversationally in groups — groups are utility-only (calendar, reminders, travel search)
+- Voice messages — text-only
+- Media/image responses — text replies only
+- Mobile app — web dashboard via Tailscale is sufficient
+- Multiple WhatsApp accounts — single account only
+- Fine-tuning a local LLM — Gemini few-shot prompting achieves quality without training
+- Bulk messaging / outreach — triggers WhatsApp bans
+- Booking/purchasing through the bot — bot finds options, users book themselves
+
+## Context
+
+- Runs on yuval-server (Ubuntu 24.04 LTS, always-on home dev server)
+- User connects from macOS via Tailscale
+- Gemini API for all LLM inference (style matching, date extraction, travel parsing, weekly digests)
+- Baileys v7.0.0-rc.9 with Platform.MACOS patch (WhatsApp rejects Platform.WEB)
+- SQLite with WAL mode for concurrent reads during group message processing
+- GCP service account for Google Calendar API access
+
+## Constraints
+
+- **API**: Gemini API — user's explicit choice
+- **WhatsApp**: Unofficial Web API (Baileys) — risk of account restrictions; monitor RC stability
+- **Platform**: Must run on Ubuntu 24.04 (yuval-server)
+- **Privacy**: All chat data stays local on the server, never sent to third parties except Gemini API for inference
+
+## Key Decisions
+
+| Decision | Rationale | Outcome |
+|----------|-----------|---------|
+| Gemini API for LLM | User preference | ✓ Good — handles all AI tasks (replies, extraction, parsing, digests) |
+| Baileys v7 (unofficial WhatsApp) | Only way to automate personal WhatsApp | ⚠️ Revisit — RC stability, needed Platform.MACOS patch |
+| Fastify 5 over Express | First-class TypeScript, serves static dashboard | ✓ Good |
+| GCP service account for Calendar | Avoids 7-day OAuth2 token expiry | ✓ Good |
+| Gemini Google Search grounding | Cheerio scraping broken (Google returns JS-rendered pages) | ✓ Good — returns real URLs and prices |
+| Per-contact mode toggle | Flexibility between auto and supervised | ✓ Good |
+| shadcn/ui + Tailwind 4 | Fast dashboard development with good defaults | ✓ Good |
+| Commander.js + Ink for CLI | Rich terminal UI for SSH management | ✓ Good |
+| node-cron inside process | PM2 cron_restart kills WhatsApp session | ✓ Good |
+| Callback registration pattern | Extensible pipeline without modifying messageHandler | ✓ Good |
+
+---
+*Last updated: 2026-02-24 after v1.2 milestone initialization*
