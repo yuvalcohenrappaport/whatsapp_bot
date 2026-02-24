@@ -6,6 +6,7 @@ import authRoutes from './routes/auth.js';
 import contactRoutes from './routes/contacts.js';
 import draftRoutes from './routes/drafts.js';
 import groupRoutes from './routes/groups.js';
+import keywordRuleRoutes from './routes/keywordRules.js';
 import statusRoutes from './routes/status.js';
 
 export async function createServer() {
@@ -32,6 +33,7 @@ export async function createServer() {
   await fastify.register(contactRoutes);
   await fastify.register(draftRoutes);
   await fastify.register(groupRoutes);
+  await fastify.register(keywordRuleRoutes);
   await fastify.register(statusRoutes);
 
   // 5. Static file serving (last — catch-all for SPA)
