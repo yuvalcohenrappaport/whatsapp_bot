@@ -46,11 +46,11 @@
   3. Rules support both case-insensitive contains matching and optional regex matching
   4. A rule that fires does not fire again within its cooldown period, even if matching messages keep arriving
   5. Auto-response runs in the correct pipeline position (after travel handler, before date extraction debounce) and only fires on active/enabled rules
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 10-01: TBD
-- [ ] 10-02: TBD
+- [ ] 10-01-PLAN.md — Database schema, query layer, and REST API for keyword rules
+- [ ] 10-02-PLAN.md — Keyword matching engine and pipeline integration
 
 ### Phase 11: Dashboard Rule Management
 **Goal**: User can fully manage keyword rules for any tracked group through the web dashboard
@@ -80,5 +80,5 @@ Phases execute in numeric order: 10 -> 11
 | 7. CLI Dashboard | v1.1 | 3/3 | Complete | 2026-02-23 |
 | 8. Group Monitoring & Calendar | v1.1 | 4/4 | Complete | 2026-02-23 |
 | 9. Travel Search | v1.1 | 2/2 | Complete | 2026-02-24 |
-| 10. Keyword Rules & Pipeline | v1.2 | 0/? | Not started | - |
+| 10. Keyword Rules & Pipeline | v1.2 | 0/2 | Planning complete | - |
 | 11. Dashboard Rule Management | v1.2 | 0/? | Not started | - |
