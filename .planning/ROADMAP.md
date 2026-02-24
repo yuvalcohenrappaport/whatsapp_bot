@@ -61,10 +61,11 @@ Plans:
   2. User can create a new keyword rule, edit an existing rule, or delete a rule entirely from the dashboard
   3. User can toggle a rule on or off from the dashboard without deleting it
   4. Dashboard displays each rule's match count and last triggered time so user can see which rules are active
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 11-01: TBD
+- [ ] 11-01-PLAN.md — Data hook and create/edit form dialog for keyword rules
+- [ ] 11-02-PLAN.md — Rule list component and GroupPanel integration
 
 ## Progress
 
@@ -81,4 +82,4 @@ Phases execute in numeric order: 10 -> 11
 | 8. Group Monitoring & Calendar | v1.1 | 4/4 | Complete | 2026-02-23 |
 | 9. Travel Search | v1.1 | 2/2 | Complete | 2026-02-24 |
 | 10. Keyword Rules & Pipeline | v1.2 | 0/2 | Planning complete | - |
-| 11. Dashboard Rule Management | v1.2 | 0/? | Not started | - |
+| 11. Dashboard Rule Management | v1.2 | 0/2 | Planning complete | - |
