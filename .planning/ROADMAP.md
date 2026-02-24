@@ -70,7 +70,7 @@ Plans:
 - [x] **Phase 6: Web Dashboard** - Fastify REST API and React SPA for managing contacts, drafts, groups, and bot status in the browser
 - [x] **Phase 7: CLI Dashboard** - Commander.js + Ink TUI for server-side management of contacts, groups, drafts, and chat history import over SSH
 - [x] **Phase 8: Group Monitoring and Calendar** - Group message ingestion, Google Calendar event extraction via Gemini, per-group calendar creation, in-group confirmations, and weekly AI task reminders (completed 2026-02-23)
-- [ ] **Phase 9: Travel Search** - @mention-triggered travel search (flights, hotels, restaurants) using Gemini intent parsing and Google search scraping
+- [x] **Phase 9: Travel Search** - @mention-triggered travel search (flights, hotels, restaurants) using Gemini intent parsing and Google search scraping (completed 2026-02-24)
 
 ## Phase Details
 
@@ -139,7 +139,7 @@ Plans:
 
 Plans:
 - [x] 09-01-PLAN.md — @mention detection and Gemini intent parsing: extend callback to pass mentionedJids, bot identity in state, travel handler with dual mention detection, travelParser with Zod schema structured output
-- [ ] 09-02-PLAN.md — Travel search and formatting: cheerio Google scraper with multi-selector cascade, Gemini knowledge fallback, rich card formatter, reply chain tracking, per-group rate limiting
+- [x] 09-02-PLAN.md — Travel search and formatting: cheerio Google scraper with multi-selector cascade, Gemini knowledge fallback, rich card formatter, reply chain tracking, per-group rate limiting
 
 ## Progress
 
@@ -154,4 +154,4 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9
 | 6. Web Dashboard | v1.1 | 4/4 | Complete | 2026-02-23 |
 | 7. CLI Dashboard | v1.1 | 3/3 | Complete | 2026-02-23 |
 | 8. Group Monitoring and Calendar | v1.1 | 4/4 | Complete | 2026-02-23 |
-| 9. Travel Search | v1.1 | 1/2 | In progress | - |
+| 9. Travel Search | v1.1 | 2/2 | Complete | 2026-02-24 |

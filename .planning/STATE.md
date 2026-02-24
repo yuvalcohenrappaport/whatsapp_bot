@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
-**Current focus:** Milestone v1.1 — Phase 9: Travel Search (in progress)
+**Current focus:** Milestone v1.1 — Phase 9: Travel Search (COMPLETE)
 
 ## Current Position
 
 Phase: 9 of 9 (Travel Search)
-Plan: 1 of 2 in current phase — COMPLETE
-Status: Phase 9 Plan 01 complete
-Last activity: 2026-02-24 — Phase 9 Plan 01 complete (@mention detection + intent parsing)
+Plan: 2 of 2 in current phase — COMPLETE
+Status: Phase 9 COMPLETE — all plans delivered
+Last activity: 2026-02-24 — Phase 9 Plan 02 complete (travel search scraping + formatting + reply chains)
 
-Progress: [████████░░] 80% (phases 1-3 + phase 6 + phase 7 + phase 8 + phase 9 plan 01 complete)
+Progress: [██████████] 100% (all phases 1-3 + 6-9 complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 23 (phases 1-3 + phase 6 + phase 7 + phase 8 all 4 plans + phase 9 plan 01)
+- Total plans completed: 24 (phases 1-3 + phase 6 + phase 7 + phase 8 all 4 plans + phase 9 all 2 plans)
 - Average duration: unknown
 - Total execution time: unknown
 
@@ -42,6 +42,7 @@ Progress: [████████░░] 80% (phases 1-3 + phase 6 + phase 7 +
 | Phase 08 P03 | 24min | 2 tasks | 6 files |
 | Phase 08 P04 | 3min | 2 tasks | 5 files |
 | Phase 09 P01 | 4min | 2 tasks | 8 files |
+| Phase 09 P02 | 3min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -89,6 +90,10 @@ Recent decisions affecting current work:
 - [Phase 09]: JID prefix matching (split('@')[0]) for @mention detection: handles LID format mismatch in Baileys v7 RC
 - [Phase 09]: Lazy dynamic import of detectGroupLanguage in travelHandler: avoids circular dependency
 - [Phase 09]: Travel handler runs BEFORE reply-to-delete in pipeline dispatch: reply to travel result routes to travel handler
+- [Phase 09]: Multi-tier cheerio selectors (.yuRUbf primary, h3 fallback) for Google HTML scraping resilience
+- [Phase 09]: FIFO eviction on travelResultMessages Map at 500 entries to prevent unbounded memory growth
+- [Phase 09]: Reply chain follow-up bypasses isBotMentioned: replying to travel result is implicit mention
+- [Phase 09]: Rate limit sends user-facing message rather than silent drop
 
 ### Pending Todos
 
@@ -104,9 +109,9 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: 09-01-PLAN.md complete — @mention detection + Gemini travel intent parsing
-Resume with: Continue Phase 9 Plan 02 (travel search scraping + formatting)
-Resume file: .planning/phases/09-travel-search/09-02-PLAN.md
+Stopped at: Completed 09-02-PLAN.md — Phase 9 complete, all milestone v1.1 phases delivered
+Resume with: All current roadmap phases complete. Next: define new milestone or features.
+Resume file: N/A
 
 ### Hot fixes applied this session (not part of any phase):
 - **messageHandler.ts**: Fixed `.run()` calls on `upsertContact`, `updateContactMode`, `markDraftSent`, `markDraftRejected` — these functions were changed to call `.run()` internally during Phase 6 UAT, but the messageHandler still called `.run()` on their (now void) return values, crashing on every incoming message.

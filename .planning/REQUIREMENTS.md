@@ -85,8 +85,8 @@ Requirements for milestone v1.1: Dashboard & Groups. Each maps to roadmap phases
 
 - [x] **TRAV-01**: Group members can @mention the bot to request travel searches (flights, hotels, restaurants)
 - [x] **TRAV-02**: Bot uses Gemini to parse the search intent (destination, dates, type) from the message
-- [ ] **TRAV-03**: Bot scrapes Google search results on the server for the requested travel query
-- [ ] **TRAV-04**: Bot sends top 3-5 results to the group (name, price, link) in a formatted message
+- [x] **TRAV-03**: Bot scrapes Google search results on the server for the requested travel query
+- [x] **TRAV-04**: Bot sends top 3-5 results to the group (name, price, link) in a formatted message
 
 ## Future Requirements
 
@@ -161,8 +161,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | REM-02 | Phase 8 | Complete |
 | TRAV-01 | Phase 9 | Complete |
 | TRAV-02 | Phase 9 | Complete |
-| TRAV-03 | Phase 9 | Pending |
-| TRAV-04 | Phase 9 | Pending |
+| TRAV-03 | Phase 9 | Complete |
+| TRAV-04 | Phase 9 | Complete |
 
 **Coverage:**
 - v1.1 requirements: 29 total (DASH: 6, CLI: 7, GRP: 5, CAL: 5, REM: 2, TRAV: 4)
