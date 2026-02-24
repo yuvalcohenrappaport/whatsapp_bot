@@ -64,7 +64,7 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 11-01-PLAN.md — Data hook and create/edit form dialog for keyword rules
+- [x] 11-01-PLAN.md — Data hook and create/edit form dialog for keyword rules
 - [ ] 11-02-PLAN.md — Rule list component and GroupPanel integration
 
 ## Progress
@@ -82,4 +82,4 @@ Phases execute in numeric order: 10 -> 11
 | 8. Group Monitoring & Calendar | v1.1 | 4/4 | Complete | 2026-02-23 |
 | 9. Travel Search | v1.1 | 2/2 | Complete | 2026-02-24 |
 | 10. Keyword Rules & Pipeline | v1.2 | 0/2 | Planning complete | - |
-| 11. Dashboard Rule Management | v1.2 | 0/2 | Planning complete | - |
+| 11. Dashboard Rule Management | v1.2 | 1/2 | In progress | - |
