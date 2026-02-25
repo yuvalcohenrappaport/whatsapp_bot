@@ -18,7 +18,7 @@ export function DraftRow({ draft }: DraftRowProps) {
 
   return (
     <Card className="p-6">
-      <div className="flex items-start gap-6">
+      <div className="flex flex-col sm:flex-row sm:items-start gap-4">
         <div className="flex-1 space-y-3 min-w-0">
           <div className="font-medium">
             {draft.contactName ?? draft.contactJid}
@@ -45,7 +45,7 @@ export function DraftRow({ draft }: DraftRowProps) {
             </p>
           )}
         </div>
-        <div className="flex flex-col gap-2 shrink-0">
+        <div className="flex flex-row sm:flex-col gap-2 shrink-0">
           <Button
             size="sm"
             onClick={() => {

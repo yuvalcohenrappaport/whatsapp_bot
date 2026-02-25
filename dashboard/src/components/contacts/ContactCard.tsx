@@ -75,7 +75,7 @@ export function ContactCard({ contact }: ContactCardProps) {
       </Card>
 
       <Sheet open={panelOpen} onOpenChange={setPanelOpen}>
-        <SheetContent side="right" className="w-96">
+        <SheetContent side="right" className="w-full sm:max-w-md">
           <ContactPanel contact={contact} onClose={() => setPanelOpen(false)} />
         </SheetContent>
       </Sheet>

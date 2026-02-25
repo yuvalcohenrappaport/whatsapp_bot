@@ -20,7 +20,7 @@ const navItems = [
 
 export function AppSidebar() {
   return (
-    <ShadcnSidebar collapsible="none">
+    <ShadcnSidebar collapsible="offcanvas">
       <SidebarHeader className="px-4 py-5">
         <span className="text-lg font-bold tracking-tight text-sidebar-foreground">
           WA Bot

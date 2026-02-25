@@ -34,7 +34,7 @@ export default function Overview() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold mb-8">Overview</h1>
+      <h1 className="text-2xl font-semibold mb-6">Overview</h1>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <StatCard
           title="Pending Drafts"
@@ -69,12 +69,12 @@ function StatCard({
   highlight?: boolean;
 }) {
   return (
-    <Card className={`p-8 ${highlight ? 'border-primary' : ''}`}>
+    <Card className={`p-5 md:p-8 ${highlight ? 'border-primary' : ''}`}>
       <CardHeader className="p-0 mb-4">
         <CardTitle className="text-base font-medium text-muted-foreground">{title}</CardTitle>
       </CardHeader>
       <CardContent className="p-0">
-        <p className={`text-5xl font-bold ${highlight ? 'text-primary' : ''}`}>{value}</p>
+        <p className={`text-3xl md:text-5xl font-bold ${highlight ? 'text-primary' : ''}`}>{value}</p>
         <p className="text-sm text-muted-foreground mt-2">{description}</p>
       </CardContent>
     </Card>

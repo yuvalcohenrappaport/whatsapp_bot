@@ -44,7 +44,7 @@ export function GroupCard({ group }: GroupCardProps) {
         )}
       </Card>
       <Sheet open={panelOpen} onOpenChange={setPanelOpen}>
-        <SheetContent side="right" className="w-96 overflow-y-auto">
+        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
           <GroupPanel group={group} onClose={() => setPanelOpen(false)} />
         </SheetContent>
       </Sheet>
