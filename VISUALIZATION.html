@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WhatsApp Bot — Codebase Map</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --text-muted: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --yellow: #d29922;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --orange: #d18616;
+    --teal: #39d2c0;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    padding: 24px;
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 40px;
+    padding: 32px;
+    background: linear-gradient(135deg, #161b22 0%, #1a2332 100%);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+  }
+  .header h1 { font-size: 2.2em; margin-bottom: 8px; }
+  .header h1 span { color: var(--green); }
+  .header .subtitle { color: var(--text-muted); font-size: 1.1em; }
+  .header .stats {
+    display: flex; justify-content: center; gap: 32px; margin-top: 20px; flex-wrap: wrap;
+  }
+  .header .stat { text-align: center; }
+  .header .stat .num { font-size: 2em; font-weight: 700; color: var(--accent); }
+  .header .stat .label { color: var(--text-muted); font-size: 0.85em; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+    margin-bottom: 24px;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+  }
+  .card.span-2 { grid-column: span 2; }
+  .card h2 {
+    font-size: 1.2em;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card h2 .icon { font-size: 1.3em; }
+  .card h3 { font-size: 1em; color: var(--accent); margin: 16px 0 8px; }
+
+  /* Architecture Diagram */
+  .arch-diagram {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: center;
+  }
+  .arch-layer {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+  .arch-box {
+    background: rgba(88, 166, 255, 0.08);
+    border: 1px solid rgba(88, 166, 255, 0.25);
+    border-radius: 8px;
+    padding: 10px 16px;
+    text-align: center;
+    font-size: 0.85em;
+    min-width: 140px;
+    transition: all 0.2s;
+  }
+  .arch-box:hover {
+    background: rgba(88, 166, 255, 0.15);
+    border-color: var(--accent);
+    transform: translateY(-2px);
+  }
+  .arch-box .title { font-weight: 600; color: var(--accent); }
+  .arch-box .detail { color: var(--text-muted); font-size: 0.8em; margin-top: 4px; }
+
+  .arch-box.whatsapp {
+    background: rgba(63, 185, 80, 0.08);
+    border-color: rgba(63, 185, 80, 0.25);
+  }
+  .arch-box.whatsapp:hover {
+    background: rgba(63, 185, 80, 0.15);
+    border-color: var(--green);
+  }
+  .arch-box.whatsapp .title { color: var(--green); }
+
+  .arch-box.ai {
+    background: rgba(188, 140, 255, 0.08);
+    border-color: rgba(188, 140, 255, 0.25);
+  }
+  .arch-box.ai:hover {
+    background: rgba(188, 140, 255, 0.15);
+    border-color: var(--purple);
+  }
+  .arch-box.ai .title { color: var(--purple); }
+
+  .arch-box.storage {
+    background: rgba(210, 153, 34, 0.08);
+    border-color: rgba(210, 153, 34, 0.25);
+  }
+  .arch-box.storage:hover {
+    background: rgba(210, 153, 34, 0.15);
+    border-color: var(--yellow);
+  }
+  .arch-box.storage .title { color: var(--yellow); }
+
+  .arch-box.dashboard {
+    background: rgba(57, 210, 192, 0.08);
+    border-color: rgba(57, 210, 192, 0.25);
+  }
+  .arch-box.dashboard:hover {
+    background: rgba(57, 210, 192, 0.15);
+    border-color: var(--teal);
+  }
+  .arch-box.dashboard .title { color: var(--teal); }
+
+  .arch-box.api {
+    background: rgba(209, 134, 22, 0.08);
+    border-color: rgba(209, 134, 22, 0.25);
+  }
+  .arch-box.api:hover {
+    background: rgba(209, 134, 22, 0.15);
+    border-color: var(--orange);
+  }
+  .arch-box.api .title { color: var(--orange); }
+
+  .arrow-down { color: var(--text-muted); font-size: 1.4em; text-align: center; }
+
+  .layer-label {
+    color: var(--text-muted);
+    font-size: 0.75em;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    width: 100%;
+    text-align: center;
+    margin-bottom: 4px;
+  }
+
+  /* Data Flow */
+  .flow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin: 12px 0;
+  }
+  .flow-step {
+    background: rgba(88, 166, 255, 0.1);
+    border: 1px solid rgba(88, 166, 255, 0.2);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 0.8em;
+    white-space: nowrap;
+  }
+  .flow-step.active {
+    background: rgba(88, 166, 255, 0.2);
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .flow-arrow { color: var(--text-muted); font-size: 1.2em; }
+
+  /* File Tree */
+  .tree {
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 0.82em;
+    line-height: 1.8;
+    padding: 16px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 8px;
+    overflow-x: auto;
+  }
+  .tree .dir { color: var(--accent); font-weight: 600; }
+  .tree .file { color: var(--text); }
+  .tree .comment { color: var(--text-muted); font-style: italic; }
+
+  /* Tech Stack Tags */
+  .tags { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.8em;
+    font-weight: 500;
+  }
+  .tag.blue { background: rgba(88, 166, 255, 0.15); color: var(--accent); }
+  .tag.green { background: rgba(63, 185, 80, 0.15); color: var(--green); }
+  .tag.purple { background: rgba(188, 140, 255, 0.15); color: var(--purple); }
+  .tag.yellow { background: rgba(210, 153, 34, 0.15); color: var(--yellow); }
+  .tag.orange { background: rgba(209, 134, 22, 0.15); color: var(--orange); }
+  .tag.teal { background: rgba(57, 210, 192, 0.15); color: var(--teal); }
+
+  /* DB Table */
+  .db-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82em;
+  }
+  .db-table th {
+    text-align: left;
+    padding: 8px 12px;
+    background: rgba(0,0,0,0.2);
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 0.85em;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .db-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(48, 54, 61, 0.3);
+  }
+  .db-table .tbl-name { color: var(--yellow); font-family: monospace; font-weight: 500; }
+
+  /* API Table */
+  .api-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82em;
+  }
+  .api-table th {
+    text-align: left;
+    padding: 8px 12px;
+    background: rgba(0,0,0,0.2);
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 0.85em;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .api-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(48, 54, 61, 0.3);
+  }
+  .api-table .method {
+    font-family: monospace;
+    font-weight: 600;
+    font-size: 0.85em;
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+  .api-table .method.get { background: rgba(63, 185, 80, 0.15); color: var(--green); }
+  .api-table .method.post { background: rgba(88, 166, 255, 0.15); color: var(--accent); }
+  .api-table .method.patch { background: rgba(210, 153, 34, 0.15); color: var(--yellow); }
+  .api-table .method.delete { background: rgba(248, 81, 73, 0.15); color: var(--red); }
+  .api-table .route { color: var(--text); font-family: monospace; }
+
+  /* Modules Grid */
+  .modules-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
+  }
+  .module-card {
+    background: rgba(88, 166, 255, 0.05);
+    border: 1px solid rgba(88, 166, 255, 0.15);
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+    transition: all 0.2s;
+  }
+  .module-card:hover {
+    background: rgba(88, 166, 255, 0.1);
+    border-color: rgba(88, 166, 255, 0.3);
+    transform: translateY(-1px);
+  }
+  .module-card .name { font-weight: 600; color: var(--accent); font-size: 0.9em; }
+  .module-card .role { color: var(--text-muted); font-size: 0.75em; margin-top: 4px; }
+  .module-card.green-card {
+    background: rgba(63, 185, 80, 0.05);
+    border-color: rgba(63, 185, 80, 0.15);
+  }
+  .module-card.green-card:hover {
+    background: rgba(63, 185, 80, 0.1);
+    border-color: rgba(63, 185, 80, 0.3);
+  }
+  .module-card.green-card .name { color: var(--green); }
+  .module-card.purple-card {
+    background: rgba(188, 140, 255, 0.05);
+    border-color: rgba(188, 140, 255, 0.15);
+  }
+  .module-card.purple-card:hover {
+    background: rgba(188, 140, 255, 0.1);
+    border-color: rgba(188, 140, 255, 0.3);
+  }
+  .module-card.purple-card .name { color: var(--purple); }
+  .module-card.teal-card {
+    background: rgba(57, 210, 192, 0.05);
+    border-color: rgba(57, 210, 192, 0.15);
+  }
+  .module-card.teal-card:hover {
+    background: rgba(57, 210, 192, 0.1);
+    border-color: rgba(57, 210, 192, 0.3);
+  }
+  .module-card.teal-card .name { color: var(--teal); }
+
+  /* Progress */
+  .progress-bar {
+    width: 100%;
+    height: 24px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 12px 0;
+    position: relative;
+  }
+  .progress-bar .fill {
+    height: 100%;
+    border-radius: 12px;
+    transition: width 0.5s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75em;
+    font-weight: 600;
+    color: #fff;
+  }
+  .progress-bar .fill.green { background: linear-gradient(90deg, #238636, #3fb950); }
+
+  .phase-list { list-style: none; }
+  .phase-list li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(48, 54, 61, 0.5);
+    font-size: 0.9em;
+  }
+  .phase-list li:last-child { border-bottom: none; }
+  .phase-list .check { font-size: 1.2em; }
+  .phase-list .check.done { color: var(--green); }
+  .phase-list .phase-name { flex: 1; }
+  .phase-list .phase-status {
+    font-size: 0.78em;
+    padding: 2px 10px;
+    border-radius: 10px;
+  }
+  .phase-list .phase-status.complete { background: rgba(63, 185, 80, 0.15); color: var(--green); }
+
+  .legend {
+    display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; margin: 16px 0;
+  }
+  .legend-item {
+    display: flex; align-items: center; gap: 6px; font-size: 0.8em; color: var(--text-muted);
+  }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .legend-dot.blue { background: var(--accent); }
+  .legend-dot.green { background: var(--green); }
+  .legend-dot.purple { background: var(--purple); }
+  .legend-dot.yellow { background: var(--yellow); }
+  .legend-dot.teal { background: var(--teal); }
+  .legend-dot.orange { background: var(--orange); }
+
+  /* Info boxes */
+  .info-box {
+    margin-top: 12px;
+    padding: 10px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 6px;
+    font-size: 0.82em;
+    color: var(--text-muted);
+  }
+
+  .timestamp {
+    text-align: center; color: var(--text-muted); font-size: 0.8em; margin-top: 40px;
+    padding-top: 20px; border-top: 1px solid var(--border);
+    max-width: 1400px; margin-left: auto; margin-right: auto;
+  }
+
+  @media (max-width: 900px) {
+    .grid { grid-template-columns: 1fr; }
+    .card.span-2 { grid-column: span 1; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <h1><span>WhatsApp Bot</span> Codebase Map</h1>
+  <div class="subtitle">AI-powered WhatsApp bot — auto-replies in your voice, group utilities, web dashboard</div>
+  <div class="stats">
+    <div class="stat">
+      <div class="num">~8,700</div>
+      <div class="label">Lines of Code</div>
+    </div>
+    <div class="stat">
+      <div class="num">7</div>
+      <div class="label">DB Tables</div>
+    </div>
+    <div class="stat">
+      <div class="num">15+</div>
+      <div class="label">API Endpoints</div>
+    </div>
+    <div class="stat">
+      <div class="num">5</div>
+      <div class="label">Dashboard Pages</div>
+    </div>
+    <div class="stat">
+      <div class="num">3</div>
+      <div class="label">Milestones Shipped</div>
+    </div>
+  </div>
+</div>
+
+<!-- ARCHITECTURE -->
+<div class="grid">
+<div class="card span-2">
+  <h2><span class="icon">&#x1F3D7;</span> System Architecture</h2>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot green"></div> WhatsApp (Baileys)</div>
+    <div class="legend-item"><div class="legend-dot blue"></div> Pipeline &amp; Handlers</div>
+    <div class="legend-item"><div class="legend-dot purple"></div> AI (Gemini)</div>
+    <div class="legend-item"><div class="legend-dot yellow"></div> Database (SQLite)</div>
+    <div class="legend-item"><div class="legend-dot orange"></div> API Server (Fastify)</div>
+    <div class="legend-item"><div class="legend-dot teal"></div> Dashboard (React)</div>
+  </div>
+  <div class="arch-diagram">
+    <div class="layer-label">WhatsApp Layer</div>
+    <div class="arch-layer">
+      <div class="arch-box whatsapp"><div class="title">Baileys Socket v7</div><div class="detail">WebSocket connection</div></div>
+      <div class="arch-box whatsapp"><div class="title">connection.ts</div><div class="detail">Auth state persistence</div></div>
+      <div class="arch-box whatsapp"><div class="title">reconnect.ts</div><div class="detail">Exponential backoff</div></div>
+      <div class="arch-box whatsapp"><div class="title">sender.ts</div><div class="detail">Typing delay + send</div></div>
+    </div>
+
+    <div class="arrow-down">&#x25BC; messages.upsert</div>
+
+    <div class="layer-label">Message Pipeline</div>
+    <div class="arch-layer">
+      <div class="arch-box"><div class="title">messageHandler.ts</div><div class="detail">Main router: 1:1 + group</div></div>
+    </div>
+    <div class="arch-layer">
+      <div class="arch-box"><div class="title">1:1 Auto Mode</div><div class="detail">Gemini reply + send</div></div>
+      <div class="arch-box"><div class="title">1:1 Draft Mode</div><div class="detail">Generate + notify owner</div></div>
+      <div class="arch-box"><div class="title">Owner Commands</div><div class="detail">Snooze / resume / approve</div></div>
+      <div class="arch-box"><div class="title">Group Pipeline</div><div class="detail">Callback chain dispatch</div></div>
+    </div>
+
+    <div class="arrow-down">&#x25BC;</div>
+
+    <div class="layer-label">Group Handlers (Pipeline Order)</div>
+    <div class="arch-layer">
+      <div class="arch-box"><div class="title">travelHandler</div><div class="detail">@mention search (terminal)</div></div>
+      <div class="arch-box"><div class="title">keywordHandler</div><div class="detail">Pattern match (non-terminal)</div></div>
+      <div class="arch-box"><div class="title">Reply-to-Delete</div><div class="detail">Calendar event removal</div></div>
+      <div class="arch-box"><div class="title">dateExtractor</div><div class="detail">10s debounce batch</div></div>
+    </div>
+
+    <div class="arrow-down">&#x25BC;</div>
+
+    <div class="layer-label">Services</div>
+    <div class="arch-layer">
+      <div class="arch-box ai"><div class="title">Gemini AI</div><div class="detail">Replies, extraction, parsing</div></div>
+      <div class="arch-box storage"><div class="title">SQLite + Drizzle</div><div class="detail">7 tables, WAL mode</div></div>
+      <div class="arch-box"><div class="title">Google Calendar</div><div class="detail">Events, sharing, deletion</div></div>
+      <div class="arch-box"><div class="title">Reminder Scheduler</div><div class="detail">Weekly digest via cron</div></div>
+    </div>
+
+    <div class="arrow-down" style="font-size:1.8em;">&#x21F5; REST API</div>
+
+    <div class="layer-label">Web Layer</div>
+    <div class="arch-layer">
+      <div class="arch-box api"><div class="title">Fastify 5 Server</div><div class="detail">JWT auth + CORS + SSE</div></div>
+      <div class="arch-box api"><div class="title">Static Plugin</div><div class="detail">Serves dashboard SPA</div></div>
+    </div>
+
+    <div class="arrow-down">&#x25BC;</div>
+
+    <div class="arch-layer">
+      <div class="arch-box dashboard"><div class="title">React Dashboard</div><div class="detail">Vite + shadcn/ui</div></div>
+      <div class="arch-box dashboard"><div class="title">TanStack Query</div><div class="detail">Data fetching + cache</div></div>
+      <div class="arch-box dashboard"><div class="title">SSE Stream</div><div class="detail">Live QR + status</div></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- DATA FLOWS -->
+<div class="grid">
+<div class="card span-2">
+  <h2><span class="icon">&#x27A1;</span> Data Flow — 1:1 Message Reply</h2>
+  <div class="flow">
+    <div class="flow-step" style="border-color: rgba(63,185,80,0.4); color: var(--green);">WhatsApp Message</div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step">Baileys Socket</div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step active">messageHandler</div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step">Insert to DB</div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step">Check snooze</div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step" style="border-color: rgba(188,140,255,0.4); color: var(--purple);">Gemini: generateReply()</div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step active">Mode routing</div>
+  </div>
+  <div class="flow">
+    <div class="flow-step">auto: send with delay</div>
+    <div class="flow-arrow">|</div>
+    <div class="flow-step">draft: create draft + notify owner</div>
+    <div class="flow-arrow">|</div>
+    <div class="flow-step">off: ignore</div>
+  </div>
+
+  <h3>Data Flow — Group Pipeline</h3>
+  <div class="flow">
+    <div class="flow-step" style="border-color: rgba(63,185,80,0.4); color: var(--green);">Group Message</div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step">Persist to DB</div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step">Travel @mention?</div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step">Keyword match?</div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step">Reply-to-delete?</div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step active">Debounce (10s)</div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step" style="border-color: rgba(188,140,255,0.4); color: var(--purple);">Date extraction</div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step" style="border-color: rgba(210,153,34,0.4); color: var(--yellow);">Calendar event</div>
+  </div>
+
+  <h3>Data Flow — Dashboard</h3>
+  <div class="flow">
+    <div class="flow-step" style="border-color: rgba(57,210,192,0.4); color: var(--teal);">React UI</div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step" style="border-color: rgba(57,210,192,0.4); color: var(--teal);">apiFetch() + JWT</div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step" style="border-color: rgba(209,134,22,0.4); color: var(--orange);">Fastify Routes</div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step" style="border-color: rgba(210,153,34,0.4); color: var(--yellow);">Drizzle ORM</div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step" style="border-color: rgba(210,153,34,0.4); color: var(--yellow);">SQLite</div>
+  </div>
+</div>
+</div>
+
+<!-- TECH STACK + API ENDPOINTS -->
+<div class="grid">
+<div class="card">
+  <h2><span class="icon">&#x1F4E6;</span> Tech Stack</h2>
+
+  <h3>Backend</h3>
+  <div class="tags">
+    <span class="tag blue">Node.js &ge; 20</span>
+    <span class="tag blue">TypeScript ESNext</span>
+    <span class="tag blue">Fastify 5</span>
+    <span class="tag yellow">Drizzle ORM</span>
+    <span class="tag yellow">SQLite (WAL)</span>
+    <span class="tag blue">Pino (logging)</span>
+    <span class="tag blue">Zod (validation)</span>
+  </div>
+
+  <h3>WhatsApp</h3>
+  <div class="tags">
+    <span class="tag green">Baileys v7.0.0-rc.9</span>
+    <span class="tag green">Platform.MACOS patch</span>
+    <span class="tag green">Multi-file auth state</span>
+  </div>
+
+  <h3>AI</h3>
+  <div class="tags">
+    <span class="tag purple">Gemini 2.5 Flash</span>
+    <span class="tag purple">Style learning</span>
+    <span class="tag purple">Few-shot prompting</span>
+    <span class="tag purple">Zod structured output</span>
+  </div>
+
+  <h3>Dashboard</h3>
+  <div class="tags">
+    <span class="tag teal">React 19</span>
+    <span class="tag teal">Vite</span>
+    <span class="tag teal">shadcn/ui</span>
+    <span class="tag teal">TanStack Query</span>
+    <span class="tag teal">SSE (live updates)</span>
+  </div>
+
+  <h3>Infrastructure</h3>
+  <div class="tags">
+    <span class="tag orange">PM2</span>
+    <span class="tag orange">Tailscale</span>
+    <span class="tag orange">Ubuntu 24.04 LTS</span>
+    <span class="tag orange">Google Calendar API</span>
+  </div>
+</div>
+
+<div class="card">
+  <h2><span class="icon">&#x1F4E1;</span> API Endpoints</h2>
+  <table class="api-table">
+    <thead>
+      <tr><th>Method</th><th>Route</th><th>Purpose</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="method post">POST</span></td>
+        <td class="route">/api/auth/login</td>
+        <td>Password login &rarr; JWT</td>
+      </tr>
+      <tr>
+        <td><span class="method get">GET</span></td>
+        <td class="route">/api/status</td>
+        <td>Connection state</td>
+      </tr>
+      <tr>
+        <td><span class="method get">GET</span></td>
+        <td class="route">/api/status/stream</td>
+        <td>SSE: live QR + status</td>
+      </tr>
+      <tr>
+        <td><span class="method get">GET</span></td>
+        <td class="route">/api/contacts</td>
+        <td>All contacts + last msg</td>
+      </tr>
+      <tr>
+        <td><span class="method patch">PATCH</span></td>
+        <td class="route">/api/contacts/:jid</td>
+        <td>Update mode/config</td>
+      </tr>
+      <tr>
+        <td><span class="method get">GET</span></td>
+        <td class="route">/api/drafts</td>
+        <td>Pending drafts</td>
+      </tr>
+      <tr>
+        <td><span class="method patch">PATCH</span></td>
+        <td class="route">/api/drafts/:id/approve</td>
+        <td>Send draft message</td>
+      </tr>
+      <tr>
+        <td><span class="method get">GET</span></td>
+        <td class="route">/api/groups</td>
+        <td>All tracked groups</td>
+      </tr>
+      <tr>
+        <td><span class="method get">GET</span></td>
+        <td class="route">/api/groups/participating</td>
+        <td>WhatsApp groups list</td>
+      </tr>
+      <tr>
+        <td><span class="method post">POST</span></td>
+        <td class="route">/api/groups</td>
+        <td>Track new group</td>
+      </tr>
+      <tr>
+        <td><span class="method get">GET</span></td>
+        <td class="route">/api/.../keyword-rules</td>
+        <td>Rules for group</td>
+      </tr>
+      <tr>
+        <td><span class="method post">POST</span></td>
+        <td class="route">/api/.../keyword-rules</td>
+        <td>Create rule</td>
+      </tr>
+      <tr>
+        <td><span class="method patch">PATCH</span></td>
+        <td class="route">/api/keyword-rules/:id</td>
+        <td>Update rule</td>
+      </tr>
+      <tr>
+        <td><span class="method delete">DEL</span></td>
+        <td class="route">/api/keyword-rules/:id</td>
+        <td>Delete rule</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+</div>
+
+<!-- MODULES -->
+<div class="grid">
+<div class="card span-2">
+  <h2><span class="icon">&#x2699;</span> Backend Modules</h2>
+
+  <h3>WhatsApp Connection</h3>
+  <div class="modules-grid">
+    <div class="module-card green-card"><div class="name">connection.ts</div><div class="role">Baileys socket + auth</div></div>
+    <div class="module-card green-card"><div class="name">reconnect.ts</div><div class="role">Backoff retry (10 max)</div></div>
+    <div class="module-card green-card"><div class="name">sender.ts</div><div class="role">Typing delay + send</div></div>
+  </div>
+
+  <h3>Message Pipeline</h3>
+  <div class="modules-grid">
+    <div class="module-card"><div class="name">messageHandler.ts</div><div class="role">Main message router</div></div>
+    <div class="module-card"><div class="name">groupMessagePipeline.ts</div><div class="role">Group handler chain</div></div>
+    <div class="module-card"><div class="name">travelHandler.ts</div><div class="role">@mention orchestrator</div></div>
+    <div class="module-card"><div class="name">travelParser.ts</div><div class="role">Gemini intent extraction</div></div>
+    <div class="module-card"><div class="name">travelSearch.ts</div><div class="role">Google search integration</div></div>
+    <div class="module-card"><div class="name">travelFormatter.ts</div><div class="role">Results formatting</div></div>
+    <div class="module-card"><div class="name">keywordHandler.ts</div><div class="role">Pattern match + respond</div></div>
+    <div class="module-card"><div class="name">dateExtractor.ts</div><div class="role">Gemini date extraction</div></div>
+    <div class="module-card"><div class="name">reminderScheduler.ts</div><div class="role">Weekly digest cron</div></div>
+  </div>
+
+  <h3>AI &amp; Services</h3>
+  <div class="modules-grid">
+    <div class="module-card purple-card"><div class="name">gemini.ts</div><div class="role">Reply gen + style analysis</div></div>
+    <div class="module-card"><div class="name">calendarService.ts</div><div class="role">Google Calendar API</div></div>
+    <div class="module-card"><div class="name">importChats.ts</div><div class="role">WhatsApp export parser</div></div>
+  </div>
+
+  <h3>API Server</h3>
+  <div class="modules-grid">
+    <div class="module-card"><div class="name">server.ts</div><div class="role">Fastify setup + plugins</div></div>
+    <div class="module-card"><div class="name">state.ts</div><div class="role">Global state + pub/sub</div></div>
+    <div class="module-card"><div class="name">auth.ts</div><div class="role">Login endpoint</div></div>
+    <div class="module-card"><div class="name">status.ts</div><div class="role">Connection + SSE stream</div></div>
+    <div class="module-card"><div class="name">contacts.ts</div><div class="role">Contact CRUD</div></div>
+    <div class="module-card"><div class="name">drafts.ts</div><div class="role">Draft approve/reject</div></div>
+    <div class="module-card"><div class="name">groups.ts</div><div class="role">Group CRUD</div></div>
+    <div class="module-card"><div class="name">keywordRules.ts</div><div class="role">Rule CRUD</div></div>
+  </div>
+</div>
+</div>
+
+<!-- DASHBOARD PAGES + DB SCHEMA -->
+<div class="grid">
+<div class="card">
+  <h2><span class="icon">&#x1F5A5;</span> Dashboard Pages</h2>
+  <div class="modules-grid">
+    <div class="module-card teal-card"><div class="name">Login.tsx</div><div class="role">Password &rarr; JWT</div></div>
+    <div class="module-card teal-card"><div class="name">Overview.tsx</div><div class="role">Connection + stats</div></div>
+    <div class="module-card teal-card"><div class="name">Contacts.tsx</div><div class="role">Mode, snooze, AI config</div></div>
+    <div class="module-card teal-card"><div class="name">Drafts.tsx</div><div class="role">Approve / reject</div></div>
+    <div class="module-card teal-card"><div class="name">Groups.tsx</div><div class="role">Search, add, configure</div></div>
+  </div>
+
+  <h3>Key Components</h3>
+  <div class="modules-grid">
+    <div class="module-card teal-card"><div class="name">ConnectionBadge</div><div class="role">Live status indicator</div></div>
+    <div class="module-card teal-card"><div class="name">QRModal</div><div class="role">QR code display</div></div>
+    <div class="module-card teal-card"><div class="name">ContactPanel</div><div class="role">Contact detail sheet</div></div>
+    <div class="module-card teal-card"><div class="name">GroupPanel</div><div class="role">Group config sheet</div></div>
+    <div class="module-card teal-card"><div class="name">KeywordRuleList</div><div class="role">Rules per group</div></div>
+    <div class="module-card teal-card"><div class="name">KeywordRuleForm</div><div class="role">Create/edit dialog</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2><span class="icon">&#x1F4BE;</span> Database Schema</h2>
+  <table class="db-table">
+    <thead>
+      <tr><th>Table</th><th>Key Columns</th><th>Purpose</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="tbl-name">messages</td>
+        <td>contactJid, fromMe, body</td>
+        <td>1:1 chat history</td>
+      </tr>
+      <tr>
+        <td class="tbl-name">contacts</td>
+        <td>mode, styleSummary, snoozeUntil</td>
+        <td>Contact registry + AI config</td>
+      </tr>
+      <tr>
+        <td class="tbl-name">drafts</td>
+        <td>contactJid, body, status</td>
+        <td>Pending message approvals</td>
+      </tr>
+      <tr>
+        <td class="tbl-name">groups</td>
+        <td>active, reminderDay, calendarLink</td>
+        <td>Group config</td>
+      </tr>
+      <tr>
+        <td class="tbl-name">groupMessages</td>
+        <td>groupJid, senderJid, body</td>
+        <td>Group chat history</td>
+      </tr>
+      <tr>
+        <td class="tbl-name">calendarEvents</td>
+        <td>groupJid, calendarEventId, title</td>
+        <td>Created calendar events</td>
+      </tr>
+      <tr>
+        <td class="tbl-name">keywordRules</td>
+        <td>pattern, responseType, cooldownMs</td>
+        <td>Auto-response rules</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="info-box">
+    <strong>Engine:</strong> SQLite with WAL mode + 5s busy timeout<br>
+    <strong>ORM:</strong> Drizzle with auto-migrations on startup<br>
+    <strong>Queries:</strong> Organized per entity in <code>db/queries/</code>
+  </div>
+</div>
+</div>
+
+<!-- PROJECT PROGRESS + AI DETAILS -->
+<div class="grid">
+<div class="card">
+  <h2><span class="icon">&#x1F4CA;</span> Project Progress</h2>
+  <div class="progress-bar">
+    <div class="fill green" style="width: 100%;">3 milestones shipped &mdash; 11 phases, 26 plans</div>
+  </div>
+
+  <h3>v1.0 Foundation</h3>
+  <ul class="phase-list">
+    <li>
+      <span class="check done">&#x2705;</span>
+      <span class="phase-name">Phase 1: WhatsApp Connection</span>
+      <span class="phase-status complete">Complete</span>
+    </li>
+    <li>
+      <span class="check done">&#x2705;</span>
+      <span class="phase-name">Phase 2: AI Response Engine</span>
+      <span class="phase-status complete">Complete</span>
+    </li>
+    <li>
+      <span class="check done">&#x2705;</span>
+      <span class="phase-name">Phase 3: Chat Import + Style Learning</span>
+      <span class="phase-status complete">Complete</span>
+    </li>
+  </ul>
+
+  <h3>v1.1 Dashboard &amp; Groups</h3>
+  <ul class="phase-list">
+    <li>
+      <span class="check done">&#x2705;</span>
+      <span class="phase-name">Phase 6: Web Dashboard + API</span>
+      <span class="phase-status complete">Complete</span>
+    </li>
+    <li>
+      <span class="check done">&#x2705;</span>
+      <span class="phase-name">Phase 7: CLI Dashboard</span>
+      <span class="phase-status complete">Complete</span>
+    </li>
+    <li>
+      <span class="check done">&#x2705;</span>
+      <span class="phase-name">Phase 8: Group Monitoring + Calendar</span>
+      <span class="phase-status complete">Complete</span>
+    </li>
+    <li>
+      <span class="check done">&#x2705;</span>
+      <span class="phase-name">Phase 9: Travel Search</span>
+      <span class="phase-status complete">Complete</span>
+    </li>
+  </ul>
+
+  <h3>v1.2 Group Auto-Response</h3>
+  <ul class="phase-list">
+    <li>
+      <span class="check done">&#x2705;</span>
+      <span class="phase-name">Phase 10: Keyword Rules + Pipeline</span>
+      <span class="phase-status complete">Complete</span>
+    </li>
+    <li>
+      <span class="check done">&#x2705;</span>
+      <span class="phase-name">Phase 11: Dashboard Rule Management</span>
+      <span class="phase-status complete">Complete</span>
+    </li>
+  </ul>
+</div>
+
+<div class="card">
+  <h2><span class="icon">&#x1F9E0;</span> AI Pipeline Details</h2>
+
+  <h3>1:1 Reply Generation</h3>
+  <div class="info-box">
+    <strong>Model:</strong> Gemini 2.5 Flash<br>
+    <strong>System prompt:</strong> Name + relationship + custom instructions + style summary<br>
+    <strong>Few-shot:</strong> 15 randomly sampled from 200 recent messages<br>
+    <strong>Safety:</strong> Filters model thinking leakage (THINK/THOUGHT prefixes)<br>
+    <strong>Auto-cap:</strong> 20 consecutive replies &rarr; switch to draft mode
+  </div>
+
+  <h3>Date Extraction</h3>
+  <div class="info-box">
+    <strong>Schema:</strong> Zod &mdash; title, date (ISO 8601), confidence<br>
+    <strong>Pre-filter:</strong> Skip messages without digits (save API calls)<br>
+    <strong>Filter:</strong> High-confidence only (pessimistic approach)<br>
+    <strong>Timezone:</strong> Asia/Jerusalem
+  </div>
+
+  <h3>Travel Search</h3>
+  <div class="info-box">
+    <strong>Trigger:</strong> @bot mention or reply to travel result<br>
+    <strong>Intent parsing:</strong> Zod schema &mdash; destination, dates, budget, preferences<br>
+    <strong>Context:</strong> Last 2h of group messages (up to 20) for inference<br>
+    <strong>Rate limit:</strong> 30s per group, reply chains capped at 500
+  </div>
+
+  <h3>Keyword Auto-Response</h3>
+  <div class="info-box">
+    <strong>Matching:</strong> Case-insensitive substring or regex<br>
+    <strong>Response types:</strong> Fixed text or Gemini AI-generated<br>
+    <strong>Strategy:</strong> First-match-wins, non-terminal (continues pipeline)<br>
+    <strong>Cooldown:</strong> Per-rule, ephemeral (resets on restart)
+  </div>
+
+  <h3>Weekly Digest</h3>
+  <div class="info-box">
+    <strong>Trigger:</strong> node-cron per group (configurable day/hour)<br>
+    <strong>Input:</strong> 7 days of messages + 14 days of calendar events<br>
+    <strong>Output:</strong> Structured sections &mdash; Events, Tasks, Notes
+  </div>
+</div>
+</div>
+
+<!-- DIRECTORY STRUCTURE -->
+<div class="grid">
+<div class="card span-2">
+  <h2><span class="icon">&#x1F4C1;</span> Directory Structure</h2>
+  <div class="tree">
+<span class="dir">whatsapp-bot/</span>
+├── <span class="dir">src/</span>                                <span class="comment"># Backend (~4,500 LOC TypeScript)</span>
+│   ├── index.ts                        <span class="comment"># Entry point &amp; startup orchestrator</span>
+│   ├── config.ts                       <span class="comment"># Env config (Zod validated)</span>
+│   ├── <span class="dir">whatsapp/</span>
+│   │   ├── connection.ts               <span class="comment"># Baileys socket &amp; auth state</span>
+│   │   ├── reconnect.ts                <span class="comment"># Exponential backoff retry</span>
+│   │   └── sender.ts                   <span class="comment"># Typing delay + send + persist</span>
+│   ├── <span class="dir">pipeline/</span>
+│   │   └── messageHandler.ts           <span class="comment"># Main router: 1:1 + group + owner cmds</span>
+│   ├── <span class="dir">groups/</span>
+│   │   ├── groupMessagePipeline.ts     <span class="comment"># Handler chain + date extraction batch</span>
+│   │   ├── travelHandler.ts            <span class="comment"># @mention search orchestrator</span>
+│   │   ├── travelParser.ts             <span class="comment"># Gemini intent extraction (Zod)</span>
+│   │   ├── travelSearch.ts             <span class="comment"># Google search integration</span>
+│   │   ├── travelFormatter.ts          <span class="comment"># Travel results formatting</span>
+│   │   ├── dateExtractor.ts            <span class="comment"># Gemini date extraction (Zod)</span>
+│   │   ├── keywordHandler.ts           <span class="comment"># Keyword rule matching + auto-response</span>
+│   │   └── reminderScheduler.ts        <span class="comment"># Weekly digest via node-cron</span>
+│   ├── <span class="dir">ai/</span>
+│   │   └── gemini.ts                   <span class="comment"># Reply generation &amp; style analysis</span>
+│   ├── <span class="dir">calendar/</span>
+│   │   └── calendarService.ts          <span class="comment"># Google Calendar API integration</span>
+│   ├── <span class="dir">db/</span>
+│   │   ├── schema.ts                   <span class="comment"># Drizzle schema (7 tables)</span>
+│   │   ├── client.ts                   <span class="comment"># SQLite init + migrations</span>
+│   │   └── <span class="dir">queries/</span>                    <span class="comment"># contacts, messages, drafts, groups,</span>
+│   │                                   <span class="comment"># groupMessages, calendarEvents, keywordRules</span>
+│   ├── <span class="dir">api/</span>
+│   │   ├── server.ts                   <span class="comment"># Fastify server setup</span>
+│   │   ├── state.ts                    <span class="comment"># Global state + pub/sub</span>
+│   │   ├── <span class="dir">plugins/</span>                    <span class="comment"># cors, jwt, static (SPA serving)</span>
+│   │   └── <span class="dir">routes/</span>                     <span class="comment"># auth, status, contacts, drafts,</span>
+│   │                                   <span class="comment"># groups, keywordRules</span>
+│   └── <span class="dir">importer/</span>
+│       └── importChats.ts              <span class="comment"># WhatsApp .txt export parser</span>
+│
+├── <span class="dir">dashboard/src/</span>                      <span class="comment"># React frontend (~3,300 LOC)</span>
+│   ├── main.tsx                        <span class="comment"># React entry + QueryClient + Router</span>
+│   ├── router.tsx                      <span class="comment"># Client-side routing</span>
+│   ├── <span class="dir">api/</span>
+│   │   └── client.ts                   <span class="comment"># apiFetch() + JWT bearer</span>
+│   ├── <span class="dir">pages/</span>                          <span class="comment"># Login, Overview, Contacts, Drafts, Groups</span>
+│   ├── <span class="dir">components/</span>
+│   │   ├── <span class="dir">status/</span>                     <span class="comment"># ConnectionBadge, DisconnectBanner, QRModal</span>
+│   │   ├── <span class="dir">contacts/</span>                   <span class="comment"># ContactCard, ContactPanel</span>
+│   │   ├── <span class="dir">groups/</span>                     <span class="comment"># GroupCard, GroupPanel, KeywordRuleForm/List</span>
+│   │   ├── <span class="dir">drafts/</span>                     <span class="comment"># DraftRow</span>
+│   │   └── <span class="dir">ui/</span>                         <span class="comment"># shadcn/ui primitives</span>
+│   └── <span class="dir">hooks/</span>                          <span class="comment"># useConnectionStatus, useContacts, useDrafts,</span>
+│                                       <span class="comment"># useGroups, useKeywordRules</span>
+│
+├── <span class="dir">data/</span>                               <span class="comment"># Runtime data (gitignored)</span>
+│   ├── <span class="dir">auth/</span>                           <span class="comment"># Baileys session credentials</span>
+│   ├── bot.db                          <span class="comment"># SQLite database</span>
+│   └── <span class="dir">imports/</span>                        <span class="comment"># WhatsApp chat export .txt files</span>
+│
+└── <span class="dir">drizzle/</span>                            <span class="comment"># Database migrations</span>
+  </div>
+</div>
+</div>
+
+<!-- KEY INTEGRATION POINTS -->
+<div class="grid">
+<div class="card span-2">
+  <h2><span class="icon">&#x1F517;</span> Key Integration Points</h2>
+  <div class="modules-grid">
+    <div class="module-card"><div class="name">state.ts</div><div class="role">Global mutable state + pub/sub for QR updates and connection status</div></div>
+    <div class="module-card"><div class="name">Socket Lifecycle</div><div class="role">Baileys socket can't be reused; new socket on each reconnect</div></div>
+    <div class="module-card"><div class="name">Debounce Buffer</div><div class="role">Group messages batched 10s before date extraction runs</div></div>
+    <div class="module-card"><div class="name">Travel Result Map</div><div class="role">In-memory reply chain tracking, capped at 500 entries</div></div>
+    <div class="module-card"><div class="name">Rule Cooldowns</div><div class="role">Per-rule ephemeral state, resets on process restart</div></div>
+    <div class="module-card"><div class="name">Auto-reply Counter</div><div class="role">Per-contact consecutive count, resets after 30min inactivity</div></div>
+    <div class="module-card"><div class="name">SSE Stream</div><div class="role">JWT passed as ?token query param (EventSource limitation)</div></div>
+    <div class="module-card"><div class="name">Callback Registration</div><div class="role">Extensible group pipeline via setGroupMessageCallback()</div></div>
+  </div>
+</div>
+</div>
+
+<div class="timestamp">
+  Generated from codebase analysis &mdash; Map date: 2026-02-25 | 3 milestones shipped, 11 phases complete
+</div>
+
+</body>
+</html>
