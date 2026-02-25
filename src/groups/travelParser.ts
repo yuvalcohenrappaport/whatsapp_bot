@@ -1,12 +1,10 @@
-import { GoogleGenAI } from '@google/genai';
 import { z } from 'zod/v3';
 import zodToJsonSchema from 'zod-to-json-schema';
 import { config } from '../config.js';
 import pino from 'pino';
+import { generateJson } from '../ai/provider.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
-
-const ai = new GoogleGenAI({ apiKey: config.GEMINI_API_KEY });
 
 // --- Zod schema for Gemini structured output ---
 
@@ -74,28 +72,23 @@ export async function parseTravelIntent(
   const userContent = `Message: ${messageText}\n\nRecent group context:\n${recentGroupContext || '(no recent context)'}`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: config.GEMINI_MODEL,
-      contents: [{ role: 'user', parts: [{ text: userContent }] }],
-      config: {
-        systemInstruction,
-        responseMimeType: 'application/json',
-        responseSchema: TRAVEL_INTENT_JSON_SCHEMA as Record<string, unknown>,
-      },
+    const raw = await generateJson<unknown>({
+      systemPrompt: systemInstruction,
+      userContent,
+      jsonSchema: TRAVEL_INTENT_JSON_SCHEMA as Record<string, unknown>,
+      schemaName: 'travel_intent',
     });
 
-    const rawJson = response.text?.trim();
-    if (!rawJson) {
-      logger.debug({ messageText }, 'Gemini returned empty response for travel intent parsing');
+    if (!raw) {
+      logger.debug({ messageText }, 'AI returned empty response for travel intent parsing');
       return null;
     }
 
-    const parsed = JSON.parse(rawJson);
-    const validated = TravelIntentSchema.safeParse(parsed);
+    const validated = TravelIntentSchema.safeParse(raw);
     if (!validated.success) {
       logger.warn(
         { err: validated.error.message, messageText },
-        'Gemini travel intent response failed Zod validation',
+        'AI travel intent response failed Zod validation',
       );
       return null;
     }
@@ -104,7 +97,7 @@ export async function parseTravelIntent(
   } catch (err) {
     logger.error(
       { err, messageText },
-      'Error during Gemini travel intent parsing -- skipping',
+      'Error during travel intent parsing -- skipping',
     );
     return null;
   }

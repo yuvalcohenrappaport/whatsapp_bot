@@ -1,11 +1,11 @@
 import * as cron from 'node-cron';
 import pino from 'pino';
-import { GoogleGenAI } from '@google/genai';
 import { config } from '../config.js';
 import { getActiveGroups } from '../db/queries/groups.js';
 import { getGroupMessagesSince } from '../db/queries/groupMessages.js';
 import { listUpcomingEvents } from '../calendar/calendarService.js';
 import { getState } from '../api/state.js';
+import { generateText } from '../ai/provider.js';
 
 const logger = pino({
   level: config.LOG_LEVEL,
@@ -14,8 +14,6 @@ const logger = pino({
       ? { target: 'pino-pretty', options: { colorize: true } }
       : undefined,
 });
-
-const ai = new GoogleGenAI({ apiKey: config.GEMINI_API_KEY });
 
 /** Map of group JID -> active cron job */
 const scheduledJobs = new Map<string, cron.ScheduledTask>();
@@ -127,15 +125,13 @@ Format with these exact emoji headers:
 💬 Notes`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: config.GEMINI_MODEL,
-      contents: [{ role: 'user', parts: [{ text: userContent }] }],
-      config: { systemInstruction },
+    const text = await generateText({
+      systemPrompt: systemInstruction,
+      messages: [{ role: 'user', content: userContent }],
     });
 
-    const text = (response.text ?? '').trim();
     if (!text) {
-      logger.warn({ groupJid }, 'Gemini returned empty digest');
+      logger.warn({ groupJid }, 'AI returned empty digest');
       return null;
     }
     return text;

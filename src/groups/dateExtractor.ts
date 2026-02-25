@@ -1,12 +1,10 @@
-import { GoogleGenAI } from '@google/genai';
 import { z } from 'zod/v3';
 import zodToJsonSchema from 'zod-to-json-schema';
 import { config } from '../config.js';
 import pino from 'pino';
+import { generateJson } from '../ai/provider.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
-
-const ai = new GoogleGenAI({ apiKey: config.GEMINI_API_KEY });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -73,28 +71,23 @@ export async function extractDates(
   const userContent = text;
 
   try {
-    const response = await ai.models.generateContent({
-      model: config.GEMINI_MODEL,
-      contents: [{ role: 'user', parts: [{ text: userContent }] }],
-      config: {
-        systemInstruction,
-        responseMimeType: 'application/json',
-        responseSchema: DATE_EXTRACTION_JSON_SCHEMA as Record<string, unknown>,
-      },
+    const raw = await generateJson<{ dates: { title: string; date: string; confidence: string }[] }>({
+      systemPrompt: systemInstruction,
+      userContent,
+      jsonSchema: DATE_EXTRACTION_JSON_SCHEMA as Record<string, unknown>,
+      schemaName: 'date_extraction',
     });
 
-    const rawJson = response.text?.trim();
-    if (!rawJson) {
-      logger.debug({ text }, 'Gemini returned empty response for date extraction');
+    if (!raw) {
+      logger.debug({ text }, 'AI returned empty response for date extraction');
       return [];
     }
 
-    const parsed = JSON.parse(rawJson);
-    const validated = DateExtractionSchema.safeParse(parsed);
+    const validated = DateExtractionSchema.safeParse(raw);
     if (!validated.success) {
       logger.warn(
         { err: validated.error.message, text },
-        'Gemini date extraction response failed Zod validation',
+        'AI date extraction response failed Zod validation',
       );
       return [];
     }
@@ -112,7 +105,7 @@ export async function extractDates(
   } catch (err) {
     logger.error(
       { err, senderName, groupName },
-      'Error during Gemini date extraction — skipping',
+      'Error during date extraction — skipping',
     );
     return [];
   }

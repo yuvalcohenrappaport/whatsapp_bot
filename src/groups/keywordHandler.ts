@@ -1,14 +1,13 @@
 import pino from 'pino';
-import { GoogleGenAI } from '@google/genai';
 import { config } from '../config.js';
 import {
   getActiveKeywordRulesByGroup,
   incrementMatchCount,
 } from '../db/queries/keywordRules.js';
 import { getState } from '../api/state.js';
+import { generateText } from '../ai/provider.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
-const ai = new GoogleGenAI({ apiKey: config.GEMINI_API_KEY });
 
 /** Per-rule cooldown: ruleId -> last fired timestamp (Unix ms). Resets on restart. */
 const ruleCooldowns = new Map<string, number>();
@@ -27,12 +26,10 @@ async function generateAiResponse(
   messageBody: string,
 ): Promise<string | null> {
   try {
-    const response = await ai.models.generateContent({
-      model: config.GEMINI_MODEL,
-      contents: [{ role: 'user', parts: [{ text: messageBody }] }],
-      config: { systemInstruction: aiInstructions },
+    return await generateText({
+      systemPrompt: aiInstructions,
+      messages: [{ role: 'user', content: messageBody }],
     });
-    return response.text?.trim() || null;
   } catch (err) {
     logger.error({ err }, 'Error generating AI keyword response — skipping');
     return null;

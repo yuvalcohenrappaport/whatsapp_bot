@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { QRModal } from '@/components/status/QRModal';
 import { ConnectionBadge } from '@/components/status/ConnectionBadge';
 import { DisconnectBanner } from '@/components/status/DisconnectBanner';
@@ -12,6 +12,13 @@ interface TopbarProps {
 
 export function Topbar({ status, qr }: TopbarProps) {
   const [qrModalOpen, setQrModalOpen] = useState(false);
+
+  // Auto-open QR modal when a QR code is available
+  useEffect(() => {
+    if (status === 'qr_pending' && qr) {
+      setQrModalOpen(true);
+    }
+  }, [status, qr]);
 
   return (
     <>

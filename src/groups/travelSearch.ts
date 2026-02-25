@@ -1,9 +1,11 @@
 import { GoogleGenAI } from '@google/genai';
 import pino from 'pino';
 import { config } from '../config.js';
+import { generateText } from '../ai/provider.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
 
+// Gemini client kept for grounded search (Google Search tool is Gemini-specific)
 const ai = new GoogleGenAI({ apiKey: config.GEMINI_API_KEY });
 
 // --- Types ---
@@ -94,38 +96,47 @@ async function geminiGroundedSearch(
  * to provide 3 travel recommendations based on general knowledge.
  * Returns SearchResult[] with empty URLs (no live links from knowledge fallback).
  */
-async function geminiKnowledgeFallback(
+async function knowledgeFallback(
   searchQuery: string,
   lang: 'he' | 'en',
 ): Promise<SearchResult[]> {
   const langLabel = lang === 'he' ? 'Hebrew' : 'English';
 
-  const systemInstruction =
+  const systemPrompt =
     `You are a travel assistant. Provide exactly 3 recommendations for the given query. ` +
     `For each, give a name, brief description, and estimated price range if you know it. ` +
     `Note: these are general knowledge recommendations, not live prices. ` +
     `Respond as a JSON array of objects with fields: title (string), snippet (string), price (string or null). ` +
-    `Respond in ${langLabel}.`;
+    `Respond in ${langLabel}. Output ONLY the JSON array, no markdown fences.`;
 
-  const response = await ai.models.generateContent({
-    model: config.GEMINI_MODEL,
-    contents: [{ role: 'user', parts: [{ text: searchQuery }] }],
-    config: {
-      systemInstruction,
-      responseMimeType: 'application/json',
-    },
+  const rawText = await generateText({
+    systemPrompt,
+    messages: [{ role: 'user', content: searchQuery }],
   });
 
-  const rawJson = response.text?.trim();
-  if (!rawJson) {
-    logger.warn('Gemini knowledge fallback returned empty response');
+  if (!rawText) {
+    logger.warn('Knowledge fallback returned empty response');
     return [];
   }
 
-  const parsed = JSON.parse(rawJson);
+  // Strip markdown code fences if present
+  const jsonText = rawText.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/, '');
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(jsonText);
+  } catch {
+    const arrayMatch = jsonText.match(/\[[\s\S]*\]/);
+    if (arrayMatch) {
+      parsed = JSON.parse(arrayMatch[0]);
+    } else {
+      logger.warn({ rawText: rawText.substring(0, 500) }, 'Could not parse knowledge fallback JSON');
+      return [];
+    }
+  }
 
   if (!Array.isArray(parsed)) {
-    logger.warn({ parsed }, 'Gemini knowledge fallback response is not an array');
+    logger.warn({ parsed }, 'Knowledge fallback response is not an array');
     return [];
   }
 
@@ -167,7 +178,7 @@ export async function searchTravel(
 
   // Fallback: Gemini knowledge
   try {
-    const fallbackResults = await geminiKnowledgeFallback(searchQuery, lang);
+    const fallbackResults = await knowledgeFallback(searchQuery, lang);
     logger.info(
       { count: fallbackResults.length, query: searchQuery },
       'Gemini knowledge fallback returned results',

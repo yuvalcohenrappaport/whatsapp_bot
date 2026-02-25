@@ -103,6 +103,11 @@ export const calendarEvents = sqliteTable(
   ],
 );
 
+export const settings = sqliteTable('settings', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+});
+
 export const keywordRules = sqliteTable(
   'keyword_rules',
   {

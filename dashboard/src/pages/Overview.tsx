@@ -1,6 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '@/api/client';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { useSettings } from '@/hooks/useSettings';
 
 interface Draft {
   status: string;
@@ -53,6 +56,10 @@ export default function Overview() {
           description="WhatsApp groups being monitored"
         />
       </div>
+
+      <div className="mt-8">
+        <ProviderCard />
+      </div>
     </div>
   );
 }
@@ -76,6 +83,64 @@ function StatCard({
       <CardContent className="p-0">
         <p className={`text-3xl md:text-5xl font-bold ${highlight ? 'text-primary' : ''}`}>{value}</p>
         <p className="text-sm text-muted-foreground mt-2">{description}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ProviderCard() {
+  const { settings, isLoading, setProvider, isSwitching } = useSettings();
+
+  if (isLoading) {
+    return (
+      <Card className="p-5 md:p-8">
+        <CardHeader className="p-0 mb-4">
+          <CardTitle className="text-base font-medium text-muted-foreground">AI Provider</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <p className="text-sm text-muted-foreground">Loading...</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const current = settings?.aiProvider ?? 'gemini';
+  const localOnline = settings?.localModelOnline ?? false;
+
+  return (
+    <Card className="p-5 md:p-8">
+      <CardHeader className="p-0 mb-4">
+        <CardTitle className="text-base font-medium text-muted-foreground">AI Provider</CardTitle>
+      </CardHeader>
+      <CardContent className="p-0">
+        <p className="text-sm text-muted-foreground mb-4">
+          Choose which AI model powers your bot's responses
+        </p>
+        <div className="flex gap-3">
+          <Button
+            variant={current === 'gemini' ? 'default' : 'outline'}
+            onClick={() => setProvider('gemini')}
+            disabled={isSwitching}
+            className="flex-1 h-auto py-4 flex flex-col items-center gap-1"
+          >
+            <span className="font-semibold">Gemini API</span>
+            <span className="text-xs opacity-75">Google Cloud</span>
+          </Button>
+          <Button
+            variant={current === 'local' ? 'default' : 'outline'}
+            onClick={() => setProvider('local')}
+            disabled={isSwitching || !localOnline}
+            className="flex-1 h-auto py-4 flex flex-col items-center gap-1"
+          >
+            <span className="font-semibold">Local Model</span>
+            <span className="text-xs opacity-75 flex items-center gap-1.5">
+              LM Studio
+              <Badge variant={localOnline ? 'default' : 'secondary'} className="text-[10px] px-1.5 py-0">
+                {localOnline ? 'online' : 'offline'}
+              </Badge>
+            </span>
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

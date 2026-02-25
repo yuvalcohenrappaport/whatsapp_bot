@@ -8,6 +8,9 @@
 
 ## Phases
 
+### v1.3 Local AI Provider (Phase 12)
+- [ ] Phase 12: Local AI Provider (0/3 plans) — toggle between Gemini and LM Studio local model
+
 <details>
 <summary>v1.0 Foundation (Phases 1-3) — SHIPPED 2026-02-22</summary>
 

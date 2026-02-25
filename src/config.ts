@@ -21,6 +21,8 @@ const envSchema = z.object({
   API_PORT: z.coerce.number().default(3000),
   API_HOST: z.string().default('100.124.47.99'),
   GOOGLE_SERVICE_ACCOUNT_KEY_PATH: z.string().optional(),
+  LMS_BASE_URL: z.string().default('http://localhost:1234'),
+  LMS_MODEL: z.string().default('qwen2.5-coder-7b-instruct'),
 });
 
 export type Config = z.infer<typeof envSchema>;

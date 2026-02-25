@@ -1,9 +1,6 @@
-import { GoogleGenAI, type Content } from '@google/genai';
-import { config } from '../config.js';
 import { getRecentMessages, getStyleExamples } from '../db/queries/messages.js';
 import { getContact } from '../db/queries/contacts.js';
-
-const ai = new GoogleGenAI({ apiKey: config.GEMINI_API_KEY });
+import { generateText } from './provider.js';
 
 /**
  * Randomly samples up to n elements from an array without modifying the original.
@@ -52,15 +49,8 @@ async function buildSystemPrompt(
   return parts.join('\n\n');
 }
 
-function messagesToContents(messages: { fromMe: boolean; body: string }[]): Content[] {
-  return messages.map((msg) => ({
-    role: msg.fromMe ? 'model' : 'user',
-    parts: [{ text: msg.body }],
-  }));
-}
-
 /**
- * Generates a reply using Gemini based on recent chat history.
+ * Generates a reply using the active AI provider based on recent chat history.
  * System prompt includes style summary and few-shot examples when available.
  */
 export async function generateReply(contactJid: string): Promise<string | null> {
@@ -73,18 +63,14 @@ export async function generateReply(contactJid: string): Promise<string | null> 
     contactJid,
     contact ?? { name: null, relationship: null, customInstructions: null, styleSummary: null },
   );
-  const contents = messagesToContents(recentMessages);
+  const messages = recentMessages.map((msg) => ({
+    role: msg.fromMe ? 'assistant' as const : 'user' as const,
+    content: msg.body,
+  }));
 
-  const response = await ai.models.generateContent({
-    model: config.GEMINI_MODEL,
-    contents,
-    config: {
-      systemInstruction,
-    },
-  });
+  let text = await generateText({ systemPrompt: systemInstruction, messages });
 
-  let text = response.text?.trim() || null;
-  // Strip model thinking leakage — Gemini sometimes prefixes with THINK/THOUGHT/reasoning.
+  // Strip model thinking leakage — models sometimes prefix with THINK/THOUGHT/reasoning.
   // Extract only the actual reply (last non-empty line after stripping thinking).
   if (text && /^(THINK|THOUGHT)\b/i.test(text)) {
     const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
@@ -121,13 +107,10 @@ export async function generateStyleSummary(contactJid: string, messages: string[
 
   const prompt = `Analyze these WhatsApp messages sent by Yuval to a specific contact and write a concise style summary (3-5 sentences). Cover: message length, formality level, language mix (Hebrew/English), emoji and slang use, typical openers/closers, and any distinctive patterns. Be specific and descriptive — this summary will guide an AI to mimic this style.\n\nMessages:\n${messageList}`;
 
-  const response = await ai.models.generateContent({
-    model: config.GEMINI_MODEL,
-    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    config: {
-      systemInstruction: 'You are a writing style analyst. Be specific and descriptive. Output only the style summary, no preamble.',
-    },
+  const result = await generateText({
+    systemPrompt: 'You are a writing style analyst. Be specific and descriptive. Output only the style summary, no preamble.',
+    messages: [{ role: 'user', content: prompt }],
   });
 
-  return (response.text ?? '').trim();
+  return (result ?? '').trim();
 }
