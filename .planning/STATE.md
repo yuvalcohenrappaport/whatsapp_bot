@@ -2,46 +2,32 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-24)
+See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
-**Current focus:** Phase 11 — Dashboard Rule Management
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Phase: 11 of 11 (Dashboard Rule Management)
-Plan: 2 of 2 in current phase (Plan 02 complete -- phase complete)
-Status: Phase 11 complete
-Last activity: 2026-02-24 — Completed 11-02 (keyword rule list + GroupPanel integration)
-
-Progress: [##########] 100%
+Milestone: v1.2 Group Auto-Response — SHIPPED 2026-02-25
+Status: Between milestones
+Last activity: 2026-02-25 — Completed v1.2 milestone (2 phases, 4 plans, 15 requirements)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 24 (v1.0: 9, v1.1: 13, v1.2: 2)
-- Average duration: carried from prior milestones
-- Total execution time: carried from prior milestones
+- Total plans completed: 26 (v1.0: 9, v1.1: 13, v1.2: 4)
+- v1.2 shipped in 1 day (4 plans, 11 commits)
 
-**Recent Trend:**
-- v1.1 shipped in 2 days (13 plans, 65 commits)
-- Trend: Fast
-
-*Updated after each plan completion*
+**Cumulative:**
+- 3 milestones shipped in 4 days
+- 11 phases, 26 plans total
 
 ## Accumulated Context
 
 ### Decisions
 
 Full decision log in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
-
-- Callback registration pattern chosen for extensible pipeline (setGroupMessageCallback)
-- GroupCard + GroupPanel pattern in dashboard for per-group views
-- Keyword rule hooks follow useGroups.ts pattern exactly (apiFetch, queryKey, invalidation)
-- Cooldown stored as ms in API, displayed as seconds in form with conversion
-- Rule list pattern: loading skeletons, empty state, action buttons per row with toast confirmations
-- GroupPanel section pattern: Separator + component with groupJid prop
 
 ### Pending Todos
 
@@ -54,7 +40,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-24
-Stopped at: Completed 11-02-PLAN.md (Phase 11 complete)
-Resume with: All v1.2 dashboard plans complete; Phase 10 backend plans remain
-Resume file: .planning/phases/11-dashboard-rule-management/11-02-SUMMARY.md
+Last session: 2026-02-25
+Stopped at: v1.2 milestone archived
+Resume with: `/gsd:new-milestone`
+Resume file: N/A

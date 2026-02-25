@@ -32,3 +32,20 @@
 
 ---
 
+
+## v1.2 Group Auto-Response (Shipped: 2026-02-25)
+
+**Phases completed:** 2 phases (10-11), 4 plans
+**Timeline:** 1 day (2026-02-24 to 2026-02-25)
+**LOC:** ~8,700 TypeScript (+~1,000 from v1.1)
+**Commits:** 11
+
+**Key accomplishments:**
+- Keyword rules DB schema, query layer, and CRUD REST API for per-group auto-response configuration
+- Keyword matching engine with case-insensitive contains and optional regex, per-rule cooldown, and first-match-wins strategy
+- AI-generated responses via Gemini with custom system prompt per rule, integrated into the group message pipeline
+- Dashboard keyword rule management UI — create, edit, toggle, delete rules with match count and last triggered stats
+- Group picker from WhatsApp participating groups for dashboard rule assignment
+
+---
+

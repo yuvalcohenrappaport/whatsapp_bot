@@ -4,7 +4,7 @@
 
 - [x] **v1.0 Foundation** — Phases 1-3 (shipped 2026-02-22) — [archive](milestones/v1.1-ROADMAP.md)
 - [x] **v1.1 Dashboard & Groups** — Phases 6-9 (shipped 2026-02-24) — [archive](milestones/v1.1-ROADMAP.md)
-- [ ] **v1.2 Group Auto-Response** — Phases 10-11 (in progress)
+- [x] **v1.2 Group Auto-Response** — Phases 10-11 (shipped 2026-02-25) — [archive](milestones/v1.2-ROADMAP.md)
 
 ## Phases
 
@@ -27,50 +27,15 @@
 
 </details>
 
-### v1.2 Group Auto-Response (In Progress)
+<details>
+<summary>v1.2 Group Auto-Response (Phases 10-11) — SHIPPED 2026-02-25</summary>
 
-**Milestone Goal:** Per-group keyword monitoring with configurable auto-responses (fixed text or AI-generated), managed from the web dashboard.
+- [x] Phase 10: Keyword Rules and Auto-Response Pipeline (2/2 plans) — completed 2026-02-24
+- [x] Phase 11: Dashboard Rule Management (2/2 plans) — completed 2026-02-24
 
-- [ ] **Phase 10: Keyword Rules and Auto-Response Pipeline** - Backend data model, matching engine, and pipeline integration for keyword-triggered group responses
-- [x] **Phase 11: Dashboard Rule Management** - Web dashboard UI for creating, editing, toggling, and monitoring keyword rules per group (completed 2026-02-24)
-
-## Phase Details
-
-### Phase 10: Keyword Rules and Auto-Response Pipeline
-**Goal**: Bot automatically responds to group messages that match keyword rules with either fixed text or AI-generated replies
-**Depends on**: Phase 9 (existing group message pipeline and infrastructure)
-**Requirements**: KW-01, KW-02, KW-03, KW-04, KW-05, KW-06, KW-07, AR-01, AR-02, AR-03, AR-04
-**Success Criteria** (what must be TRUE):
-  1. User can create a keyword rule for a tracked group (via API/CLI) and the bot sends the configured fixed-text response when a group message contains that keyword
-  2. User can create an AI-generated rule with custom instructions and the bot sends a Gemini-generated response using those instructions when triggered
-  3. Rules support both case-insensitive contains matching and optional regex matching
-  4. A rule that fires does not fire again within its cooldown period, even if matching messages keep arriving
-  5. Auto-response runs in the correct pipeline position (after travel handler, before date extraction debounce) and only fires on active/enabled rules
-**Plans:** 2 plans
-
-Plans:
-- [ ] 10-01-PLAN.md — Database schema, query layer, and REST API for keyword rules
-- [ ] 10-02-PLAN.md — Keyword matching engine and pipeline integration
-
-### Phase 11: Dashboard Rule Management
-**Goal**: User can fully manage keyword rules for any tracked group through the web dashboard
-**Depends on**: Phase 10
-**Requirements**: DASH-10, DASH-11, DASH-12, DASH-13
-**Success Criteria** (what must be TRUE):
-  1. User can open a group in the dashboard and see all keyword rules configured for it, with their current status (enabled/disabled)
-  2. User can create a new keyword rule, edit an existing rule, or delete a rule entirely from the dashboard
-  3. User can toggle a rule on or off from the dashboard without deleting it
-  4. Dashboard displays each rule's match count and last triggered time so user can see which rules are active
-**Plans:** 2/2 plans complete
-
-Plans:
-- [x] 11-01-PLAN.md — Data hook and create/edit form dialog for keyword rules
-- [x] 11-02-PLAN.md — Rule list component and GroupPanel integration
+</details>
 
 ## Progress
-
-**Execution Order:**
-Phases execute in numeric order: 10 -> 11
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -81,5 +46,5 @@ Phases execute in numeric order: 10 -> 11
 | 7. CLI Dashboard | v1.1 | 3/3 | Complete | 2026-02-23 |
 | 8. Group Monitoring & Calendar | v1.1 | 4/4 | Complete | 2026-02-23 |
 | 9. Travel Search | v1.1 | 2/2 | Complete | 2026-02-24 |
-| 10. Keyword Rules & Pipeline | v1.2 | 0/2 | Planning complete | - |
-| 11. Dashboard Rule Management | v1.2 | Complete    | 2026-02-24 | 2026-02-24 |
+| 10. Keyword Rules & Pipeline | v1.2 | 2/2 | Complete | 2026-02-24 |
+| 11. Dashboard Rule Management | v1.2 | 2/2 | Complete | 2026-02-24 |

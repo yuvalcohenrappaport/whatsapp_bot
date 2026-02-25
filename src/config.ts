@@ -19,6 +19,7 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
   DASHBOARD_PASSWORD: z.string().min(6, 'DASHBOARD_PASSWORD must be at least 6 characters'),
   API_PORT: z.coerce.number().default(3000),
+  API_HOST: z.string().default('100.124.47.99'),
   GOOGLE_SERVICE_ACCOUNT_KEY_PATH: z.string().optional(),
 });
 

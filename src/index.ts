@@ -33,8 +33,8 @@ async function main(): Promise<void> {
   logger.info('Chat import complete');
 
   const server = await createServer();
-  await server.listen({ port: config.API_PORT, host: '0.0.0.0' });
-  logger.info(`API server listening on port ${config.API_PORT}`);
+  await server.listen({ port: config.API_PORT, host: config.API_HOST });
+  logger.info(`API server listening on ${config.API_HOST}:${config.API_PORT}`);
 
   initGroupPipeline();
   logger.info('Group pipeline initialized');
