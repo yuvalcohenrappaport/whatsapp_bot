@@ -8,6 +8,7 @@ interface BotState {
   sock: WASocket | null;
   botJid: string | null;
   botDisplayName: string | null;
+  isShuttingDown: boolean;
   listeners: Set<(state: BotState) => void>;
 }
 
@@ -17,6 +18,7 @@ const state: BotState = {
   sock: null,
   botJid: null,
   botDisplayName: null,
+  isShuttingDown: false,
   listeners: new Set(),
 };
 
@@ -39,5 +41,6 @@ export function getState() {
     sock: state.sock,
     botJid: state.botJid,
     botDisplayName: state.botDisplayName,
+    isShuttingDown: state.isShuttingDown,
   };
 }

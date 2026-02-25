@@ -10,7 +10,7 @@ import {
 } from './whatsapp/reconnect.js';
 import { createMessageHandler } from './pipeline/messageHandler.js';
 import { importChats } from './importer/importChats.js';
-import { updateState } from './api/state.js';
+import { getState, updateState } from './api/state.js';
 import { createServer } from './api/server.js';
 import { initGroupPipeline } from './groups/groupMessagePipeline.js';
 import { initReminderScheduler } from './groups/reminderScheduler.js';
@@ -52,6 +52,15 @@ async function main(): Promise<void> {
  * new socket instance (Baileys sockets cannot be reused after close).
  */
 async function startSocket(): Promise<void> {
+  // Close previous socket before creating a new one
+  const prevSock = getState().sock;
+  if (prevSock) {
+    try {
+      prevSock.end(undefined);
+      prevSock.ws?.close();
+    } catch { /* already closed */ }
+  }
+
   const { sock } = await createSocket();
   updateState({ sock });
 
@@ -106,15 +115,30 @@ async function startSocket(): Promise<void> {
   sock.ev.on('messages.upsert', createMessageHandler(sock));
 }
 
-// Graceful shutdown handlers
-process.on('SIGTERM', () => {
-  logger.info('Received SIGTERM — shutting down...');
-  process.exit(0);
-});
+// Graceful shutdown — close socket cleanly so WhatsApp doesn't invalidate the session
+function gracefulShutdown(signal: string): void {
+  logger.info(`Received ${signal} — shutting down gracefully...`);
+  updateState({ isShuttingDown: true });
 
-process.on('SIGINT', () => {
-  logger.info('Received SIGINT — shutting down...');
-  process.exit(0);
+  const sock = getState().sock;
+  try {
+    sock?.end(undefined);
+    sock?.ws?.close();
+  } catch { /* already closed */ }
+
+  // Give the socket time to close cleanly, then exit
+  setTimeout(() => process.exit(0), 2000);
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// Catch unhandled errors — log but don't crash (PM2 restart loop prevention)
+process.on('uncaughtException', (err) => {
+  logger.error(err, 'Uncaught exception');
+});
+process.on('unhandledRejection', (reason) => {
+  logger.error(reason, 'Unhandled rejection');
 });
 
 main().catch((err) => {

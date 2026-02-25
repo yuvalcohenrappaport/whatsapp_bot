@@ -32,7 +32,7 @@
 **Milestone Goal:** Per-group keyword monitoring with configurable auto-responses (fixed text or AI-generated), managed from the web dashboard.
 
 - [ ] **Phase 10: Keyword Rules and Auto-Response Pipeline** - Backend data model, matching engine, and pipeline integration for keyword-triggered group responses
-- [ ] **Phase 11: Dashboard Rule Management** - Web dashboard UI for creating, editing, toggling, and monitoring keyword rules per group
+- [x] **Phase 11: Dashboard Rule Management** - Web dashboard UI for creating, editing, toggling, and monitoring keyword rules per group (completed 2026-02-24)
 
 ## Phase Details
 
@@ -61,7 +61,7 @@ Plans:
   2. User can create a new keyword rule, edit an existing rule, or delete a rule entirely from the dashboard
   3. User can toggle a rule on or off from the dashboard without deleting it
   4. Dashboard displays each rule's match count and last triggered time so user can see which rules are active
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [x] 11-01-PLAN.md — Data hook and create/edit form dialog for keyword rules
@@ -82,4 +82,4 @@ Phases execute in numeric order: 10 -> 11
 | 8. Group Monitoring & Calendar | v1.1 | 4/4 | Complete | 2026-02-23 |
 | 9. Travel Search | v1.1 | 2/2 | Complete | 2026-02-24 |
 | 10. Keyword Rules & Pipeline | v1.2 | 0/2 | Planning complete | - |
-| 11. Dashboard Rule Management | v1.2 | 2/2 | Complete | 2026-02-24 |
+| 11. Dashboard Rule Management | v1.2 | Complete    | 2026-02-24 | 2026-02-24 |

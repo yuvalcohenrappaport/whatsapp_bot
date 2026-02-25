@@ -1,5 +1,6 @@
 import { DisconnectReason, type ConnectionState } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
+import { getState } from '../api/state.js';
 
 const MAX_RETRIES = 10;
 let retryCount = 0;
@@ -49,6 +50,8 @@ export function handleConnectionUpdate(
   }
 
   if (connection === 'close') {
+    if (getState().isShuttingDown) return;
+
     const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
 
     // Session permanently invalidated — delete and require re-auth
