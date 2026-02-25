@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, UsersRound } from 'lucide-react';
+import { Plus, Search, UsersRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,13 @@ import { useGroups, useAddGroup, useParticipatingGroups } from '@/hooks/useGroup
 export default function Groups() {
   const { data: groups, isLoading } = useGroups();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [search, setSearch] = useState('');
+
+  const filteredGroups = groups?.filter((group) => {
+    if (!search) return true;
+    const term = search.toLowerCase();
+    return group.name?.toLowerCase().includes(term) || group.id.toLowerCase().includes(term);
+  });
 
   return (
     <div>
@@ -27,6 +34,18 @@ export default function Groups() {
           Add Group
         </Button>
       </div>
+
+      {!isLoading && groups && groups.length > 0 && (
+        <div className="relative mb-6">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <Input
+            placeholder="Search groups..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+      )}
 
       {isLoading && (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -46,12 +65,16 @@ export default function Groups() {
         </Card>
       )}
 
-      {!isLoading && groups && groups.length > 0 && (
+      {!isLoading && filteredGroups && filteredGroups.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {groups.map((group) => (
+          {filteredGroups.map((group) => (
             <GroupCard key={group.id} group={group} />
           ))}
         </div>
+      )}
+
+      {!isLoading && groups && groups.length > 0 && filteredGroups?.length === 0 && (
+        <p className="text-center text-muted-foreground py-12">No groups match your search.</p>
       )}
 
       <AddGroupDialog open={dialogOpen} onOpenChange={setDialogOpen} />
@@ -68,7 +91,7 @@ function AddGroupDialog({
 }) {
   const { data: participating, isLoading } = useParticipatingGroups();
   const addGroup = useAddGroup();
-  const [jid, setJid] = useState('');
+  const [query, setQuery] = useState('');
 
   function handleAdd(groupJid: string, name?: string) {
     addGroup.mutate(
@@ -76,19 +99,19 @@ function AddGroupDialog({
       {
         onSuccess: () => {
           toast.success('Group added');
-          setJid('');
+          setQuery('');
           onOpenChange(false);
         },
       },
     );
   }
 
-  function handleAddByJid(e: React.FormEvent) {
-    e.preventDefault();
-    const trimmed = jid.trim();
-    if (!trimmed) return;
-    handleAdd(trimmed);
-  }
+  const isJid = query.trim().endsWith('@g.us');
+  const term = query.toLowerCase();
+  const filtered = participating?.filter((g) => {
+    if (!query) return true;
+    return g.name?.toLowerCase().includes(term) || g.jid.toLowerCase().includes(term);
+  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -97,18 +120,27 @@ function AddGroupDialog({
           <DialogTitle>Add Group</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleAddByJid} className="flex gap-2">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
-            placeholder="Group JID (e.g. 123456789@g.us)"
-            value={jid}
-            onChange={(e) => setJid(e.target.value)}
+            placeholder="Search by name or JID..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="pl-9"
           />
-          <Button type="submit" size="sm" disabled={addGroup.isPending || !jid.trim()}>
-            Add
-          </Button>
-        </form>
+        </div>
 
-        <div className="text-xs text-muted-foreground -mt-2">Or pick from your WhatsApp groups:</div>
+        {isJid && (
+          <Button
+            variant="outline"
+            className="w-full justify-start"
+            disabled={addGroup.isPending}
+            onClick={() => handleAdd(query.trim())}
+          >
+            <Plus className="size-4 mr-2" />
+            Add by JID: {query.trim()}
+          </Button>
+        )}
 
         <div className="overflow-y-auto -mx-6 px-6 max-h-[50vh]">
           {isLoading && (
@@ -125,9 +157,15 @@ function AddGroupDialog({
             </div>
           )}
 
-          {!isLoading && participating && participating.length > 0 && (
+          {!isLoading && participating && participating.length > 0 && filtered?.length === 0 && !isJid && (
+            <div className="py-8 text-center text-muted-foreground">
+              <p>No groups match "{query}"</p>
+            </div>
+          )}
+
+          {!isLoading && filtered && filtered.length > 0 && (
             <div className="space-y-1 py-2">
-              {participating.map((group) => (
+              {filtered.map((group) => (
                 <button
                   key={group.jid}
                   className="w-full flex items-center gap-3 p-3 rounded-lg text-left hover:bg-accent/50 transition-colors disabled:opacity-50"
