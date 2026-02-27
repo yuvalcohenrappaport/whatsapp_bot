@@ -21,7 +21,7 @@ export interface ConnectionCallbacks {
   /** Called when connection is successfully established. */
   onOpen: () => void;
   /** Called when a reconnect should be scheduled after a transient error. */
-  onReconnect: (delayMs: number) => void;
+  onReconnect: (delayMs: number, statusCode?: number, reason?: string) => void;
   /** Called when the session is invalidated (logged out, bad session, forbidden). */
   onLoggedOut: () => void;
   /** Called when max reconnect attempts have been exhausted. */
@@ -32,9 +32,9 @@ export interface ConnectionCallbacks {
  * Handles Baileys connection.update events and routes to the appropriate callback.
  *
  * Disconnect reason routing:
- * - 401 (loggedOut), 403 (forbidden), 405 (connectionClosed), 500 (badSession): session invalidated -> onLoggedOut
+ * - 401 (loggedOut): session explicitly revoked -> onLoggedOut (delete auth)
  * - 440 (connectionReplaced): another session took over -> log warning, no reconnect
- * - All others (408, 411, 428, 515, 503, etc.): transient -> exponential backoff reconnect
+ * - All others (403, 408, 428, 500, 515, etc.): transient -> exponential backoff reconnect
  * - connection === 'open': reset retry count -> onOpen
  * - QR code present: display for scanning -> onQR
  */
@@ -53,16 +53,13 @@ export function handleConnectionUpdate(
     if (getState().isShuttingDown) return;
 
     const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
+    const errorMsg = (lastDisconnect?.error as Boom)?.message ?? 'unknown';
 
     // Session permanently invalidated — delete and require re-auth
-    // 401 = loggedOut, 403 = forbidden, 405 = connectionClosed (stale session),
-    // 500 = badSession
-    if (
-      statusCode === DisconnectReason.loggedOut ||
-      statusCode === DisconnectReason.forbidden ||
-      statusCode === DisconnectReason.connectionClosed ||
-      statusCode === DisconnectReason.badSession
-    ) {
+    // Only 401 (loggedOut) is a true logout where WhatsApp explicitly revoked the session.
+    // All other codes (connectionClosed, badSession, forbidden, etc.) are usually transient
+    // and should be retried with the existing credentials.
+    if (statusCode === DisconnectReason.loggedOut) {
       callbacks.onLoggedOut();
       return;
     }
@@ -81,7 +78,7 @@ export function handleConnectionUpdate(
     }
 
     const delay = Math.min(1000 * 2 ** (retryCount - 1), 60_000);
-    callbacks.onReconnect(delay);
+    callbacks.onReconnect(delay, statusCode, errorMsg);
   }
 
   if (connection === 'open') {

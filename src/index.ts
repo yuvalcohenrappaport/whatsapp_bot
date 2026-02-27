@@ -78,8 +78,8 @@ async function startSocket(): Promise<void> {
       updateState({ connection: 'connected', qr: null, sock, botJid, botDisplayName });
     },
 
-    onReconnect(delayMs: number) {
-      logger.warn({ delayMs }, 'Scheduling reconnect...');
+    onReconnect(delayMs: number, statusCode?: number, reason?: string) {
+      logger.warn({ delayMs, statusCode, reason }, 'Scheduling reconnect...');
       updateState({ connection: 'reconnecting', qr: null });
       setTimeout(() => {
         startSocket().catch((err) => {
