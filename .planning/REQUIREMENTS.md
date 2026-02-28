@@ -55,24 +55,24 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| VOICE-01 | — | Pending |
-| VOICE-02 | — | Pending |
-| VOICE-03 | — | Pending |
-| VOICE-04 | — | Pending |
-| VOICE-05 | — | Pending |
-| CONF-01 | — | Pending |
-| CONF-02 | — | Pending |
-| DRAFT-01 | — | Pending |
-| DRAFT-02 | — | Pending |
-| DRAFT-03 | — | Pending |
-| MGMT-01 | — | Pending |
-| MGMT-02 | — | Pending |
+| VOICE-01 | Phase 14 | Pending |
+| VOICE-02 | Phase 13 | Pending |
+| VOICE-03 | Phase 14 | Pending |
+| VOICE-04 | Phase 13 | Pending |
+| VOICE-05 | Phase 14 | Pending |
+| CONF-01 | Phase 16 | Pending |
+| CONF-02 | Phase 14 | Pending |
+| DRAFT-01 | Phase 15 | Pending |
+| DRAFT-02 | Phase 15 | Pending |
+| DRAFT-03 | Phase 15 | Pending |
+| MGMT-01 | Phase 16 | Pending |
+| MGMT-02 | Phase 16 | Pending |
 
 **Coverage:**
 - v1.3 requirements: 12 total
-- Mapped to phases: 0
-- Unmapped: 12 ⚠️
+- Mapped to phases: 12
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-28*
-*Last updated: 2026-02-28 after initial definition*
+*Last updated: 2026-03-01 after v1.3 roadmap creation*
