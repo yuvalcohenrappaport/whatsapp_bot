@@ -8,6 +8,19 @@ An AI-powered WhatsApp bot that impersonates the user in private conversations a
 
 The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
 
+## Current Milestone: v1.3 Voice Responses
+
+**Goal:** Enable the bot to receive voice messages, transcribe them, generate replies, and respond with AI-generated voice messages using a cloned voice via ElevenLabs.
+
+**Target features:**
+- Incoming voice message transcription via ElevenLabs
+- AI text reply generation via Gemini (existing pipeline)
+- Text-to-speech with cloned Hebrew voice via ElevenLabs
+- Send voice response as WhatsApp audio message
+- Per-contact voice reply toggle (on/off)
+- Draft queue integration (follows contact's existing mode)
+- Dashboard/CLI support for voice settings
+
 ## Current State
 
 **Shipped:** v1.0 Foundation + v1.1 Dashboard & Groups + v1.2 Group Auto-Response
@@ -39,12 +52,15 @@ The bot replies to WhatsApp messages in the user's authentic voice, so contacts 
 
 ### Active
 
-(No active milestone — planning next)
+- [ ] Voice message transcription via ElevenLabs API
+- [ ] Voice response generation (TTS) with cloned Hebrew voice via ElevenLabs
+- [ ] Per-contact voice reply toggle
+- [ ] Voice replies follow existing draft queue mode
+- [ ] Dashboard and CLI voice settings management
 
 ### Out of Scope
 
 - Bot replying conversationally in groups — groups are utility-only (calendar, reminders, travel search, keyword auto-response)
-- Voice messages — text-only
 - Media/image responses — text replies only
 - Mobile app — web dashboard via Tailscale is sufficient
 - Multiple WhatsApp accounts — single account only
@@ -59,6 +75,7 @@ The bot replies to WhatsApp messages in the user's authentic voice, so contacts 
 - Runs on yuval-server (Ubuntu 24.04 LTS, always-on home dev server)
 - User connects from macOS via Tailscale
 - Gemini API for all LLM inference (style matching, date extraction, travel parsing, weekly digests, keyword AI responses)
+- ElevenLabs API for voice clone TTS and audio transcription (v1.3)
 - Baileys v7.0.0-rc.9 with Platform.MACOS patch (WhatsApp rejects Platform.WEB)
 - SQLite with WAL mode for concurrent reads during group message processing
 - GCP service account for Google Calendar API access
@@ -68,7 +85,8 @@ The bot replies to WhatsApp messages in the user's authentic voice, so contacts 
 - **API**: Gemini API — user's explicit choice
 - **WhatsApp**: Unofficial Web API (Baileys) — risk of account restrictions; monitor RC stability
 - **Platform**: Must run on Ubuntu 24.04 (yuval-server)
-- **Privacy**: All chat data stays local on the server, never sent to third parties except Gemini API for inference
+- **Privacy**: All chat data stays local on the server, never sent to third parties except Gemini API for inference and ElevenLabs API for voice processing
+- **Voice**: ElevenLabs API — voice clone TTS and transcription
 
 ## Key Decisions
 
@@ -88,5 +106,7 @@ The bot replies to WhatsApp messages in the user's authentic voice, so contacts 
 | In-memory cooldown map | Per-rule cooldown resets on restart — acceptable for keyword rules | ✓ Good |
 | Dialog inside Sheet via Radix Portal | Avoids z-index conflicts; form renders to document.body | ✓ Good |
 
+| ElevenLabs for voice (TTS + transcription) | Single API for both directions, high-quality Hebrew voice cloning | — Pending |
+
 ---
-*Last updated: 2026-02-25 after v1.2 milestone completion*
+*Last updated: 2026-02-28 after v1.3 milestone started*
