@@ -77,7 +77,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 13-01-PLAN.md — Create transcriber.ts (STT) and tts.ts (TTS) voice service modules
+- [x] 13-01-PLAN.md — Create transcriber.ts (STT) and tts.ts (TTS) voice service modules (completed 2026-03-01)
 - [ ] 13-02-PLAN.md — Integration test script and Hebrew TTS quality verification
 
 ### Phase 14: Core Voice Pipeline
@@ -138,7 +138,7 @@ Plans:
 | 10. Keyword Rules & Pipeline | v1.2 | 2/2 | Complete | 2026-02-24 |
 | 11. Dashboard Rule Management | v1.2 | 2/2 | Complete | 2026-02-24 |
 | 12. Voice Infrastructure | v1.3 | 3/3 | Complete | 2026-03-01 |
-| 13. Voice Service Modules | v1.3 | 0/2 | Not started | - |
+| 13. Voice Service Modules | v1.3 | 1/2 | In progress | - |
 | 14. Core Voice Pipeline | v1.3 | 0/? | Not started | - |
 | 15. Draft Queue Voice Integration | v1.3 | 0/? | Not started | - |
 | 16. Voice Settings Management | v1.3 | 0/? | Not started | - |

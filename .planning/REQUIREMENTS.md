@@ -10,9 +10,9 @@ Requirements for voice response milestone. Each maps to roadmap phases.
 ### Voice Pipeline
 
 - [ ] **VOICE-01**: Bot receives and downloads incoming voice messages from whitelisted contacts
-- [ ] **VOICE-02**: Bot transcribes voice messages to text via ElevenLabs Scribe v2 (Hebrew supported)
+- [x] **VOICE-02**: Bot transcribes voice messages to text via ElevenLabs Scribe v2 (Hebrew supported)
 - [ ] **VOICE-03**: Bot generates AI text reply from transcription using existing Gemini pipeline
-- [ ] **VOICE-04**: Bot converts text reply to speech via ElevenLabs TTS with cloned voice (`eleven_v3` model)
+- [x] **VOICE-04**: Bot converts text reply to speech via ElevenLabs TTS with cloned voice (`eleven_v3` model)
 - [ ] **VOICE-05**: Bot sends voice reply as WhatsApp PTT voice note (OGG/Opus, `ptt: true`)
 
 ### Contact Configuration
@@ -56,9 +56,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | VOICE-01 | Phase 14 | Pending |
-| VOICE-02 | Phase 13 | Pending |
+| VOICE-02 | Phase 13 | Complete |
 | VOICE-03 | Phase 14 | Pending |
-| VOICE-04 | Phase 13 | Pending |
+| VOICE-04 | Phase 13 | Complete |
 | VOICE-05 | Phase 14 | Pending |
 | CONF-01 | Phase 16 | Pending |
 | CONF-02 | Phase 14 | Pending |
