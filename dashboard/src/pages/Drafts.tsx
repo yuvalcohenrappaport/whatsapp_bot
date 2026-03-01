@@ -1,19 +1,38 @@
-import { CircleCheck } from 'lucide-react';
+import { CircleCheck, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DraftRow } from '@/components/drafts/DraftRow';
-import { useDrafts } from '@/hooks/useDrafts';
+import { useDrafts, useClearDrafts } from '@/hooks/useDrafts';
 
 export default function Drafts() {
   const { data: drafts, isLoading } = useDrafts();
+  const clearDrafts = useClearDrafts();
 
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">
         <h1 className="text-2xl font-semibold">Drafts</h1>
         {drafts && drafts.length > 0 && (
-          <Badge variant="secondary">{drafts.length}</Badge>
+          <>
+            <Badge variant="secondary">{drafts.length}</Badge>
+            <Button
+              size="sm"
+              variant="outline"
+              className="ml-auto"
+              disabled={clearDrafts.isPending}
+              onClick={() => {
+                clearDrafts.mutate(undefined, {
+                  onSuccess: () => toast.success('All drafts cleared'),
+                });
+              }}
+            >
+              <Trash2 className="size-4 mr-1.5" />
+              Clear all
+            </Button>
+          </>
         )}
       </div>
 

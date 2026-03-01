@@ -42,3 +42,14 @@ export function useRejectDraft() {
     },
   });
 }
+
+export function useClearDrafts() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      apiFetch('/api/drafts', { method: 'DELETE' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['drafts'] });
+    },
+  });
+}

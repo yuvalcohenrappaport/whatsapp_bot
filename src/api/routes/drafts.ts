@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { eq, desc, sql } from 'drizzle-orm';
 import { db } from '../../db/client.js';
 import { drafts, contacts, messages } from '../../db/schema.js';
-import { markDraftSent, markDraftRejected } from '../../db/queries/drafts.js';
+import { markDraftSent, markDraftRejected, rejectAllPendingDrafts } from '../../db/queries/drafts.js';
 import { getState } from '../state.js';
 
 export default async function draftRoutes(fastify: FastifyInstance) {
@@ -74,6 +74,16 @@ export default async function draftRoutes(fastify: FastifyInstance) {
       await markDraftSent(id);
 
       return { ok: true };
+    },
+  );
+
+  // DELETE /api/drafts - reject all pending drafts
+  fastify.delete(
+    '/api/drafts',
+    { onRequest: [fastify.authenticate] },
+    async () => {
+      const cleared = rejectAllPendingDrafts();
+      return { ok: true, cleared };
     },
   );
 

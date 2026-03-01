@@ -32,3 +32,11 @@ export function markDraftRejected(id: string) {
     .where(and(eq(drafts.id, id), eq(drafts.status, 'pending')))
     .run();
 }
+
+export function rejectAllPendingDrafts() {
+  const result = db.update(drafts)
+    .set({ status: 'rejected', actionedAt: Date.now() })
+    .where(eq(drafts.status, 'pending'))
+    .run();
+  return result.changes;
+}
