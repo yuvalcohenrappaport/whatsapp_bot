@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 ## Current Position
 
 Phase: 12 of 16 (Voice Infrastructure)
-Plan: 1 of 3 complete in current phase
+Plan: 2 of 3 complete in current phase
 Status: In progress
-Last activity: 2026-03-01 — 12-01 complete — deps installed, config/schema/settings extended
+Last activity: 2026-03-01 — 12-02 complete — migration applied, voice client created, startup validator wired
 
-Progress: [█░░░░░░░░░░░░░░░░░░░] 5% (v1.3 — 1/3 Phase 12 plans)
+Progress: [██░░░░░░░░░░░░░░░░░░] 10% (v1.3 — 2/3 Phase 12 plans)
 
 ## Performance Metrics
 
@@ -43,6 +43,11 @@ Decisions from 12-01:
 - voiceId is nullable text (no .notNull()) — allows per-contact voice override to remain null until configured
 - Global voice toggle stored in existing settings key-value store as voice_replies_enabled — no new table needed
 
+Decisions from 12-02:
+- Migration SQL generated via db:generate (not hand-written) — SQLite requires DEFAULT 0 for integer boolean; hand-written DEFAULT false causes syntax error
+- Startup validator is non-fatal by design — return value intentionally discarded; Phase 13+ handles ElevenLabs availability via settings toggle and try/catch on TTS calls
+- voices.get(voiceId) used for startup validation — confirms both API key auth and voice ID existence in a single call
+
 ### Pending Todos
 
 None.
@@ -58,6 +63,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-01
-Stopped at: Completed 12-01-PLAN.md — deps installed, config/schema/settings extended
-Resume with: `/gsd:execute-phase 12-voice-infrastructure` (Plan 12-02 next)
-Resume file: .planning/phases/12-voice-infrastructure/12-02-PLAN.md
+Stopped at: Completed 12-02-PLAN.md — migration applied, voice client created, startup validator wired
+Resume with: `/gsd:execute-phase 12-voice-infrastructure` (Plan 12-03 next)
+Resume file: .planning/phases/12-voice-infrastructure/12-03-PLAN.md
