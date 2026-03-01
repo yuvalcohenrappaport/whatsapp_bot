@@ -58,10 +58,12 @@
   3. `voiceReplyEnabled` (boolean, default false) and `voiceId` (nullable text) columns exist on the `contacts` table after Drizzle migration
   4. `ffmpeg-static` binary path resolves at runtime (verified via console.log test)
   5. Voice clone produces acceptable Hebrew pronunciation on 5 test sentences verified in ElevenLabs UI
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 12-01: TBD
+- [ ] 12-01-PLAN.md — Install deps, extend config/schema/settings
+- [ ] 12-02-PLAN.md — Run migration, create voice client module, wire startup validation
+- [ ] 12-03-PLAN.md — Create voice clone in ElevenLabs UI, add real credentials, verify bot startup
 
 ### Phase 13: Voice Service Modules
 **Goal**: Standalone transcription and TTS modules exist, are integration-tested against the ElevenLabs API, and are ready to be imported by the pipeline
@@ -134,7 +136,7 @@ Plans:
 | 9. Travel Search | v1.1 | 2/2 | Complete | 2026-02-24 |
 | 10. Keyword Rules & Pipeline | v1.2 | 2/2 | Complete | 2026-02-24 |
 | 11. Dashboard Rule Management | v1.2 | 2/2 | Complete | 2026-02-24 |
-| 12. Voice Infrastructure | v1.3 | 0/? | Not started | - |
+| 12. Voice Infrastructure | v1.3 | 0/3 | Not started | - |
 | 13. Voice Service Modules | v1.3 | 0/? | Not started | - |
 | 14. Core Voice Pipeline | v1.3 | 0/? | Not started | - |
 | 15. Draft Queue Voice Integration | v1.3 | 0/? | Not started | - |
