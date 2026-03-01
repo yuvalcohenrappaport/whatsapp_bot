@@ -140,6 +140,6 @@ Plans:
 | 11. Dashboard Rule Management | v1.2 | 2/2 | Complete | 2026-02-24 |
 | 12. Voice Infrastructure | v1.3 | 3/3 | Complete | 2026-03-01 |
 | 13. Voice Service Modules | v1.3 | 2/2 | Complete | 2026-03-01 |
-| 14. Core Voice Pipeline | v1.3 | 0/2 | Not started | - |
+| 14. Core Voice Pipeline | v1.3 | 1/2 | In progress | - |
 | 15. Draft Queue Voice Integration | v1.3 | 0/? | Not started | - |
 | 16. Voice Settings Management | v1.3 | 0/? | Not started | - |

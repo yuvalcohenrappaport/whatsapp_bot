@@ -9,16 +9,16 @@ Requirements for voice response milestone. Each maps to roadmap phases.
 
 ### Voice Pipeline
 
-- [ ] **VOICE-01**: Bot receives and downloads incoming voice messages from whitelisted contacts
+- [x] **VOICE-01**: Bot receives and downloads incoming voice messages from whitelisted contacts
 - [x] **VOICE-02**: Bot transcribes voice messages to text via ElevenLabs Scribe v2 (Hebrew supported)
-- [ ] **VOICE-03**: Bot generates AI text reply from transcription using existing Gemini pipeline
+- [x] **VOICE-03**: Bot generates AI text reply from transcription using existing Gemini pipeline
 - [x] **VOICE-04**: Bot converts text reply to speech via ElevenLabs TTS with cloned voice (`eleven_v3` model)
-- [ ] **VOICE-05**: Bot sends voice reply as WhatsApp PTT voice note (OGG/Opus, `ptt: true`)
+- [x] **VOICE-05**: Bot sends voice reply as WhatsApp PTT voice note (OGG/Opus, `ptt: true`)
 
 ### Contact Configuration
 
 - [ ] **CONF-01**: User can enable/disable voice replies per contact
-- [ ] **CONF-02**: Contacts with voice disabled still get text replies to voice messages (transcribe → text reply)
+- [x] **CONF-02**: Contacts with voice disabled still get text replies to voice messages (transcribe → text reply)
 
 ### Draft Integration
 
@@ -55,13 +55,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| VOICE-01 | Phase 14 | Pending |
+| VOICE-01 | Phase 14 | Complete |
 | VOICE-02 | Phase 13 | Complete |
-| VOICE-03 | Phase 14 | Pending |
+| VOICE-03 | Phase 14 | Complete |
 | VOICE-04 | Phase 13 | Complete |
-| VOICE-05 | Phase 14 | Pending |
+| VOICE-05 | Phase 14 | Complete |
 | CONF-01 | Phase 16 | Pending |
-| CONF-02 | Phase 14 | Pending |
+| CONF-02 | Phase 14 | Complete |
 | DRAFT-01 | Phase 15 | Pending |
 | DRAFT-02 | Phase 15 | Pending |
 | DRAFT-03 | Phase 15 | Pending |
@@ -75,4 +75,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-28*
-*Last updated: 2026-03-01 after v1.3 roadmap creation*
+*Last updated: 2026-03-01 after 14-01 completion*
