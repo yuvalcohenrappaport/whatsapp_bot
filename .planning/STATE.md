@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
-**Current focus:** v1.3 Voice Responses — Phase 12: Voice Infrastructure
+**Current focus:** v1.3 Voice Responses — Phase 13: Voice Service Modules
 
 ## Current Position
 
-Phase: 12 of 16 (Voice Infrastructure)
-Plan: 3 of 3 in progress (awaiting human-action checkpoint)
-Status: In progress — checkpoint
-Last activity: 2026-03-01 — 12-03 Task 1 complete — ElevenLabs env vars added to .env, ffmpeg-static binary verified
+Phase: 13 of 16 (Voice Service Modules)
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-03-01 — Phase 12 complete — all 3 plans executed, ElevenLabs validated at startup
 
-Progress: [██░░░░░░░░░░░░░░░░░░] 10% (v1.3 — 2/3 Phase 12 plans complete, 12-03 in checkpoint)
+Progress: [████░░░░░░░░░░░░░░░░] 20% (v1.3 — Phase 12 complete, Phases 13-16 remaining)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 26 (v1.0: 9, v1.1: 13, v1.2: 4)
+- Total plans completed: 29 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 3)
 - v1.2 shipped in 1 day (4 plans, 11 commits)
 
 **Cumulative:**
@@ -68,6 +68,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-01
-Stopped at: 12-03-PLAN.md Task 1 complete — awaiting human-action checkpoint (Task 2: create voice clone + set real credentials in .env)
-Resume with: `/gsd:execute-phase 12-voice-infrastructure` after completing Task 2 checkpoint
-Resume file: .planning/phases/12-voice-infrastructure/12-03-PLAN.md (resume from Task 3)
+Stopped at: Phase 12 complete — ready for Phase 13
+Resume with: `/gsd:plan-phase 13`
+Resume file: N/A

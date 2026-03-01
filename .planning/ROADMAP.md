@@ -40,7 +40,7 @@
 
 **Milestone Goal:** Enable the bot to receive voice messages, transcribe them, generate replies, and respond with AI-generated voice messages using a cloned Hebrew voice via ElevenLabs.
 
-- [ ] **Phase 12: Voice Infrastructure** - Install deps, configure ElevenLabs credentials, migrate DB schema, validate voice clone
+- [x] **Phase 12: Voice Infrastructure** - Install deps, configure ElevenLabs credentials, migrate DB schema, validate voice clone
 - [ ] **Phase 13: Voice Service Modules** - Build transcriber and TTS pure-function modules with isolated ElevenLabs API testing
 - [ ] **Phase 14: Core Voice Pipeline** - Wire voice path into messageHandler — receive, transcribe, reply, send PTT voice note
 - [ ] **Phase 15: Draft Queue Voice Integration** - Voice replies follow draft mode with lazy TTS and transcript preview
@@ -63,7 +63,7 @@
 Plans:
 - [x] 12-01-PLAN.md — Install deps, extend config/schema/settings (completed 2026-03-01)
 - [x] 12-02-PLAN.md — Run migration, create voice client module, wire startup validation (completed 2026-03-01)
-- [ ] 12-03-PLAN.md — Create voice clone in ElevenLabs UI, add real credentials, verify bot startup
+- [x] 12-03-PLAN.md — Create voice clone in ElevenLabs UI, add real credentials, verify bot startup (completed 2026-03-01)
 
 ### Phase 13: Voice Service Modules
 **Goal**: Standalone transcription and TTS modules exist, are integration-tested against the ElevenLabs API, and are ready to be imported by the pipeline
@@ -136,7 +136,7 @@ Plans:
 | 9. Travel Search | v1.1 | 2/2 | Complete | 2026-02-24 |
 | 10. Keyword Rules & Pipeline | v1.2 | 2/2 | Complete | 2026-02-24 |
 | 11. Dashboard Rule Management | v1.2 | 2/2 | Complete | 2026-02-24 |
-| 12. Voice Infrastructure | v1.3 | 2/3 | In progress | - |
+| 12. Voice Infrastructure | v1.3 | 3/3 | Complete | 2026-03-01 |
 | 13. Voice Service Modules | v1.3 | 0/? | Not started | - |
 | 14. Core Voice Pipeline | v1.3 | 0/? | Not started | - |
 | 15. Draft Queue Voice Integration | v1.3 | 0/? | Not started | - |
