@@ -74,10 +74,11 @@ Plans:
   2. `src/voice/tts.ts` accepts a text string and returns an OGG/Opus Buffer (with OGG container) via ElevenLabs eleven_v3 + ffmpeg wrap
   3. A test script verifies both modules end-to-end against the live ElevenLabs API without touching messageHandler
   4. Hebrew TTS output sounds natural on 5 test sentences (eleven_v3 model confirmed, not eleven_multilingual_v2 or turbo)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 13-01: TBD
+- [ ] 13-01-PLAN.md — Create transcriber.ts (STT) and tts.ts (TTS) voice service modules
+- [ ] 13-02-PLAN.md — Integration test script and Hebrew TTS quality verification
 
 ### Phase 14: Core Voice Pipeline
 **Goal**: When a whitelisted contact sends a voice message, the bot automatically transcribes it, generates a reply, and sends a PTT voice note back (or a text reply if voice is disabled for that contact)
@@ -137,7 +138,7 @@ Plans:
 | 10. Keyword Rules & Pipeline | v1.2 | 2/2 | Complete | 2026-02-24 |
 | 11. Dashboard Rule Management | v1.2 | 2/2 | Complete | 2026-02-24 |
 | 12. Voice Infrastructure | v1.3 | 3/3 | Complete | 2026-03-01 |
-| 13. Voice Service Modules | v1.3 | 0/? | Not started | - |
+| 13. Voice Service Modules | v1.3 | 0/2 | Not started | - |
 | 14. Core Voice Pipeline | v1.3 | 0/? | Not started | - |
 | 15. Draft Queue Voice Integration | v1.3 | 0/? | Not started | - |
 | 16. Voice Settings Management | v1.3 | 0/? | Not started | - |
