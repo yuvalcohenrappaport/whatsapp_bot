@@ -90,10 +90,11 @@ Plans:
   3. A whitelisted contact with `voiceReplyEnabled: false` who sends a voice message receives a text reply (transcript used as input to Gemini, reply sent as text)
   4. The `recording` presence indicator fires immediately when a voice message is received
   5. Existing text message path is completely unchanged — text messages still generate text replies as before
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 14-01: TBD
+- [ ] 14-01-PLAN.md — Add sendVoiceWithDelay to sender.ts and wire voice branch into messageHandler.ts
+- [ ] 14-02-PLAN.md — Enable voice for test contact and verify end-to-end on real phone
 
 ### Phase 15: Draft Queue Voice Integration
 **Goal**: Voice replies for contacts in draft mode create reviewable text drafts, show the incoming voice transcript, and synthesize audio only at owner approval
@@ -139,6 +140,6 @@ Plans:
 | 11. Dashboard Rule Management | v1.2 | 2/2 | Complete | 2026-02-24 |
 | 12. Voice Infrastructure | v1.3 | 3/3 | Complete | 2026-03-01 |
 | 13. Voice Service Modules | v1.3 | 2/2 | Complete | 2026-03-01 |
-| 14. Core Voice Pipeline | v1.3 | 0/? | Not started | - |
+| 14. Core Voice Pipeline | v1.3 | 0/2 | Not started | - |
 | 15. Draft Queue Voice Integration | v1.3 | 0/? | Not started | - |
 | 16. Voice Settings Management | v1.3 | 0/? | Not started | - |
