@@ -42,7 +42,7 @@
 
 - [x] **Phase 12: Voice Infrastructure** - Install deps, configure ElevenLabs credentials, migrate DB schema, validate voice clone
 - [x] **Phase 13: Voice Service Modules** - Build transcriber and TTS pure-function modules with isolated ElevenLabs API testing
-- [ ] **Phase 14: Core Voice Pipeline** - Wire voice path into messageHandler — receive, transcribe, reply, send PTT voice note
+- [x] **Phase 14: Core Voice Pipeline** - Wire voice path into messageHandler — receive, transcribe, reply, send PTT voice note
 - [ ] **Phase 15: Draft Queue Voice Integration** - Voice replies follow draft mode with lazy TTS and transcript preview
 - [ ] **Phase 16: Voice Settings Management** - Dashboard and CLI controls for per-contact voice reply toggle
 
@@ -93,8 +93,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 14-01-PLAN.md — Add sendVoiceWithDelay to sender.ts and wire voice branch into messageHandler.ts
-- [ ] 14-02-PLAN.md — Enable voice for test contact and verify end-to-end on real phone
+- [x] 14-01-PLAN.md — Add sendVoiceWithDelay to sender.ts and wire voice branch into messageHandler.ts (completed 2026-03-01)
+- [x] 14-02-PLAN.md — Enable voice for test contact and verify end-to-end on real phone (completed 2026-03-01)
 
 ### Phase 15: Draft Queue Voice Integration
 **Goal**: Voice replies for contacts in draft mode create reviewable text drafts, show the incoming voice transcript, and synthesize audio only at owner approval
@@ -140,6 +140,6 @@ Plans:
 | 11. Dashboard Rule Management | v1.2 | 2/2 | Complete | 2026-02-24 |
 | 12. Voice Infrastructure | v1.3 | 3/3 | Complete | 2026-03-01 |
 | 13. Voice Service Modules | v1.3 | 2/2 | Complete | 2026-03-01 |
-| 14. Core Voice Pipeline | v1.3 | 1/2 | In progress | - |
+| 14. Core Voice Pipeline | v1.3 | 2/2 | Complete | 2026-03-01 |
 | 15. Draft Queue Voice Integration | v1.3 | 0/? | Not started | - |
 | 16. Voice Settings Management | v1.3 | 0/? | Not started | - |

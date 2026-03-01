@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
-**Current focus:** v1.3 Voice Responses — Phase 14: Core Voice Pipeline
+**Current focus:** v1.3 Voice Responses — Phase 14 complete, ready for Phase 15
 
 ## Current Position
 
-Phase: 14 of 16 (Core Voice Pipeline)
-Plan: 1 of 2 complete
-Status: In progress
-Last activity: 2026-03-01 — 14-01 complete — voice pipeline wired into messageHandler
+Phase: 14 of 16 (Core Voice Pipeline) -- COMPLETE
+Plan: 2 of 2 complete
+Status: Phase complete
+Last activity: 2026-03-01 — 14-02 complete — voice pipeline verified end-to-end on real device
 
-Progress: [███████░░░░░░░░░░░░░] 35% (v1.3 — Phase 14 plan 1/2 complete)
+Progress: [████████░░░░░░░░░░░░] 40% (v1.3 — Phase 14 complete, 3/5 phases done)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 32 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 6)
+- Total plans completed: 33 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 7)
 - v1.2 shipped in 1 day (4 plans, 11 commits)
 
 **Cumulative:**
@@ -68,6 +68,11 @@ Decisions from 14-01:
 - Cooldown/auto-cap/snooze duplicated in handleVoiceMessage to avoid modifying text path
 - Draft mode voice messages create text drafts with "(voice msg)" label
 
+Decisions from 14-02:
+- Used better-sqlite3 directly (not drizzle ORM) for DB utility scripts since sqlite3 CLI is not installed
+- pm2 confirmed as bot process manager — used pm2 restart for code reload
+- Voice pipeline verified working end-to-end on real phone with Hebrew PTT voice note bubble
+
 ### Pending Todos
 
 None.
@@ -78,11 +83,11 @@ None.
 - Platform.MACOS patch required via patch-package (WhatsApp rejects Platform.WEB)
 - Voice clone must be trained on clean MP3 at 192kbps+, NOT WhatsApp OGG — validate in ElevenLabs UI before Phase 13
 - ~~ffmpeg-static ESM import needs runtime verification in Phase 12 (CJS-first package)~~ RESOLVED: resolves to /home/yuval/whatsapp-bot/node_modules/ffmpeg-static/ffmpeg
-- Hebrew STT accuracy with real informal speech may exceed 10-20% WER benchmark — test in Phase 14
+- ~~Hebrew STT accuracy with real informal speech may exceed 10-20% WER benchmark — test in Phase 14~~ RESOLVED: verified in 14-02 real device test, transcription worked correctly
 
 ## Session Continuity
 
 Last session: 2026-03-01
-Stopped at: Completed 14-01-PLAN.md — voice pipeline wired into messageHandler
-Resume with: Execute 14-02-PLAN.md (end-to-end voice testing)
-Resume file: .planning/phases/14-core-voice-pipeline/14-01-SUMMARY.md
+Stopped at: Completed 14-02-PLAN.md — Phase 14 complete, voice pipeline verified end-to-end
+Resume with: Plan Phase 15 (Draft Queue Voice Integration)
+Resume file: .planning/phases/14-core-voice-pipeline/14-02-SUMMARY.md
