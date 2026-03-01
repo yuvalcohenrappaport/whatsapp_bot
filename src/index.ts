@@ -9,11 +9,13 @@ import {
   type ConnectionCallbacks,
 } from './whatsapp/reconnect.js';
 import { createMessageHandler } from './pipeline/messageHandler.js';
+import { handleHistorySync } from './whatsapp/historySync.js';
 import { importChats } from './importer/importChats.js';
 import { getState, updateState } from './api/state.js';
 import { createServer } from './api/server.js';
 import { initGroupPipeline } from './groups/groupMessagePipeline.js';
 import { initReminderScheduler } from './groups/reminderScheduler.js';
+import { validateElevenLabsConnection } from './voice/client.js';
 
 const logger = pino({
   level: config.LOG_LEVEL,
@@ -28,6 +30,9 @@ async function main(): Promise<void> {
 
   initDb();
   logger.info('Database initialized');
+
+  await validateElevenLabsConnection(logger);
+  // Note: result is intentionally not checked — failure is logged as warning, bot continues
 
   await importChats(config.IMPORT_DIR, config.PROCESSED_DIR, config.OWNER_EXPORT_NAME);
   logger.info('Chat import complete');
@@ -113,6 +118,8 @@ async function startSocket(): Promise<void> {
   });
 
   sock.ev.on('messages.upsert', createMessageHandler(sock));
+
+  sock.ev.on('messaging-history.set', handleHistorySync);
 }
 
 // Graceful shutdown — close socket cleanly so WhatsApp doesn't invalidate the session
