@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 ## Current Position
 
 Phase: 12 of 16 (Voice Infrastructure)
-Plan: 2 of 3 complete in current phase
-Status: In progress
-Last activity: 2026-03-01 — 12-02 complete — migration applied, voice client created, startup validator wired
+Plan: 3 of 3 in progress (awaiting human-action checkpoint)
+Status: In progress — checkpoint
+Last activity: 2026-03-01 — 12-03 Task 1 complete — ElevenLabs env vars added to .env, ffmpeg-static binary verified
 
-Progress: [██░░░░░░░░░░░░░░░░░░] 10% (v1.3 — 2/3 Phase 12 plans)
+Progress: [██░░░░░░░░░░░░░░░░░░] 10% (v1.3 — 2/3 Phase 12 plans complete, 12-03 in checkpoint)
 
 ## Performance Metrics
 
@@ -48,6 +48,11 @@ Decisions from 12-02:
 - Startup validator is non-fatal by design — return value intentionally discarded; Phase 13+ handles ElevenLabs availability via settings toggle and try/catch on TTS calls
 - voices.get(voiceId) used for startup validation — confirms both API key auth and voice ID existence in a single call
 
+Decisions from 12-03:
+- .env is gitignored so Task 1 produces no git commit — intentional; credentials must never be committed
+- ffmpeg-static bundled binary at node_modules/ffmpeg-static/ffmpeg confirmed functional via Node.js module probe
+- Voice clone quality gate: Hebrew must sound recognizable as user's voice using eleven_multilingual_v2 model
+
 ### Pending Todos
 
 None.
@@ -57,12 +62,12 @@ None.
 - Baileys v7.0.0-rc.9 is a release candidate — monitor stability
 - Platform.MACOS patch required via patch-package (WhatsApp rejects Platform.WEB)
 - Voice clone must be trained on clean MP3 at 192kbps+, NOT WhatsApp OGG — validate in ElevenLabs UI before Phase 13
-- ffmpeg-static ESM import needs runtime verification in Phase 12 (CJS-first package)
+- ~~ffmpeg-static ESM import needs runtime verification in Phase 12 (CJS-first package)~~ RESOLVED: resolves to /home/yuval/whatsapp-bot/node_modules/ffmpeg-static/ffmpeg
 - Hebrew STT accuracy with real informal speech may exceed 10-20% WER benchmark — test in Phase 14
 
 ## Session Continuity
 
 Last session: 2026-03-01
-Stopped at: Completed 12-02-PLAN.md — migration applied, voice client created, startup validator wired
-Resume with: `/gsd:execute-phase 12-voice-infrastructure` (Plan 12-03 next)
-Resume file: .planning/phases/12-voice-infrastructure/12-03-PLAN.md
+Stopped at: 12-03-PLAN.md Task 1 complete — awaiting human-action checkpoint (Task 2: create voice clone + set real credentials in .env)
+Resume with: `/gsd:execute-phase 12-voice-infrastructure` after completing Task 2 checkpoint
+Resume file: .planning/phases/12-voice-infrastructure/12-03-PLAN.md (resume from Task 3)
