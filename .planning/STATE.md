@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 ## Current Position
 
 Phase: 12 of 16 (Voice Infrastructure)
-Plan: 0 of ? in current phase
-Status: Ready to plan
-Last activity: 2026-03-01 — v1.3 roadmap created (5 phases, 12 requirements mapped)
+Plan: 1 of 3 complete in current phase
+Status: In progress
+Last activity: 2026-03-01 — 12-01 complete — deps installed, config/schema/settings extended
 
-Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (v1.3)
+Progress: [█░░░░░░░░░░░░░░░░░░░] 5% (v1.3 — 1/3 Phase 12 plans)
 
 ## Performance Metrics
 
@@ -38,6 +38,11 @@ Recent decisions for v1.3:
 - ffmpeg-static (bundled binary) — eliminates system dependency on ffmpeg; lossless OGG container wrap only
 - `ptt: true` flag mandatory — without it audio sends as file attachment, not voice note bubble
 
+Decisions from 12-01:
+- Both ELEVENLABS_API_KEY and ELEVENLABS_DEFAULT_VOICE_ID are required (z.string(), no .optional()) — early failure on startup, consistent with GEMINI_API_KEY pattern
+- voiceId is nullable text (no .notNull()) — allows per-contact voice override to remain null until configured
+- Global voice toggle stored in existing settings key-value store as voice_replies_enabled — no new table needed
+
 ### Pending Todos
 
 None.
@@ -53,6 +58,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-01
-Stopped at: v1.3 roadmap created — ready to plan Phase 12
-Resume with: `/gsd:plan-phase 12`
-Resume file: N/A
+Stopped at: Completed 12-01-PLAN.md — deps installed, config/schema/settings extended
+Resume with: `/gsd:execute-phase 12-voice-infrastructure` (Plan 12-02 next)
+Resume file: .planning/phases/12-voice-infrastructure/12-02-PLAN.md
