@@ -7,4 +7,5 @@ logs/
 *.db
 *.md
 !README.md
+test-output-*.ogg
 .planning/
