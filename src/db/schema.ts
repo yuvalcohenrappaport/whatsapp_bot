@@ -27,6 +27,10 @@ export const contacts = sqliteTable('contacts', {
   styleSummary: text('style_summary'), // Gemini-generated style analysis text, nullable
   snoozeUntil: integer('snooze_until'), // Unix ms timestamp for snooze expiry, null = not snoozed
   consecutiveAutoCount: integer('consecutive_auto_count').default(0), // counter for auto-reply cap
+  voiceReplyEnabled: integer('voice_reply_enabled', { mode: 'boolean' })
+    .notNull()
+    .default(false),
+  voiceId: text('voice_id'), // nullable — per-contact voice override
   createdAt: integer('created_at')
     .notNull()
     .$defaultFn(() => Date.now()),

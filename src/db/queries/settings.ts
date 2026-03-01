@@ -4,6 +4,7 @@ import { settings } from '../schema.js';
 
 const DEFAULTS: Record<string, string> = {
   ai_provider: 'gemini',
+  voice_replies_enabled: 'false', // global master switch — 'true' | 'false'
 };
 
 export function getSetting(key: string): string | null {

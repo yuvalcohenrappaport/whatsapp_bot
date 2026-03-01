@@ -23,6 +23,8 @@ const envSchema = z.object({
   GOOGLE_SERVICE_ACCOUNT_KEY_PATH: z.string().optional(),
   LMS_BASE_URL: z.string().default('http://localhost:1234'),
   LMS_MODEL: z.string().default('qwen2.5-coder-7b-instruct'),
+  ELEVENLABS_API_KEY: z.string(),
+  ELEVENLABS_DEFAULT_VOICE_ID: z.string(),
 });
 
 export type Config = z.infer<typeof envSchema>;
