@@ -16,7 +16,11 @@ import {
   markDraftSent,
   markDraftRejected,
 } from '../db/queries/drafts.js';
-import { sendWithDelay } from '../whatsapp/sender.js';
+import { downloadMediaMessage } from '@whiskeysockets/baileys';
+import { sendWithDelay, sendVoiceWithDelay } from '../whatsapp/sender.js';
+import { transcribe } from '../voice/transcriber.js';
+import { textToSpeech } from '../voice/tts.js';
+import { getSetting } from '../db/queries/settings.js';
 import { generateReply } from '../ai/gemini.js';
 import { getGroup } from '../db/queries/groups.js';
 import { insertGroupMessage } from '../db/queries/groupMessages.js';
@@ -206,6 +210,17 @@ export function createMessageHandler(sock: WASocket) {
 
 async function processMessage(sock: WASocket, msg: WAMessage): Promise<void> {
   const text = getMessageText(msg);
+
+  // Voice branch — handle audio messages before the text null guard
+  const audioMsg = msg.message?.audioMessage;
+  if (audioMsg && !(msg.key.fromMe ?? false)) {
+    const remoteJid = getRemoteJid(msg);
+    if (remoteJid && !remoteJid.endsWith('@g.us')) {
+      await handleVoiceMessage(sock, msg, remoteJid);
+      return;
+    }
+  }
+
   if (text === null) return; // skip non-text messages
 
   const remoteJid = getRemoteJid(msg);
@@ -380,5 +395,138 @@ async function processMessage(sock: WASocket, msg: WAMessage): Promise<void> {
       text: `Draft for ${name}:\n\n${reply}\n\nReply \u2705 to send | \u274c to reject | 'snooze 1h' to pause ${name}`,
     });
     logger.info({ draftId, contactJid }, 'Draft created for approval');
+  }
+}
+
+async function handleVoiceMessage(
+  sock: WASocket,
+  msg: WAMessage,
+  contactJid: string,
+): Promise<void> {
+  // 1. Auto-create contact if new
+  const pushName = msg.pushName ?? null;
+  upsertContact(contactJid, pushName);
+
+  // 2. Check contact mode — skip if off
+  const contact = getContact(contactJid);
+  const mode = contact?.mode ?? 'off';
+  if (mode === 'off') return;
+
+  // 3. Snooze check
+  if (isSnoozeActive(contact ?? {})) {
+    logger.debug({ contactJid }, 'Contact snoozed — skipping voice reply');
+    return;
+  }
+
+  // 4. Signal "recording" presence immediately (user feedback)
+  await sock.presenceSubscribe(contactJid);
+  await sock.sendPresenceUpdate('recording', contactJid);
+
+  try {
+    // 5. Download audio from WhatsApp servers
+    const audioBuffer = await downloadMediaMessage(msg, 'buffer', {}) as Buffer;
+    logger.debug({ contactJid, bytes: audioBuffer.length, ptt: msg.message?.audioMessage?.ptt }, 'voice message downloaded');
+
+    // 6. Transcribe to text
+    const transcript = await transcribe(audioBuffer, logger);
+    if (!transcript || transcript.trim().length === 0) {
+      logger.warn({ contactJid }, 'Empty transcription — skipping reply');
+      await sock.sendPresenceUpdate('paused', contactJid);
+      return;
+    }
+    logger.info({ contactJid, transcriptLength: transcript.length }, 'voice message transcribed');
+
+    // 7. Compute timestamp for persistence
+    const timestamp = msg.messageTimestamp
+      ? typeof msg.messageTimestamp === 'number'
+        ? msg.messageTimestamp * 1000
+        : Number(msg.messageTimestamp) * 1000
+      : Date.now();
+
+    // 8. Persist transcript to DB — BEFORE generateReply (it reads from DB)
+    insertMessage({
+      id: msg.key.id!,
+      contactJid,
+      fromMe: false,
+      body: transcript,
+      timestamp,
+    }).run();
+
+    // 9. Generate AI reply
+    const reply = await generateReply(contactJid);
+    if (!reply) {
+      await sock.sendPresenceUpdate('paused', contactJid);
+      return;
+    }
+
+    // 10. Determine voice vs text reply
+    const globalVoiceOn = getSetting('voice_replies_enabled') === 'true';
+    const contactVoiceOn = contact?.voiceReplyEnabled ?? false;
+
+    if (mode === 'auto') {
+      // Cooldown check
+      if (isCoolingDown(contactJid)) {
+        logger.debug({ contactJid }, 'Cooldown active — skipping voice auto-reply');
+        await sock.sendPresenceUpdate('paused', contactJid);
+        return;
+      }
+
+      // Reset counter if 30-minute window has elapsed
+      const windowStart = autoCountWindowStart.get(contactJid);
+      if (windowStart && Date.now() - windowStart >= AUTO_COUNT_RESET_MS) {
+        resetAutoCount(contactJid).run();
+        autoCountWindowStart.delete(contactJid);
+        logger.debug({ contactJid }, 'Auto-reply counter reset (30min window elapsed)');
+      }
+
+      // Check consecutive cap
+      const freshContact = getContact(contactJid);
+      const autoCount = freshContact?.consecutiveAutoCount ?? 0;
+      if (autoCount >= AUTO_CAP) {
+        // Cap reached — switch to draft mode, notify owner
+        updateContactMode(contactJid, 'draft');
+        resetAutoCount(contactJid).run();
+        const name = contact?.name ?? contactJid;
+        lastNotifiedJid = contactJid;
+        await sock.sendPresenceUpdate('paused', contactJid);
+        await sock.sendMessage(config.USER_JID, {
+          text: `Paused auto-reply for ${name} after ${AUTO_CAP} replies — switching to draft mode. Reply 'snooze 1h' to pause ${name}.`,
+        });
+        logger.info({ contactJid }, 'Auto-reply cap reached — switched to draft mode');
+        return;
+      }
+
+      // All clear — send reply
+      if (globalVoiceOn && contactVoiceOn) {
+        // Voice reply: TTS + PTT send
+        const oggBuffer = await textToSpeech(reply, logger);
+        await sendVoiceWithDelay(sock, contactJid, oggBuffer, reply);
+      } else {
+        // Text fallback: voice disabled globally or for this contact
+        await sock.sendPresenceUpdate('paused', contactJid);
+        await sendWithDelay(sock, contactJid, reply);
+      }
+
+      // Track auto reply (same as text path)
+      lastAutoReplyTime.set(contactJid, Date.now());
+      if (!autoCountWindowStart.has(contactJid)) {
+        autoCountWindowStart.set(contactJid, Date.now());
+      }
+      incrementAutoCount(contactJid).run();
+
+    } else if (mode === 'draft') {
+      // Draft mode: always create text draft (Phase 15 adds voice drafts)
+      await sock.sendPresenceUpdate('paused', contactJid);
+      const draftId = createDraft(contactJid, msg.key.id!, reply);
+      const name = contact?.name ?? contactJid;
+      lastNotifiedJid = contactJid;
+      await sock.sendMessage(config.USER_JID, {
+        text: `Draft for ${name} (voice msg):\n\n${reply}\n\nReply \u2705 to send | \u274c to reject | 'snooze 1h' to pause ${name}`,
+      });
+      logger.info({ draftId, contactJid }, 'Voice draft created for approval');
+    }
+  } catch (err) {
+    logger.error({ err, contactJid }, 'Voice pipeline error');
+    await sock.sendPresenceUpdate('paused', contactJid);
   }
 }
