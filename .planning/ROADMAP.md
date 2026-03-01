@@ -41,7 +41,7 @@
 **Milestone Goal:** Enable the bot to receive voice messages, transcribe them, generate replies, and respond with AI-generated voice messages using a cloned Hebrew voice via ElevenLabs.
 
 - [x] **Phase 12: Voice Infrastructure** - Install deps, configure ElevenLabs credentials, migrate DB schema, validate voice clone
-- [ ] **Phase 13: Voice Service Modules** - Build transcriber and TTS pure-function modules with isolated ElevenLabs API testing
+- [x] **Phase 13: Voice Service Modules** - Build transcriber and TTS pure-function modules with isolated ElevenLabs API testing
 - [ ] **Phase 14: Core Voice Pipeline** - Wire voice path into messageHandler — receive, transcribe, reply, send PTT voice note
 - [ ] **Phase 15: Draft Queue Voice Integration** - Voice replies follow draft mode with lazy TTS and transcript preview
 - [ ] **Phase 16: Voice Settings Management** - Dashboard and CLI controls for per-contact voice reply toggle
@@ -78,7 +78,7 @@ Plans:
 
 Plans:
 - [x] 13-01-PLAN.md — Create transcriber.ts (STT) and tts.ts (TTS) voice service modules (completed 2026-03-01)
-- [ ] 13-02-PLAN.md — Integration test script and Hebrew TTS quality verification
+- [x] 13-02-PLAN.md — Integration test script and Hebrew TTS quality verification (completed 2026-03-01)
 
 ### Phase 14: Core Voice Pipeline
 **Goal**: When a whitelisted contact sends a voice message, the bot automatically transcribes it, generates a reply, and sends a PTT voice note back (or a text reply if voice is disabled for that contact)
@@ -138,7 +138,7 @@ Plans:
 | 10. Keyword Rules & Pipeline | v1.2 | 2/2 | Complete | 2026-02-24 |
 | 11. Dashboard Rule Management | v1.2 | 2/2 | Complete | 2026-02-24 |
 | 12. Voice Infrastructure | v1.3 | 3/3 | Complete | 2026-03-01 |
-| 13. Voice Service Modules | v1.3 | 1/2 | In progress | - |
+| 13. Voice Service Modules | v1.3 | 2/2 | Complete | 2026-03-01 |
 | 14. Core Voice Pipeline | v1.3 | 0/? | Not started | - |
 | 15. Draft Queue Voice Integration | v1.3 | 0/? | Not started | - |
 | 16. Voice Settings Management | v1.3 | 0/? | Not started | - |
