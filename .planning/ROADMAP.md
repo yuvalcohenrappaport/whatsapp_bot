@@ -43,7 +43,7 @@
 - [x] **Phase 12: Voice Infrastructure** - Install deps, configure ElevenLabs credentials, migrate DB schema, validate voice clone
 - [x] **Phase 13: Voice Service Modules** - Build transcriber and TTS pure-function modules with isolated ElevenLabs API testing
 - [x] **Phase 14: Core Voice Pipeline** - Wire voice path into messageHandler — receive, transcribe, reply, send PTT voice note
-- [ ] **Phase 15: Draft Queue Voice Integration** - Voice replies follow draft mode with lazy TTS and transcript preview
+- [x] **Phase 15: Draft Queue Voice Integration** - Voice replies follow draft mode with lazy TTS and transcript preview
 - [ ] **Phase 16: Voice Settings Management** - Dashboard and CLI controls for per-contact voice reply toggle
 
 ## Phase Details
@@ -108,7 +108,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 15-01-PLAN.md — Add isVoice column to drafts, wire transcript notification, and lazy TTS at approval
+- [x] 15-01-PLAN.md — Add isVoice column to drafts, wire transcript notification, and lazy TTS at approval (completed 2026-03-02)
 
 ### Phase 16: Voice Settings Management
 **Goal**: User can enable or disable voice replies per contact via the dashboard and CLI without SSH access to the server
@@ -141,5 +141,5 @@ Plans:
 | 12. Voice Infrastructure | v1.3 | 3/3 | Complete | 2026-03-01 |
 | 13. Voice Service Modules | v1.3 | 2/2 | Complete | 2026-03-01 |
 | 14. Core Voice Pipeline | v1.3 | 2/2 | Complete | 2026-03-01 |
-| 15. Draft Queue Voice Integration | v1.3 | 0/1 | Not started | - |
+| 15. Draft Queue Voice Integration | v1.3 | Complete    | 2026-03-02 | 2026-03-02 |
 | 16. Voice Settings Management | v1.3 | 0/? | Not started | - |

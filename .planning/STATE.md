@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
-**Current focus:** v1.3 Voice Responses — Phase 14 complete, ready for Phase 15
+**Current focus:** v1.3 Voice Responses — Phase 15 in progress (1 of 1 plan complete)
 
 ## Current Position
 
-Phase: 14 of 16 (Core Voice Pipeline) -- COMPLETE
-Plan: 2 of 2 complete
+Phase: 15 of 16 (Draft Queue Voice Integration) -- COMPLETE
+Plan: 1 of 1 complete
 Status: Phase complete
-Last activity: 2026-03-01 — 14-02 complete — voice pipeline verified end-to-end on real device
+Last activity: 2026-03-02 — 15-01 complete — isVoice column, transcript notification, lazy TTS approval
 
-Progress: [████████░░░░░░░░░░░░] 40% (v1.3 — Phase 14 complete, 3/5 phases done)
+Progress: [████████░░░░░░░░░░░░] 44% (v1.3 — Phase 15 complete, 4/5 phases done)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 33 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 7)
+- Total plans completed: 34 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 8)
 - v1.2 shipped in 1 day (4 plans, 11 commits)
 
 **Cumulative:**
@@ -73,9 +73,15 @@ Decisions from 14-02:
 - pm2 confirmed as bot process manager — used pm2 restart for code reload
 - Voice pipeline verified working end-to-end on real phone with Hebrew PTT voice note bubble
 
+Decisions from 15-01:
+- isVoice stored as integer boolean (mode:boolean) — same pattern as voiceReplyEnabled on contacts table
+- createDraft 4th parameter defaults to false — existing text-path call sites require no changes
+- Lazy TTS at approval — textToSpeech called in handleOwnerCommand only when draft.isVoice is true, no audio pre-generation
+- No try/catch around TTS in approval branch — failure propagates and skips Sent confirmation (same as text send failures)
+
 ### Pending Todos
 
-None.
+- Vacation/travel bot overhaul + bug fixes (new milestone after v1.3)
 
 ### Blockers/Concerns
 
@@ -87,7 +93,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-01
-Stopped at: Completed 14-02-PLAN.md — Phase 14 complete, voice pipeline verified end-to-end
-Resume with: Plan Phase 15 (Draft Queue Voice Integration)
-Resume file: .planning/phases/14-core-voice-pipeline/14-02-SUMMARY.md
+Last session: 2026-03-02
+Stopped at: Completed 15-01-PLAN.md — Phase 15 complete, draft queue voice integration wired
+Resume with: Plan Phase 16 (Polish/final phase)
+Resume file: .planning/phases/15-draft-queue-voice-integration/15-01-SUMMARY.md

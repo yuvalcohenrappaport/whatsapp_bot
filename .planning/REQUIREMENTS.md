@@ -22,9 +22,9 @@ Requirements for voice response milestone. Each maps to roadmap phases.
 
 ### Draft Integration
 
-- [ ] **DRAFT-01**: Voice replies follow contact's existing mode (auto-send or draft queue)
-- [ ] **DRAFT-02**: Draft queue shows text transcript of voice reply for review
-- [ ] **DRAFT-03**: Audio is generated at approval time (lazy TTS), not at draft creation
+- [x] **DRAFT-01**: Voice replies follow contact's existing mode (auto-send or draft queue)
+- [x] **DRAFT-02**: Draft queue shows text transcript of voice reply for review
+- [x] **DRAFT-03**: Audio is generated at approval time (lazy TTS), not at draft creation
 
 ### Management
 
@@ -62,9 +62,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | VOICE-05 | Phase 14 | Complete |
 | CONF-01 | Phase 16 | Pending |
 | CONF-02 | Phase 14 | Complete |
-| DRAFT-01 | Phase 15 | Pending |
-| DRAFT-02 | Phase 15 | Pending |
-| DRAFT-03 | Phase 15 | Pending |
+| DRAFT-01 | Phase 15 | Complete |
+| DRAFT-02 | Phase 15 | Complete |
+| DRAFT-03 | Phase 15 | Complete |
 | MGMT-01 | Phase 16 | Pending |
 | MGMT-02 | Phase 16 | Pending |
 
