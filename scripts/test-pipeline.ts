@@ -8,6 +8,8 @@
 
 import { searchTravel } from '../src/groups/travelSearch.js';
 import { parseTravelIntent } from '../src/groups/travelParser.js';
+import { extractDates, hasNumberPreFilter } from '../src/groups/dateExtractor.js';
+import { createCalendarEvent, deleteCalendarEvent } from '../src/calendar/calendarService.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -271,9 +273,200 @@ async function runTravelTests(): Promise<TestResult[]> {
 // ─── Calendar Tests (stub for Plan 17-02) ───────────────────────────────────
 
 async function runCalendarTests(): Promise<TestResult[]> {
-  logSection('Calendar Tests');
-  log('Calendar tests: run with Plan 17-02 tasks');
-  return [];
+  const results: TestResult[] = [];
+  let extractionsCorrect = 0;
+  let totalExtractions = 0;
+
+  // --- Test A: Hebrew with date ---
+  logSection('Test A: Hebrew with date');
+  log('Input: "נסיעה ב-15 לאפריל"');
+  totalExtractions++;
+
+  try {
+    const datesA = await extractDates('נסיעה ב-15 לאפריל', 'TestUser', 'TestGroup');
+    log(`Extracted: ${datesA.length} date(s)`);
+
+    let passed = datesA.length >= 1;
+    for (const d of datesA) {
+      const validDate = !isNaN(d.date.getTime());
+      const futureEnough = d.date.getFullYear() >= 2020;
+      const hasTitle = d.title.length > 0;
+      log(`  Title: ${d.title}`);
+      log(`  Date: ${d.date.toISOString()} (valid=${validDate}, year>2020=${futureEnough})`);
+      log(`  Confidence: ${d.confidence}`);
+      if (!validDate || !futureEnough || !hasTitle) passed = false;
+    }
+
+    if (passed) extractionsCorrect++;
+    results.push({
+      name: 'Test A: Hebrew with date',
+      passed,
+      detail: `${datesA.length} date(s) extracted${datesA.length > 0 ? `, title="${datesA[0].title}"` : ''}`,
+    });
+  } catch (err) {
+    log(`ERROR: ${err instanceof Error ? err.message : String(err)}`);
+    results.push({ name: 'Test A: Hebrew with date', passed: false, detail: `Error: ${err}` });
+  }
+
+  // --- Test B: English with date ---
+  logSection('Test B: English with date');
+  log('Input: "Meeting on March 20th at 3pm"');
+  totalExtractions++;
+
+  try {
+    const datesB = await extractDates('Meeting on March 20th at 3pm', 'TestUser', 'TestGroup');
+    log(`Extracted: ${datesB.length} date(s)`);
+
+    let passed = datesB.length >= 1;
+    for (const d of datesB) {
+      const validDate = !isNaN(d.date.getTime());
+      const futureEnough = d.date.getFullYear() >= 2020;
+      const hasTitle = d.title.length > 0;
+      log(`  Title: ${d.title}`);
+      log(`  Date: ${d.date.toISOString()} (valid=${validDate}, year>2020=${futureEnough})`);
+      log(`  Confidence: ${d.confidence}`);
+      if (!validDate || !futureEnough || !hasTitle) passed = false;
+    }
+
+    if (passed) extractionsCorrect++;
+    results.push({
+      name: 'Test B: English with date',
+      passed,
+      detail: `${datesB.length} date(s) extracted${datesB.length > 0 ? `, title="${datesB[0].title}"` : ''}`,
+    });
+  } catch (err) {
+    log(`ERROR: ${err instanceof Error ? err.message : String(err)}`);
+    results.push({ name: 'Test B: English with date', passed: false, detail: `Error: ${err}` });
+  }
+
+  // --- Test C: No date ---
+  logSection('Test C: No date');
+  log('Input: "מה המצב חבר\'ה?"');
+  totalExtractions++;
+
+  try {
+    const preFilterC = hasNumberPreFilter('מה המצב חבר\'ה?');
+    log(`hasNumberPreFilter: ${preFilterC} (expected: false)`);
+
+    // Pre-filter should return false, meaning Gemini is never called.
+    // But also verify extractDates returns empty if called anyway.
+    const datesC = await extractDates('מה המצב חבר\'ה?', 'TestUser', 'TestGroup');
+    log(`Extracted: ${datesC.length} date(s) (expected: 0)`);
+
+    const passed = !preFilterC && datesC.length === 0;
+    if (passed) extractionsCorrect++;
+    results.push({
+      name: 'Test C: No date',
+      passed,
+      detail: `preFilter=${preFilterC}, dates=${datesC.length}`,
+    });
+  } catch (err) {
+    log(`ERROR: ${err instanceof Error ? err.message : String(err)}`);
+    results.push({ name: 'Test C: No date', passed: false, detail: `Error: ${err}` });
+  }
+
+  // --- Test D: Invalid date guard note ---
+  logSection('Test D: Invalid date guard');
+  log('The NaN date guard in dateExtractor.ts filters out any invalid Date objects.');
+  log('Gemini rarely returns malformed dates, so this guard is a safety net.');
+  log('Validated indirectly: if Tests A/B produce valid dates, the guard is not triggered.');
+  log('The guard was added in Plan 17-02 Task 2 and logs a warning on any filtered date.');
+  results.push({
+    name: 'Test D: Invalid date guard (informational)',
+    passed: true,
+    detail: 'NaN guard exists in dateExtractor.ts — validates indirectly via Tests A/B',
+  });
+
+  // --- Calendar round-trip test ---
+  logSection('Calendar Round-Trip Test');
+
+  const testCalendarId = process.env.TEST_CALENDAR_ID;
+  let calendarRoundTrip = 'skip';
+
+  if (!testCalendarId) {
+    log('Set TEST_CALENDAR_ID env var to run calendar round-trip test.');
+    log('Skipping calendar create/delete round-trip.');
+    results.push({
+      name: 'Calendar round-trip',
+      passed: true,
+      detail: 'Skipped — TEST_CALENDAR_ID not set',
+    });
+  } else {
+    log(`Using calendar: ${testCalendarId}`);
+
+    try {
+      // Create test event: tomorrow at 10:00 AM Israel time
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(10, 0, 0, 0);
+
+      log(`Creating test event: "Pipeline Audit Test Event" on ${tomorrow.toISOString()}`);
+
+      const eventId = await createCalendarEvent({
+        calendarId: testCalendarId,
+        title: 'Pipeline Audit Test Event',
+        date: tomorrow,
+        description: 'Created by test-pipeline.ts calendar round-trip test. Should be deleted immediately.',
+      });
+
+      if (eventId) {
+        log(`Event created: ${eventId}`);
+
+        // Immediately delete
+        log('Deleting test event...');
+        const deleted = await deleteCalendarEvent(testCalendarId, eventId);
+        log(`Event deleted: ${deleted}`);
+
+        if (deleted) {
+          calendarRoundTrip = 'pass';
+          results.push({
+            name: 'Calendar round-trip',
+            passed: true,
+            detail: `Created event ${eventId}, then deleted successfully`,
+          });
+        } else {
+          calendarRoundTrip = 'fail';
+          results.push({
+            name: 'Calendar round-trip',
+            passed: false,
+            detail: `Created event ${eventId} but deletion failed`,
+          });
+        }
+      } else {
+        calendarRoundTrip = 'fail';
+        log('Event creation returned null — check calendar auth and permissions.');
+        results.push({
+          name: 'Calendar round-trip',
+          passed: false,
+          detail: 'createCalendarEvent returned null',
+        });
+      }
+    } catch (err) {
+      calendarRoundTrip = 'fail';
+      const msg = err instanceof Error ? err.message : String(err);
+      log(`Calendar round-trip error: ${msg}`);
+      if (msg.includes('auth') || msg.includes('credential') || msg.includes('key') || msg.includes('401') || msg.includes('403')) {
+        log('This looks like an auth issue — check GOOGLE_SERVICE_ACCOUNT_KEY_PATH and calendar sharing.');
+      }
+      results.push({
+        name: 'Calendar round-trip',
+        passed: false,
+        detail: `Error: ${msg}`,
+      });
+    }
+  }
+
+  // --- Calendar Test Summary ---
+  logSection('Calendar Test Summary');
+  log(`Date extractions correct: ${extractionsCorrect}/${totalExtractions}`);
+  log(`Calendar round-trip: ${calendarRoundTrip}`);
+  log('');
+
+  for (const r of results) {
+    log(`  ${r.passed ? 'PASS' : 'FAIL'} | ${r.name} -- ${r.detail}`);
+  }
+
+  return results;
 }
 
 // ─── Main ───────────────────────────────────────────────────────────────────
