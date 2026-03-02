@@ -85,6 +85,54 @@ async function geminiGroundedSearch(
     price: typeof item.price === 'string' ? item.price : null,
   }));
 
+  // --- Extract URLs from grounding metadata (more reliable than AI-generated URLs) ---
+  const groundingChunks =
+    response.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
+  const webChunks = groundingChunks
+    .filter((c) => c.web?.uri)
+    .map((c) => ({ uri: c.web!.uri!, title: c.web?.title ?? '' }));
+
+  if (webChunks.length > 0) {
+    let matched = 0;
+    const usedChunkIndices = new Set<number>();
+
+    // Pass 1: match grounding chunk to result by title similarity
+    for (const result of results) {
+      const resultTitleLower = result.title.toLowerCase();
+      const chunkIdx = webChunks.findIndex(
+        (chunk, idx) =>
+          !usedChunkIndices.has(idx) &&
+          chunk.title &&
+          (resultTitleLower.includes(chunk.title.toLowerCase()) ||
+            chunk.title.toLowerCase().includes(resultTitleLower)),
+      );
+      if (chunkIdx !== -1) {
+        result.url = webChunks[chunkIdx].uri;
+        usedChunkIndices.add(chunkIdx);
+        matched++;
+      }
+    }
+
+    // Pass 2: assign unused grounding URLs to results with empty/short URLs
+    const unusedChunks = webChunks.filter((_, idx) => !usedChunkIndices.has(idx));
+    let unusedIdx = 0;
+    for (const result of results) {
+      if (unusedIdx >= unusedChunks.length) break;
+      if (!result.url || result.url.length < 20) {
+        result.url = unusedChunks[unusedIdx].uri;
+        unusedIdx++;
+        matched++;
+      }
+    }
+
+    logger.debug(
+      { groundingChunksFound: webChunks.length, matched, textParsedFallback: results.length - matched },
+      'Grounding metadata URL cross-reference',
+    );
+  } else {
+    logger.debug('No grounding chunks found -- using text-parsed URLs as-is');
+  }
+
   logger.info({ count: results.length, query: searchQuery }, 'Gemini grounded search returned results');
   return results;
 }
