@@ -167,7 +167,7 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 18-01-PLAN.md — DB schema: tripContexts and tripDecisions tables, searchGroupMessages FTS query
+- [x] 18-01-PLAN.md — DB schema: tripContexts and tripDecisions tables, searchGroupMessages FTS query (completed 2026-03-02)
 - [ ] 18-02-PLAN.md — tripContextManager.ts: debounce buffer, Gemini classifier, DB upsert at pipeline step [3.5]
 - [ ] 18-03-PLAN.md — Conversation recall: history_search queryType in travelParser + travelHandler dispatch
 
@@ -238,7 +238,7 @@ Plans:
 | 15. Draft Queue Voice Integration | v1.3 | 1/1 | Complete | 2026-03-02 |
 | 16. Voice Settings Management | v1.3 | 1/1 | Complete | 2026-03-02 |
 | 17. Pipeline Audit | v1.4 | 2/2 | Complete | 2026-03-02 |
-| 18. Trip Memory | v1.4 | 0/3 | Not started | - |
+| 18. Trip Memory | v1.4 | 1/3 | In Progress | - |
 | 19. Itinerary Builder | v1.4 | 0/3 | Not started | - |
 | 20. Enriched Search | v1.4 | 0/2 | Not started | - |
 | 21. Travel Intelligence | v1.4 | 0/2 | Not started | - |

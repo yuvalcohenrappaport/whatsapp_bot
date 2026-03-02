@@ -14,8 +14,8 @@ Requirements for Travel Agent milestone. Each maps to roadmap phases.
 
 ### Trip Memory
 
-- [ ] **MEM-01**: Bot stores confirmed trip decisions (destination, accommodation, activities, transport) in structured DB records
-- [ ] **MEM-02**: User can ask "@bot what did we decide about X?" and bot answers from stored decisions + chat history
+- [x] **MEM-01**: Bot stores confirmed trip decisions (destination, accommodation, activities, transport) in structured DB records
+- [x] **MEM-02**: User can ask "@bot what did we decide about X?" and bot answers from stored decisions + chat history
 - [ ] **MEM-03**: Bot detects unanswered questions/commitments in chat and tracks them as open items
 - [ ] **MEM-04**: Open items are surfaced in weekly digest until resolved or manually dismissed
 
@@ -85,8 +85,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | AUDIT-01 | Phase 17 | Complete |
 | AUDIT-02 | Phase 17 | Complete |
-| MEM-01 | Phase 18 | Pending |
-| MEM-02 | Phase 18 | Pending |
+| MEM-01 | Phase 18 | Complete (DB layer, 18-01) |
+| MEM-02 | Phase 18 | Complete (DB layer, 18-01) |
 | MEM-03 | Phase 18 | Pending |
 | MEM-04 | Phase 21 | Pending |
 | ITIN-01 | Phase 19 | Pending |
@@ -106,4 +106,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-02*
-*Last updated: 2026-03-02 after roadmap creation — all 15 requirements mapped*
+*Last updated: 2026-03-02 after Phase 18-01 — MEM-01/MEM-02 DB layer complete*
