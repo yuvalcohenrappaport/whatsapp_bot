@@ -31,6 +31,7 @@ interface GroupMsg {
   senderName: string | null;
   body: string;
   timestamp: number;
+  fromMe?: boolean;
 }
 
 // ─── Module-level state ───────────────────────────────────────────────────────
@@ -397,7 +398,7 @@ export function initGroupPipeline(): void {
   setGroupMessageCallback(
     async (
       groupJid: string,
-      msg: { id: string; senderJid: string; senderName: string | null; body: string; timestamp: number },
+      msg: { id: string; senderJid: string; senderName: string | null; body: string; timestamp: number; fromMe?: boolean },
       quotedMessageId: string | null,
       mentionedJids: string[],
     ) => {
@@ -406,12 +407,16 @@ export function initGroupPipeline(): void {
         const wasTravel = await handleTravelMention(groupJid, msg, quotedMessageId, mentionedJids);
         if (wasTravel) return;
 
-        // Keyword auto-response -- runs immediately, non-terminal
-        await handleKeywordRules(groupJid, msg);
-
-        // Reply-to-delete -- runs immediately, terminal
+        // Reply-to-delete -- runs immediately, terminal (before fromMe guard so owner can delete events)
         const wasDelete = await handleReplyToDelete(groupJid, msg, quotedMessageId);
         if (wasDelete) return;
+
+        // Skip keyword rules and date extraction for own messages (bot confirmations etc.)
+        // Reply-to-delete already handled above.
+        if (msg.fromMe) return;
+
+        // Keyword auto-response -- runs immediately, non-terminal
+        await handleKeywordRules(groupJid, msg);
 
         // Batch for calendar date extraction
         addToDebounce(groupJid, msg);
