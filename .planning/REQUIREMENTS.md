@@ -10,7 +10,7 @@ Requirements for Travel Agent milestone. Each maps to roadmap phases.
 ### Audit
 
 - [x] **AUDIT-01**: Travel search returns correct results with working URLs and follow-up reply chains
-- [ ] **AUDIT-02**: Calendar date extraction correctly identifies dates, creates events, and handles reply-to-delete
+- [x] **AUDIT-02**: Calendar date extraction correctly identifies dates, creates events, and handles reply-to-delete
 
 ### Trip Memory
 
@@ -84,7 +84,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | AUDIT-01 | Phase 17 | Complete |
-| AUDIT-02 | Phase 17 | Pending |
+| AUDIT-02 | Phase 17 | Complete |
 | MEM-01 | Phase 18 | Pending |
 | MEM-02 | Phase 18 | Pending |
 | MEM-03 | Phase 18 | Pending |

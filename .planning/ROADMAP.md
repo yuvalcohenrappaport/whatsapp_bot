@@ -153,7 +153,7 @@ Plans:
 
 Plans:
 - [x] 17-01-PLAN.md — Audit travel search: URL validity, reply chain, error handling (completed 2026-03-02)
-- [ ] 17-02-PLAN.md — Audit calendar extraction: date parsing, event creation, reply-to-delete
+- [x] 17-02-PLAN.md — Audit calendar extraction: date parsing, event creation, reply-to-delete (completed 2026-03-02)
 
 ### Phase 18: Trip Memory
 **Goal**: The bot accumulates and persists trip decisions from group conversations, answers recall questions about past decisions, and tracks open questions the group has not resolved
@@ -237,7 +237,7 @@ Plans:
 | 14. Core Voice Pipeline | v1.3 | 2/2 | Complete | 2026-03-01 |
 | 15. Draft Queue Voice Integration | v1.3 | 1/1 | Complete | 2026-03-02 |
 | 16. Voice Settings Management | v1.3 | 1/1 | Complete | 2026-03-02 |
-| 17. Pipeline Audit | v1.4 | 1/2 | In progress | - |
+| 17. Pipeline Audit | v1.4 | 2/2 | Complete | 2026-03-02 |
 | 18. Trip Memory | v1.4 | 0/3 | Not started | - |
 | 19. Itinerary Builder | v1.4 | 0/3 | Not started | - |
 | 20. Enriched Search | v1.4 | 0/2 | Not started | - |

@@ -5,31 +5,32 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
-**Current focus:** v1.4 Travel Agent — Phase 17: Pipeline Audit
+**Current focus:** v1.4 Travel Agent — Phase 17: Pipeline Audit (complete)
 
 ## Current Position
 
 Phase: 17 of 21 (Pipeline Audit)
-Plan: 1 of 2 in current phase
-Status: Executing
-Last activity: 2026-03-02 — Plan 17-01 complete (travel search audit)
+Plan: 2 of 2 in current phase (phase complete)
+Status: Phase Complete
+Last activity: 2026-03-02 — Plan 17-02 complete (calendar extraction audit)
 
-Progress: [█░░░░░░░░░] 10% (v1.4)
+Progress: [██░░░░░░░░] 20% (v1.4)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 36 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 9, v1.4: 1)
+- Total plans completed: 37 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 9, v1.4: 2)
 - v1.3 shipped in 1 day (9 plans, 5 phases)
 - v1.2 shipped in 1 day (4 plans, 2 phases)
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
 | 17-01 | Travel search audit | 5min | 3 | 3 |
+| 17-02 | Calendar extraction audit | 4min | 3 | 3 |
 
 **Cumulative (all milestones):**
 - 4 milestones shipped
-- 16 phases complete, 36 plans complete
+- 17 phases complete, 37 plans complete
 
 ## Accumulated Context
 
@@ -48,6 +49,8 @@ Key decisions for v1.4:
 - Proactive messages: 2-hour per-group cooldown, max 3/day/group, 90% confidence threshold, 3-8s randomized delay
 - Grounding metadata URLs: cross-reference by title similarity, then fill empty URLs with unused chunks (17-01)
 - Follow-up framing: augment both recentContext AND messageText for dual-path coverage (17-01)
+- Pipeline guard reorder: handleReplyToDelete runs before fromMe guard so owner can delete calendar events (17-02)
+- Minimal NaN date patch in dateExtractor.ts since Phase 19 rewrites the extraction flow (17-02)
 
 ### Pending Todos
 
@@ -63,6 +66,6 @@ Key decisions for v1.4:
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 17-01-PLAN.md (travel search audit)
-Resume with: /gsd:execute-phase 17 (Plan 17-02 remaining)
-Resume file: .planning/phases/17-pipeline-audit/17-01-SUMMARY.md
+Stopped at: Completed 17-02-PLAN.md (calendar extraction audit) — Phase 17 complete
+Resume with: /gsd:execute-phase 18 (Phase 18: History Search)
+Resume file: .planning/phases/17-pipeline-audit/17-02-SUMMARY.md
