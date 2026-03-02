@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
-**Current focus:** v1.4 Travel Agent — Phase 18: Trip Memory (in progress)
+**Current focus:** v1.4 Travel Agent — Phase 19: Itinerary Builder (in progress)
 
 ## Current Position
 
-Phase: 18 of 21 (Trip Memory)
-Plan: 3 of 3 in current phase
-Status: Phase Complete
-Last activity: 2026-03-02 — Plan 18-03 complete (history_search queryType and conversation recall via handleHistorySearch)
+Phase: 19 of 21 (Itinerary Builder)
+Plan: 1 of 3 in current phase
+Status: Plan 19-01 Complete
+Last activity: 2026-03-02 — Plan 19-01 complete (pendingSuggestions DB foundation, Zod v4 dateExtractor, calendarService location, pipeline helper exports)
 
-Progress: [████░░░░░░] 40% (v1.4)
+Progress: [████░░░░░░] 43% (v1.4)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 39 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 9, v1.4: 4)
+- Total plans completed: 40 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 9, v1.4: 5)
 - v1.3 shipped in 1 day (9 plans, 5 phases)
 - v1.2 shipped in 1 day (4 plans, 2 phases)
 
@@ -30,10 +30,11 @@ Progress: [████░░░░░░] 40% (v1.4)
 | 18-01 | Trip memory DB schema and FTS5 | 2min | 2 | 5 |
 | 18-02 | Trip context accumulator | 3min | 2 | 2 |
 | 18-03 | History search recall handler | 1min | 2 | 2 |
+| 19-01 | Itinerary builder foundation | 3min | 3 | 6 |
 
 **Cumulative (all milestones):**
 - 4 milestones shipped
-- 17 phases complete, 39 plans complete
+- 17 phases complete, 40 plans complete
 
 ## Accumulated Context
 
@@ -60,6 +61,8 @@ Key decisions for v1.4:
 - Trip debounce buffer is a module-level Map in tripContextManager.ts, completely isolated from calendar debounce in groupMessagePipeline.ts (18-02)
 - history_search dispatch placed after vague check, before web search block — recall questions skip searchTravel entirely (18-03)
 - handleHistorySearch uses generateText (not generateJson) since the output is conversational, not structured data (18-03)
+- pendingSuggestions migration 0011 hand-written (never run db:generate after 0010 FTS5 migration) (19-01)
+- Exported calendarIdCache, getCalendarIdFromLink, buildConfirmationText from groupMessagePipeline for suggestionTracker to import without duplication (19-01)
 
 ### Pending Todos
 
@@ -75,6 +78,6 @@ Key decisions for v1.4:
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 18-03-PLAN.md (history_search queryType and conversation recall via handleHistorySearch)
-Resume with: /gsd:execute-phase 19 (Phase 19: Itinerary Builder — plan 01)
-Resume file: .planning/phases/18-trip-memory/18-03-SUMMARY.md
+Stopped at: Completed 19-01-PLAN.md (pendingSuggestions DB foundation, Zod v4 dateExtractor, calendarService location, pipeline helper exports)
+Resume with: /gsd:execute-phase 19 (Phase 19: Itinerary Builder — plan 02)
+Resume file: .planning/phases/19-itinerary-builder/19-01-SUMMARY.md

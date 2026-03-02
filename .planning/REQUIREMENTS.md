@@ -22,7 +22,7 @@ Requirements for Travel Agent milestone. Each maps to roadmap phases.
 ### Itinerary
 
 - [ ] **ITIN-01**: Date extraction suggests adding to calendar before auto-adding (suggest-then-confirm via reply)
-- [ ] **ITIN-02**: Calendar events include location, description, and relevant links (not just title + date)
+- [x] **ITIN-02**: Calendar events include location, description, and relevant links (not just title + date)
 - [ ] **ITIN-03**: User can confirm (✅) or reject (❌) a suggestion by replying to the bot's message
 
 ### Search
@@ -90,7 +90,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MEM-03 | Phase 18 | Complete (classifier + open_question, 18-02) |
 | MEM-04 | Phase 21 | Pending |
 | ITIN-01 | Phase 19 | Pending |
-| ITIN-02 | Phase 19 | Pending |
+| ITIN-02 | Phase 19 | Complete |
 | ITIN-03 | Phase 19 | Pending |
 | SRCH-01 | Phase 20 | Pending |
 | SRCH-02 | Phase 20 | Pending |
