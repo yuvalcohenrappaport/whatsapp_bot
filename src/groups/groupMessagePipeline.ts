@@ -44,7 +44,7 @@ const debounceBuffers = new Map<
 >();
 
 /** In-memory cache of groupJid -> calendarId (to avoid re-reading from calendarLink) */
-const calendarIdCache = new Map<string, string>();
+export const calendarIdCache = new Map<string, string>();
 
 /** Debounce window in ms */
 const DEBOUNCE_MS = 10_000;
@@ -55,7 +55,7 @@ const DEBOUNCE_MS = 10_000;
  * Extract calendarId from a calendarLink URL.
  * Format: https://calendar.google.com/calendar/embed?src={encodedCalendarId}
  */
-function getCalendarIdFromLink(calendarLink: string): string | null {
+export function getCalendarIdFromLink(calendarLink: string): string | null {
   try {
     const url = new URL(calendarLink);
     const src = url.searchParams.get('src');
@@ -106,7 +106,7 @@ export async function detectGroupLanguage(groupJid: string): Promise<'he' | 'en'
 /**
  * Build confirmation message text based on language.
  */
-function buildConfirmationText(
+export function buildConfirmationText(
   lang: 'he' | 'en',
   title: string,
   date: Date,

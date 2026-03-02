@@ -36,22 +36,19 @@ export function initCalendarAuth(): calendar_v3.Calendar | null {
 
   try {
     const keyFileContents = JSON.parse(readFileSync(keyPath, 'utf-8'));
-    const { client_email, private_key } = keyFileContents;
 
-    if (!client_email || !private_key) {
+    if (!keyFileContents.client_email || !keyFileContents.private_key) {
       logger.error('Service account key file missing client_email or private_key');
       return null;
     }
 
-    const auth = new google.auth.JWT(
-      client_email,
-      undefined,
-      private_key,
-      ['https://www.googleapis.com/auth/calendar'],
-    );
+    const auth = new google.auth.GoogleAuth({
+      credentials: keyFileContents,
+      scopes: ['https://www.googleapis.com/auth/calendar'],
+    });
 
     calendarClient = google.calendar({ version: 'v3', auth });
-    logger.info({ client_email }, 'Google Calendar auth initialized');
+    logger.info({ client_email: keyFileContents.client_email }, 'Google Calendar auth initialized');
     return calendarClient;
   } catch (err) {
     logger.error({ err }, 'Failed to initialize Google Calendar auth');
@@ -146,6 +143,7 @@ export async function createCalendarEvent(params: {
   title: string;
   date: Date;
   description: string;
+  location?: string;
   timeZone?: string;
 }): Promise<string | null> {
   const client = getCalendarClient();
@@ -160,6 +158,7 @@ export async function createCalendarEvent(params: {
       requestBody: {
         summary: params.title,
         description: params.description,
+        location: params.location,
         start: {
           dateTime: params.date.toISOString(),
           timeZone,
