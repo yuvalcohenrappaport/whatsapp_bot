@@ -1,11 +1,63 @@
 import type { SearchResult } from './travelSearch.js';
 
-// --- Rich card formatting for travel results ---
+// --- Booking domain detection ---
+
+const BOOKING_DOMAINS = [
+  'booking.com',
+  'airbnb.com',
+  'hotels.com',
+  'expedia.com',
+  'agoda.com',
+] as const;
+
+function isBookingUrl(url: string): boolean {
+  if (!url) return false;
+  try {
+    const hostname = new URL(url).hostname.replace(/^www\./, '');
+    return BOOKING_DOMAINS.some(
+      (domain) => hostname === domain || hostname.endsWith('.' + domain),
+    );
+  } catch {
+    // Fallback for malformed URLs (e.g., Google Maps redirects)
+    return BOOKING_DOMAINS.some((domain) => url.includes(domain));
+  }
+}
+
+// --- Formatting helpers ---
+
+function formatReviewCount(count: number): string {
+  return count >= 1000 ? `${(count / 1000).toFixed(1)}K` : String(count);
+}
+
+function formatOneLiner(r: SearchResult, index: number): string {
+  let line = `${index + 1}. ${r.title}`;
+
+  if (r.rating !== null && r.rating !== undefined) {
+    const reviews =
+      r.reviewCount !== null && r.reviewCount !== undefined
+        ? ` (${formatReviewCount(r.reviewCount)})`
+        : '';
+    line += ` ⭐ ${r.rating}${reviews}`;
+  }
+
+  if (r.address) {
+    line += ` — ${r.address}`;
+  }
+
+  if (r.url) {
+    const urlPart = isBookingUrl(r.url) ? `🛒 ${r.url}` : r.url;
+    line += ` — ${urlPart}`;
+  }
+
+  return line;
+}
+
+// --- Compact one-liner formatting for travel results ---
 
 /**
- * Format search results as WhatsApp-style rich cards.
+ * Format search results as compact one-liners for WhatsApp.
  * Language matches group (Hebrew or English).
- * Handles both scraped results (with URLs) and fallback results (without URLs).
+ * Handles both grounded results (with URLs) and fallback results (without URLs).
  */
 export function formatTravelResults(
   results: SearchResult[],
@@ -32,36 +84,10 @@ export function formatTravelResults(
     }
   }
 
-  // Build cards
-  const cards = results.map((r, i) => {
-    const lines: string[] = [];
+  // Build compact one-liners
+  const lines = results.map((r, i) => formatOneLiner(r, i));
 
-    // Title (bold WhatsApp formatting)
-    lines.push(`${i + 1}. *${r.title}*`);
-
-    // Price line
-    if (r.price) {
-      lines.push(r.price);
-    } else {
-      lines.push(lang === 'he' ? '\u{1F4B0} מחיר לא מצוין' : '\u{1F4B0} Price not listed');
-    }
-
-    // Snippet (truncated to ~100 chars)
-    if (r.snippet) {
-      const truncated =
-        r.snippet.length > 100 ? r.snippet.slice(0, 97) + '...' : r.snippet;
-      lines.push(truncated);
-    }
-
-    // URL (only if available -- fallback results have no URL)
-    if (r.url) {
-      lines.push(r.url);
-    }
-
-    return lines.join('\n');
-  });
-
-  return `${header}\n\n${cards.join('\n\n')}`;
+  return `${header}\n\n${lines.join('\n')}`;
 }
 
 // --- Help text for non-travel mentions ---
