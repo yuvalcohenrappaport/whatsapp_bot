@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import { useUpdateContact, useRemoveContact } from '@/hooks/useContacts';
 import type { Contact } from '@/hooks/useContacts';
 
@@ -28,6 +29,7 @@ export function ContactPanel({ contact, onClose }: ContactPanelProps) {
   const [mode, setMode] = useState(contact.mode);
   const [relationship, setRelationship] = useState(contact.relationship ?? '');
   const [customInstructions, setCustomInstructions] = useState(contact.customInstructions ?? '');
+  const [voiceReplyEnabled, setVoiceReplyEnabled] = useState(contact.voiceReplyEnabled);
 
   const updateContact = useUpdateContact();
   const removeContact = useRemoveContact();
@@ -58,6 +60,14 @@ export function ContactPanel({ contact, onClose }: ContactPanelProps) {
     updateContact.mutate(
       { jid: contact.jid, patch: { customInstructions: trimmed || null } },
       { onSuccess: () => toast.success('Saved') },
+    );
+  }
+
+  function handleVoiceToggle(checked: boolean) {
+    setVoiceReplyEnabled(checked);
+    updateContact.mutate(
+      { jid: contact.jid, patch: { voiceReplyEnabled: checked } },
+      { onSuccess: () => toast.success('Voice reply ' + (checked ? 'enabled' : 'disabled')) },
     );
   }
 
@@ -119,6 +129,17 @@ export function ContactPanel({ contact, onClose }: ContactPanelProps) {
             value={customInstructions}
             onChange={(e) => setCustomInstructions(e.target.value)}
             onBlur={handleInstructionsBlur}
+          />
+        </div>
+
+        {/* Voice reply toggle */}
+        <div className="flex items-center justify-between">
+          <Label htmlFor="voice-reply">Voice replies</Label>
+          <Switch
+            id="voice-reply"
+            checked={voiceReplyEnabled}
+            onCheckedChange={handleVoiceToggle}
+            disabled={isSaving}
           />
         </div>
       </div>

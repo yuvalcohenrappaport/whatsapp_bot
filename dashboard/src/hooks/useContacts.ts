@@ -7,6 +7,7 @@ export interface Contact {
   mode: 'off' | 'draft' | 'auto';
   relationship: string | null;
   customInstructions: string | null;
+  voiceReplyEnabled: boolean;
   lastMessage: { body: string; timestamp: number } | null;
 }
 
@@ -33,7 +34,7 @@ export function useRecentChats() {
 export function useUpdateContact() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ jid, patch }: { jid: string; patch: Partial<Pick<Contact, 'mode' | 'relationship' | 'customInstructions'>> }) =>
+    mutationFn: ({ jid, patch }: { jid: string; patch: Partial<Pick<Contact, 'mode' | 'relationship' | 'customInstructions' | 'voiceReplyEnabled'>> }) =>
       apiFetch(`/api/contacts/${encodeURIComponent(jid)}`, {
         method: 'PATCH',
         body: JSON.stringify(patch),
