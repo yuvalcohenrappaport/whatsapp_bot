@@ -1,298 +1,188 @@
-# Feature Research
+# Feature Landscape: Travel Agent Group Bot
 
-**Domain:** WhatsApp AI Bot — Milestone 3: Voice Message Support
-**Researched:** 2026-03-01
-**Confidence:** MEDIUM-HIGH — ElevenLabs API capabilities verified via official docs. Baileys audio APIs verified via official wiki and community patterns. Format requirements (OGG/Opus) verified via multiple sources. Hebrew TTS model support HIGH confidence. Voice clone + Hebrew quality flag is MEDIUM (no direct quality reviews found; official docs confirm support but lack specifics).
+**Domain:** WhatsApp group travel planning assistant — passive listener + proactive AI agent
+**Researched:** 2026-03-02
+**Confidence:** HIGH for domain patterns and competitive analysis; MEDIUM for specific new feature implementation complexity (dependent on existing code architecture which was read directly)
 
 ---
 
 ## Context: What Is Already Built
 
-Phases 1 and 2 are complete. The bot already has:
-- Baileys v7 WhatsApp connection with QR auth and session persistence
-- Full message pipeline (receive, dedup, persist to SQLite via Drizzle)
-- Per-contact modes: `off` / `draft` / `auto`
-- Gemini AI responses with per-contact context isolation (50-message window)
-- Draft approval via WhatsApp (owner replies ✅/❌ to pending reply)
-- Chat history import from `.txt` export + style injection into system prompt
-- Auto-reply with randomized send delay + snooze
-- Group monitoring with calendar extraction (Milestone 2 complete)
+This is a subsequent milestone. The bot has:
+- `@mention` travel search with Gemini grounded search (3 results with URLs, title, snippet, price)
+- Reply chain follow-up on travel results (quotedMessageId tracked in-memory)
+- Google Calendar date extraction from group messages (auto-add + confirmation message)
+- Reply-to-delete calendar events
+- Weekly AI digest (cron, summarizes last 7 days of chat + upcoming 14 days of events)
+- Per-group keyword auto-response rules
+- `groupMessages` SQLite table (full message history per group)
+- Debounce pipeline (10s window batches messages for calendar extraction)
+- Language detection (Hebrew/English auto-detect from char frequency)
 
-**Critical gap exposed by this milestone:** The existing `processMessage` function in `src/pipeline/messageHandler.ts` returns immediately on non-text messages (line 209: `if (text === null) return;`). Voice messages are `audioMessage` type and produce `text === null`. The entire pipeline is text-only. Voice support requires branching before this early return.
-
-This milestone adds:
-1. Voice message receipt and ElevenLabs transcription (speech-to-text)
-2. Gemini text reply generation (reuses existing pipeline)
-3. ElevenLabs TTS with cloned Hebrew voice (text-to-speech)
-4. WhatsApp voice note send (OGG/Opus format)
-5. Per-contact voice reply toggle and draft queue integration
-
----
-
-## Feature Landscape
-
-### Table Stakes (Users Expect These)
-
-Features that are non-negotiable for this milestone to feel complete. Missing any makes the voice feature feel broken.
-
-| Feature | Why Expected | Complexity | Notes |
-|---------|--------------|------------|-------|
-| **Detect incoming voice messages** | Without detection, voice messages are silently ignored — the bot appears broken | LOW | `msg.message?.audioMessage` check in `processMessage`. Add branch before the `text === null` return. Voice messages have `pttMessage` = true for native voice notes, or `audioMessage` for regular audio. Both should be handled. |
-| **Download voice message audio** | Without download, there is nothing to transcribe | LOW | `downloadMediaMessage(msg, 'buffer', {}, { logger, reuploadRequest: sock.updateMediaMessage })` from Baileys. Returns a `Buffer`. Audio is OGG/Opus encoded — WhatsApp's native format. |
-| **Transcribe voice to text via ElevenLabs Scribe** | Transcription is the foundation of the feature — without it, no AI reply is possible | MEDIUM | `client.speechToText.convert({ file: audioBuffer, model_id: 'scribe_v2', language_code: 'heb' })`. SDK: `@elevenlabs/elevenlabs-js` v2.37.0. Scribe v2 supports OGG/Opus natively — no format conversion needed for transcription. Hebrew WER is 10-20% ("Good" tier). Async — plan for 1-3s per voice note. |
-| **Generate AI text reply from transcript** | Without this, transcription is pointless — no reply to send | LOW | Reuse existing `generateReply()` in `src/ai/gemini.ts` with the transcript as the message body. Transcript is treated as if the contact sent a text message. No Gemini changes needed. |
-| **Convert AI text to speech via ElevenLabs TTS** | Without TTS, the bot cannot send a voice reply — defeats the purpose | MEDIUM | Use `eleven_turbo_v2_5` model for Hebrew (confirmed supported, ~250-300ms latency). Use cloned voice ID. Output format: MP3, then convert to OGG/Opus for WhatsApp. SDK: `client.textToSpeech.convert({ voice_id, model_id: 'eleven_turbo_v2_5', text, output_format: 'mp3_44100_128' })`. Returns audio buffer. |
-| **Convert TTS output to OGG/Opus for WhatsApp PTT** | WhatsApp requires OGG/Opus with libopus codec for voice notes. Sending MP3 as PTT fails on Android. | MEDIUM | ElevenLabs returns MP3 by default. Must convert: `fluent-ffmpeg` (in-memory stream) → libopus codec, 48000Hz, mono, 32kbps bitrate. System `ffmpeg` binary required on Ubuntu server. Alternatively, request `output_format: 'pcm_44100'` from ElevenLabs and encode directly — but fluent-ffmpeg from MP3 is simpler. |
-| **Send voice note as WhatsApp PTT** | Without this, the voice reply never arrives | LOW | `sock.sendMessage(jid, { audio: oggBuffer, mimetype: 'audio/ogg; codecs=opus', ptt: true })`. The `ptt: true` flag marks it as a voice note (shown with waveform UI in WhatsApp). Without `ptt: true`, it appears as a regular audio attachment. |
-| **Per-contact voice reply toggle** | Contacts may not want voice replies; the toggle must be per-contact | LOW | Add `voiceReplyEnabled: boolean` column to `contacts` DB table (Drizzle schema update + migration). Default: `false` (opt-in, not opt-out — conservative default). Expose toggle in dashboard and CLI. |
-| **Respect draft queue mode for voice replies** | Without this, voice replies bypass the safety mechanism and auto-send without approval | MEDIUM | In `draft` mode: save generated TTS audio to disk (or SQLite BLOB), create draft record with `type: 'voice'` and `audioPath` field. Owner approves ✅ → bot sends the cached OGG file. Owner rejects ❌ → delete cached audio. Existing draft approval flow needs audio-aware branch. |
-| **Fallback to text reply when voice is disabled** | If per-contact voice is off but bot receives a voice message, it should still transcribe and reply as text | LOW | If `voiceReplyEnabled === false`: transcribe the incoming voice, generate text reply, send as text message (existing pipeline). User still gets a reply; just not a voice one. This is the default behavior. |
+**Critical integration points for new features:**
+- `groupMessagePipeline.ts` → `initGroupPipeline()` is the main callback registration point
+- `travelHandler.ts` → `handleTravelMention()` runs first in the callback chain (terminal on match)
+- `reminderScheduler.ts` → `generateWeeklyDigest()` is the cron-triggered digest generator
+- `groups` DB table has `calendarLink` but no trip-specific metadata columns yet
+- `groupMessages` table has full history, queryable via `getGroupMessagesSince()`
 
 ---
 
-### Differentiators (Competitive Advantage)
+## Table Stakes
 
-Features that make the voice capability meaningfully better. Not required for MVP but valuable.
+Features users expect from any trip-planning assistant. Missing any makes the bot feel incomplete or behind-the-curve compared to tools like Wanderlog, TripIt, or Layla.ai.
 
-| Feature | Value Proposition | Complexity | Notes |
-|---------|-------------------|------------|-------|
-| **Cloned Hebrew voice (Instant Voice Cloning)** | The reply sounds like the actual user, not a generic TTS voice. The "impersonation" illusion extends to voice. | MEDIUM | Create IVC via ElevenLabs dashboard or `POST /v1/voices/add` with 1-2 min of clean audio samples. Requires `ELEVENLABS_VOICE_ID` env var. Recommend `eleven_turbo_v2_5` model (Hebrew confirmed, ~250-300ms latency). IVC with `eleven_v3` is LOW confidence — v3 PVC support is noted as "not fully optimized." Use Turbo v2.5. |
-| **Transcript stored alongside message** | Owner can read what a voice message said without listening; useful for audit trail and context window | LOW | Store `transcript` text in `messages` table (add nullable `transcript` column). Transcript is the Gemini input, so it's already in memory — persist it as part of `insertMessage`. No additional API calls. |
-| **Include transcript in draft notification to owner** | When in draft mode, owner sees the transcript of the incoming voice message alongside the pending audio reply | LOW | Extend owner notification message: "Voice message from [contact]: '[transcript]'\n\nProposed reply: [text draft]\nSend as voice? ✅/❌". Draft preview is text, owner hears the context before approving audio send. |
-| **Configurable reply format per contact (voice or text)** | Some contacts want voice back; others prefer text. Owner controls this per-contact. | LOW | The `voiceReplyEnabled` toggle is the mechanism. Dashboard exposes it. No extra complexity beyond the table-stakes toggle. Listed as differentiator because the UX of per-contact granularity is what separates this from crude global on/off switches. |
-| **Waveform inclusion in sent voice notes** | WhatsApp shows a visual waveform for voice notes; providing it makes the note look authentic | LOW | Baileys supports `waveform: number[]` in the audio message. Known issue: waveform display broke in Baileys v6.7.9+ (Baileys GitHub issue #1745). Current v7 status unclear. Attempt to generate waveform from audio amplitude; skip if it causes issues. Cosmetic — do not block MVP on this. |
-| **Language detection for incoming voice messages** | ElevenLabs Scribe auto-detects language when `language_code` is omitted. If a contact sends in English, the transcript is still accurate — no need to hardcode Hebrew. | LOW | Omit `language_code` parameter on first attempt; Scribe will auto-detect. Log detected language. For Hebrew-dominant contacts, optionally hardcode `heb` to improve accuracy (10-20% WER "good" tier vs. potentially lower auto-detect accuracy). |
-| **Async voice processing with "processing" indicator** | For long voice messages (30s+), ElevenLabs transcription + Gemini + TTS pipeline may take 5-10s. Sending "typing" indicator first sets expectations. | LOW | `sock.sendPresenceUpdate('recording', jid)` — WhatsApp shows "recording..." status while the bot generates a voice reply. Send this immediately on voice message receipt, before starting the pipeline. Clear it when audio is sent. Meaningful UX improvement at zero cost. |
+| Feature | Why Expected | Complexity | Dependency On | Notes |
+|---------|--------------|------------|---------------|-------|
+| **Passive activity/plan detection from chat** | Every modern trip planning tool (Wanderlog, Mindtrip) monitors conversation and builds itinerary automatically. Users expect zero-friction capture — not having to @mention every time something is decided. | HIGH | Existing `groupMessagePipeline.ts` debounce buffer; `groupMessages` table | Must classify messages as "soft plan mention" (someone suggests) vs. "confirmed decision" (group consensus). Requires a Gemini intent pass on the debounced batch — layered on top of the existing date extractor, not replacing it. |
+| **Suggest-then-confirm flow** | TripIt and Wanderlog both ask before acting. Silently auto-adding everything to Google Calendar is confusing. Users need to see what the bot detected and approve it. | MEDIUM | Existing calendar confirmation message pattern; quotedMessageId reply-to infrastructure | The bot already sends a confirmation after adding events. This extends that pattern to activities/plans: "I heard someone mention [X] — want me to add this?" with a ✅/❌ reply. Reuse the existing reply-to-delete infrastructure for reject flow. |
+| **Enriched search results (ratings, hours, review count)** | Google Places, Wanderlog, and all competitor apps show star ratings, opening hours, and review counts alongside results. Three bare URLs with snippets is weak by 2025 standards. | MEDIUM | Existing `travelSearch.ts` + `geminiGroundedSearch()` + Gemini Maps Grounding API (GA Oct 2025) | Gemini Maps Grounding API is now GA and returns ratings, reviews, photos, hours, addresses per place. Can replace or augment the current Google Search grounding approach. Gemini returns a `google_maps_widget_context_token` for a rich interactive widget — but WhatsApp is text-only so just extract structured fields from the response. |
+| **More than 3 results per search** | 3 results is too narrow when a group is choosing between 8 restaurants for dinner. Users will ask "more options" — the bot should either return 5-6 results initially or have a "show more" follow-up. | LOW | Existing reply chain follow-up (quotedMessageId) already works | Simple parameter change in `geminiGroundedSearch()` — increase the requested count to 5-6. Or leave at 3 + handle "more" follow-up via the existing reply chain. The reply chain is already built; the "show more" behavior is just a Gemini prompt change with the previous query in context. |
+| **Trip memory — structured decisions** | Wanderlog and TripIt maintain a persistent, queryable itinerary. Users expect the bot to "remember" that "we're going to Eilat March 14-16 and staying at the Isrotel" across multiple conversations. | HIGH | New DB table needed; existing `groupMessages` provides raw history | Store confirmed decisions as structured records: `tripDecisions` table with `(groupJid, type, title, date, details, confirmedAt)`. Types: `destination`, `accommodation`, `activity`, `restaurant`, `transport`. Exposed to Gemini as context in subsequent searches. |
+| **Trip-aware digest improvements** | The current weekly digest covers "messages + calendar events." For a trip planning group, the digest should surface unresolved open questions, confirmed decisions, and what's still undecided. | MEDIUM | Existing `generateWeeklyDigest()` in `reminderScheduler.ts` | Add a new "Trip Status" section to the digest prompt: confirmed decisions, open questions (detected but not confirmed), and explicitly missed items (e.g. "nobody has booked accommodation yet"). Read from `tripDecisions` table if it exists. |
 
 ---
 
-### Anti-Features (Commonly Requested, Often Problematic)
+## Differentiators
 
-| Anti-Feature | Why Requested | Why Problematic | Alternative |
-|--------------|---------------|-----------------|-------------|
-| **Real-time streaming TTS** | Reduce perceived latency; stream audio as it generates | WhatsApp voice notes are atomic — the user presses play on the complete file. Streaming TTS produces fragmented audio chunks, not a single OGG file. WhatsApp has no streaming audio UI. The complexity is significant (WebSocket + chunk accumulation + OGG header injection) with zero UX benefit. | Use batch TTS API (`client.textToSpeech.convert`) which returns the complete audio buffer. 250-300ms TTS latency is acceptable for async WhatsApp use. |
-| **Professional Voice Cloning (PVC) for Hebrew** | PVC produces higher quality clones | PVC requires 30-180 minutes of recorded audio (impractical for most users) and is "not fully optimized" for the `eleven_v3` model (official source). The `eleven_v3` model is required for best Hebrew quality, but PVC + v3 is a known degraded combination. Also, PVC requires a Creator+ ElevenLabs subscription. | Use Instant Voice Cloning (IVC) with 1-2 minutes of clean Hebrew audio. IVC on `eleven_turbo_v2_5` is confirmed to support Hebrew and provides good quality. IVC is available on all paid plans. |
-| **Speech-to-speech (voice changer) bypass** | Skip transcription → Gemini → TTS; instead convert incoming voice directly to user's voice | ElevenLabs Voice Changer API transforms a voice into a target voice but does not change the spoken content — it speaks the same words in the cloned voice. The bot cannot alter what the contact said; it needs Gemini to generate a new reply. S2S cannot replace the transcription + AI + TTS pipeline. | Maintain the full pipeline: transcription → AI → TTS. |
-| **Local/offline TTS (Coqui, Kokoro)** | Avoid API costs; run on home server | Hebrew quality from open-source TTS is substantially inferior to ElevenLabs for a cloned voice. Coqui TTS has very limited Hebrew support. Kokoro v1 does not include Hebrew. Running local TTS adds GPU/CPU load to the home server (already running bot + PM2). The cost of ElevenLabs for personal bot usage is negligible (~$0.30/1000 chars TTS + ~$0.0067/min STT). | Use ElevenLabs. At a realistic 10 voice interactions/day at average 20 chars each, TTS cost is ~$0.06/month. |
-| **Whisper/Groq for transcription** | Lower cost or local transcription alternative | Whisper (local) requires ffmpeg conversion of WhatsApp OGG first (extra step + complexity). Groq Whisper API is faster but Hebrew quality is lower than ElevenLabs Scribe v2 (WER "Good" for Hebrew on Scribe). Since ElevenLabs is already used for TTS, using the same vendor for STT keeps the integration simpler (one SDK, one API key, one billing account). | ElevenLabs Scribe v2. If cost becomes an issue (unlikely at personal scale), Groq Whisper is the fallback. |
-| **Voice message transcription-only mode (no voice reply)** | Just transcribe incoming voice and send the transcript back as text to the owner | The "fallback to text reply when voice is disabled" table-stakes feature already handles this. A separate "transcription-only mode" is redundant with the per-contact `voiceReplyEnabled` toggle. Adding a third mode (off / text-reply / voice-reply) increases UI complexity with marginal gain. | Use `voiceReplyEnabled: false` (default) — this already triggers text reply from transcript. No separate mode needed. |
-| **Group voice message handling** | Groups also have voice messages; bot reads groups | Bot should NEVER send voice messages to groups as the user. The same "don't impersonate in groups" principle from Milestone 2 applies to voice. Group voice messages should be silently ignored or, at most, transcribed passively for context (a v2+ feature). | Private chat voice messages only. Groups are out of scope for this milestone. |
-| **WhatsApp's native voice transcript feature as input** | WhatsApp iOS 17+ transcribes voice messages natively on-device; could use that text | The native WhatsApp transcript is presented in the UI but is not accessible programmatically via Baileys. It lives in the client app, not in the message protobuf that Baileys receives. Baileys sees only the raw audio bytes. | Download and transcribe via ElevenLabs — the audio is always available via Baileys regardless of what the WhatsApp app shows. |
+Features that set this bot apart from generic trip planners. Not expected by default, but immediately recognized as valuable when experienced.
+
+| Feature | Value Proposition | Complexity | Dependency On | Notes |
+|---------|-------------------|------------|---------------|-------|
+| **Proactive destination-aware suggestions** | Once a destination is confirmed (e.g. "we're going to Barcelona"), the bot proactively surfaces relevant context: "Tip: La Boqueria is closed on Sundays — your current arrival day. Consider visiting Saturday instead." This is what Romie (WhatsApp travel agent) and Expedia's bot do. | HIGH | Trip memory (destination confirmed in `tripDecisions`); Gemini grounded search; reminderScheduler or message-triggered check | Trigger on destination confirmation. Run a Gemini grounded search for destination-specific tips, local calendar events, or conflicts with known plans. Post to group only when genuinely useful — not every message. Rate-limit heavily (once per confirmation, not per message). |
+| **Open question tracking** | Bot detects "who's booking the hotel?" or "does anyone know if we need visas?" and tracks these as open items, surfacing them in the digest if never resolved. Common group trip failure mode: commitments made in chat that get buried and forgotten. | MEDIUM | `tripDecisions` or separate `tripOpenItems` table; digest prompt | Gemini classifies a message as containing an open question or unconfirmed commitment. Store it with the message ID. When the same topic appears resolved later (e.g., "I booked the hotel"), mark it closed. Surface open items in digest. |
+| **Conversation recall ("what did we decide about X?")** | User asks "@bot what did we decide about the hotel?" Bot searches `groupMessages` for relevant past messages and summarizes. This is the "chat history recall" feature. Layla.ai and Mindtrip both offer this. | MEDIUM | Existing `getGroupMessagesSince()`; Gemini for summarization; existing reply-chain / @mention trigger | When @mention query looks like a recall question (keywords: "מה החלטנו", "what did we decide", "remind me"), instead of running a travel search, run a semantic lookup over stored `groupMessages`. No vector DB needed — pass last 200 messages to Gemini with "find what the group decided about: X" prompt. |
+| **Multi-result comparison format** | When searching for accommodations or activities, format results as a side-by-side comparison: name, price, rating, distance, booking link. Users can react with 1/2/3 to vote. Better than a flat list. | LOW | Existing `travelFormatter.ts`; WhatsApp text formatting (bold, numbered lists) | Formatting change only — no new API calls. Add a "compare mode" to `travelFormatter.ts` when results include price + rating. WhatsApp supports numbered lists and bold natively. Optionally add a voting prompt at the bottom ("React 1/2/3 to vote"). |
+| **Trip context passed to search** | When a user asks "@bot find hotels in Barcelona", the bot already knows from `tripDecisions` that travel dates are March 14-16, group size is 6, budget is ~€100/night. It passes this context to the Gemini search query automatically rather than making the user re-specify. | MEDIUM | Trip memory (`tripDecisions`); `parseTravelIntent()` + `geminiGroundedSearch()` | Extend `parseTravelIntent()` to accept a `tripContext` object (destination, dates, group size, budget from `tripDecisions`). Inject as additional context into the Gemini search prompt. Significant UX improvement for zero extra API cost. |
+| **Booking link enrichment** | Results already include URLs. Differentiator: distinguish between "booking page" (direct link to buy) vs. "info page" (Wikipedia/blog). Flag booking-ready links explicitly so users know what they can act on immediately. | LOW | Existing `travelFormatter.ts`; URL analysis | Simple heuristic: if URL contains booking.com, airbnb.com, hotels.com, getyourguide.com, viator.com etc., prefix with "Book:" label. Requires a small domain whitelist — no new API needed. |
+
+---
+
+## Anti-Features
+
+Features that look appealing but should be explicitly excluded from this milestone.
+
+| Anti-Feature | Why Avoid | What to Do Instead |
+|--------------|-----------|-------------------|
+| **Full booking integration (actual reservations)** | Booking.com, Airbnb, etc. require OAuth flows, payment handling, PCI compliance, and deep API partnerships that are multi-month projects. Commercial travel bots (Romie, IndiGo's bot) have enterprise agreements to do this. A personal WhatsApp bot should surface booking links, not execute bookings. | Show "Book here: [URL]" in results. The human clicks and books. |
+| **Expense splitting / shared budget tracking** | Splitwise and Wanderlog both do this well and have mobile UIs. Doing it in WhatsApp text is clunky. Splitwise has a WhatsApp integration. Building a parallel implementation in a bot is scope creep with a worse UX than the dedicated tool. | Mention "use Splitwise" in the digest when budget-related messages are detected. |
+| **Flight/hotel price monitoring (alerts)** | Requires polling external APIs (Skyscanner, Kayak) with continuous scheduled jobs, handling price API rate limits, and storing user preferences per search. High infrastructure complexity for a personal bot. | One-time search with "Searching..." indicator is sufficient. Google Flights is 1 click away. |
+| **In-group voting system with WhatsApp reactions** | WhatsApp reaction events are available in Baileys but the reaction API is unreliable (reactions don't always fire as events, emoji normalization issues, LID vs JID mapping). Multiple community reports of reaction events being silently dropped. | Use numbered reply prompt: "Reply 1, 2, or 3 to vote." Simple text-based voting that doesn't rely on reactions. |
+| **Group member preference profiles** | Knowing that "Uri doesn't eat gluten" or "Dana prefers 4-star hotels" requires persistent per-member storage, onboarding flows, and ongoing maintenance. No standard travel tool tries this at the group-member granularity for informal groups. | Pass the last 20 messages as context to every Gemini search so individual preferences mentioned in conversation are naturally captured. |
+| **Automatic duplicate event deduplication across calendars** | Merging Google Calendar events from multiple groups and personal calendars requires Calendar API scopes for reading personal calendars, complex conflict detection, and user identity mapping. High privacy surface, complex auth. | Keep calendar creation per-group as it is. Users manage their own calendar merging. |
+| **"Plan the whole trip" wizard-style flow** | Multi-step guided flows (destination → dates → accommodation → activities → ...) don't work in WhatsApp group chats. The conversation is not linear — 6 people interrupt each other. Any wizard state machine gets corrupted by off-topic messages. | Passive detection + suggest-then-confirm is the correct paradigm for a group chat context. Structured wizards work in 1:1 DM bots, not group chats. |
+| **Rich media: maps, photos, embedded widgets** | Gemini Maps Grounding returns a `google_maps_widget_context_token` for a rich interactive widget. WhatsApp text messages cannot embed interactive maps or photo galleries. The widget is a web component. | Extract text fields (name, rating, hours, address) from Gemini's response. Link to Google Maps URL for the place. |
 
 ---
 
 ## Feature Dependencies
 
 ```
-[Existing Message Pipeline] (Done)
-    └──gates──> [Voice Message Detection]
-                    └──requires──> [Baileys audioMessage check + early-return bypass]
-                    └──requires──> [downloadMediaMessage API]
-                                       └──required by──> [ElevenLabs STT Transcription]
-                                                             └──required by──> [Gemini Reply Generation (existing)]
-                                                                                   └──required by──> [ElevenLabs TTS Generation]
-                                                                                                         └──required by──> [OGG/Opus Format Conversion]
-                                                                                                                               └──required by──> [WhatsApp PTT Send]
+[Existing Message Pipeline]
+    └──feeds──> [groupMessagePipeline.ts debounce]
+                    └──currently──> [Date Extractor + Calendar]
+                    └──NEW add──> [Activity/Plan Detector] ─────────────────────────────────────────────┐
+                                                                                                         │
+[Trip Memory — tripDecisions table] <───────────────────────────────────────────────────────────────────┘
+    └──populated by──> [Suggest-then-Confirm Flow]
+    │                      └──reuses──> [Existing confirmation message pattern]
+    │                      └──reuses──> [Existing reply-to infrastructure]
+    │
+    └──read by──> [Trip-Aware Search (context injection into parseTravelIntent)]
+    │                 └──reuses──> [Existing travelSearch.ts + Gemini grounded search]
+    │
+    └──read by──> [Trip-Aware Digest (new section in generateWeeklyDigest)]
+    │                 └──reuses──> [Existing reminderScheduler.ts generateWeeklyDigest()]
+    │
+    └──read by──> [Proactive Destination-Aware Suggestions]
+                      └──triggers on──> [destination confirmed in tripDecisions]
+                      └──uses──> [Gemini Maps Grounding (GA) or grounded search]
 
-[Per-Contact voiceReplyEnabled toggle]
-    └──required by──> [Voice pipeline branch vs. text-reply fallback]
-    └──required by──> [Draft queue voice-mode branch]
+[Enriched Search Results]
+    └──replaces/extends──> [Existing geminiGroundedSearch() in travelSearch.ts]
+    └──uses──> [Gemini Maps Grounding API — GA Oct 2025]
+    └──feeds──> [Multi-result Comparison Format in travelFormatter.ts]
 
-[ElevenLabs Voice Clone Setup (one-time ops)]
-    └──required by──> [ElevenLabs TTS Generation]
-    └──provides──> [ELEVENLABS_VOICE_ID env var]
+[Conversation Recall]
+    └──triggers via──> [Existing @mention detection in travelHandler.ts]
+    └──reads──> [groupMessages table (existing)]
+    └──uses──> [Gemini for semantic summarization]
+    └──requires──> [Intent classification: "recall question" vs "travel search"]
 
-[ffmpeg binary on system]
-    └──required by──> [OGG/Opus Format Conversion]
-    └──installed via──> [apt install ffmpeg] on Ubuntu server
+[Open Question Tracking]
+    └──detected in──> [Activity/Plan Detector pass on debounced messages]
+    └──stored in──> [tripOpenItems table (new) OR tripDecisions table with status field]
+    └──surfaced in──> [Trip-Aware Digest]
 
-[@elevenlabs/elevenlabs-js SDK]
-    └──required by──> [ElevenLabs STT]
-    └──required by──> [ElevenLabs TTS]
-
-[Draft Queue (Done)]
-    └──extends──> [Voice draft storage] (audio file + draft DB record)
-    └──extends──> [Draft approval → audio send]
-
-[messages table] (Done)
-    └──extends──> [transcript column addition]
-    └──extends──> [audioPath column for draft voice files]
+[Booking Link Enrichment]
+    └──pure formatting change in──> [travelFormatter.ts]
+    └──no new dependencies]
 ```
 
-### Dependency Notes
+### Critical Dependency: Trip Memory is the Foundation
 
-- **ffmpeg binary is an OS-level dependency:** Not an npm package. Must be installed on the Ubuntu server (`sudo apt install ffmpeg`). `fluent-ffmpeg` npm package is the Node.js wrapper. Both are needed. This is a setup step, not a runtime dependency — document in README.
+All differentiating features — proactive suggestions, trip-aware search, trip-aware digest, open question tracking — depend on having structured trip decisions stored. Trip memory (`tripDecisions` table) must be built first. Without it, every other feature degrades to stateless behavior.
 
-- **Voice clone must be created before the feature works end-to-end:** The `ELEVENLABS_VOICE_ID` env var must be set. This is a one-time setup task: record 1-2 min of clean Hebrew audio, upload via ElevenLabs dashboard or IVC API, copy the returned `voice_id`. Not automated by the bot.
+### Suggest-then-Confirm is Required Before Auto-adding Plans
 
-- **Draft voice storage requires a temp directory or DB BLOB:** When in draft mode, the generated OGG audio must be persisted until the owner approves/rejects. Options: temp file path (e.g., `data/voice-drafts/{draftId}.ogg`) or SQLite BLOB. File path is simpler and avoids large BLOBs in SQLite. Cleanup on reject.
-
-- **ElevenLabs STT accepts OGG natively:** WhatsApp voice messages are OGG/Opus. ElevenLabs Scribe v2 accepts OGG as input. No format conversion is needed for transcription. The conversion step (ffmpeg) is only needed on the output side (ElevenLabs TTS → WhatsApp).
-
-- **Turbo v2.5 is the correct TTS model for Hebrew + voice clone:** Flash v2.5 is not confirmed to support Hebrew in the 32-language list. Eleven v3 supports Hebrew but PVC is "not fully optimized" on v3. Turbo v2.5 explicitly supports Hebrew and supports IVC. Use model ID `eleven_turbo_v2_5`.
+The passive detection feature must NOT auto-add every detected plan to Google Calendar without confirmation. The existing date extraction auto-adds dates (with a confirmation message after the fact). For general plans and activities, the suggest-then-confirm gate is essential — the false-positive rate for casual mentions is much higher than for explicit dates.
 
 ---
 
-## MVP Definition
+## MVP Recommendation for This Milestone
 
-### Launch With (v1 — voice milestone MVP)
+Build in this order, with each layer enabling the next:
 
-Minimum set for the voice feature to be useful and safe. Focuses on the core pipeline first.
+### Phase 1 — Foundation (required, enables everything)
+1. **Trip memory schema** — `tripDecisions` table: `(id, groupJid, type, title, date, details, status, sourceMessageId, confirmedAt)`. Types: `destination`, `accommodation`, `activity`, `restaurant`, `transport`. Status: `suggested | confirmed | rejected`.
+2. **Suggest-then-confirm flow** — When passive detection or @mention produces a plan (not just a date), post a suggestion message with ✅/❌ reply. On ✅, write to `tripDecisions` as `confirmed`. On ❌, mark `rejected`. Extend the existing reply-to-delete infrastructure.
 
-- [ ] **Voice message detection** — Extend `processMessage` to handle `audioMessage`/`audioMessage` types; do not return early on audio.
-- [ ] **Download + ElevenLabs transcription** — `downloadMediaMessage` → `client.speechToText.convert` → transcript string.
-- [ ] **Gemini reply from transcript** — Pass transcript as message body to existing `generateReply()`. No changes to Gemini module.
-- [ ] **ElevenLabs TTS with cloned voice** — `client.textToSpeech.convert` with `eleven_turbo_v2_5` + Hebrew voice clone ID.
-- [ ] **OGG/Opus conversion via fluent-ffmpeg** — Convert MP3 TTS output to OGG/Opus for WhatsApp PTT compatibility.
-- [ ] **WhatsApp PTT send** — `sock.sendMessage(jid, { audio: oggBuffer, mimetype: 'audio/ogg; codecs=opus', ptt: true })`.
-- [ ] **Per-contact `voiceReplyEnabled` toggle** — Add DB column; default false. Wiring to existing contact management.
-- [ ] **Text-reply fallback when voice disabled** — When `voiceReplyEnabled === false`, transcribe voice and reply as text. This is the default behavior until owner enables voice per-contact.
-- [ ] **Draft queue integration** — In draft mode, save audio to disk and record draft; await owner ✅/❌ before sending.
-- [ ] **`typing` / `recording` presence indicator** — Send `sock.sendPresenceUpdate('recording', jid)` at start of voice pipeline for UX.
+### Phase 2 — Enriched Search (high-value, self-contained)
+3. **Gemini Maps Grounding integration** — Migrate `geminiGroundedSearch()` to use the Gemini Maps Grounding API (GA). Extract ratings, hours, address alongside the existing title/url/snippet. Update `SearchResult` type and `travelFormatter.ts`. Increase result count to 5 for accommodation/activity searches, keep 3 for quick queries.
+4. **Trip context injection** — When `tripDecisions` has a confirmed `destination` and optionally `dates`, inject them automatically into every `parseTravelIntent()` call so search queries include context the user didn't re-type.
 
-### Add After Validation (v1.x)
+### Phase 3 — Intelligence (higher complexity, high value)
+5. **Passive activity/plan detection** — Add a Gemini classification pass to the debounced message batch in `groupMessagePipeline.ts`. Detect plans/activities/decisions mentioned in conversation. Gate on pre-filter (must contain a proper noun, place name, or activity keyword) to minimize Gemini calls. On detection, trigger suggest-then-confirm flow.
+6. **Trip-aware digest** — Add "Trip Status" section to `generateWeeklyDigest()`. Read confirmed decisions from `tripDecisions`. Include open questions from `tripOpenItems` if built. Add a "what's still unconfirmed" summary.
 
-Add once the core pipeline is proven stable in production.
-
-- [ ] **Transcript persistence** — Add `transcript` column to `messages` table; store transcript when processing voice messages. Enables audit trail and improves Gemini context for follow-up messages.
-- [ ] **Transcript preview in draft notification** — Include transcript in the owner's draft notification message so they can read what was said before approving audio send.
-- [ ] **Dashboard toggle for per-contact voice** — Expose `voiceReplyEnabled` in the web dashboard contact list. Currently managed via CLI only.
-- [ ] **Language detection logging** — Log the language Scribe auto-detects for incoming voice messages. Useful for debugging Hebrew vs. other language contacts.
-
-### Future Consideration (v2+)
-
-- [ ] **Waveform data in sent voice notes** — Requires generating amplitude waveform from audio buffer. Low value; broken in some Baileys versions. Defer until verified working in v7.
-- [ ] **Passive group voice transcription** — Transcribe voice messages in monitored groups for context, without replying. Useful as group monitoring enhancement but not core to this milestone.
-- [ ] **Voice quality selection per contact** — Allow choosing Flash v2.5 (lower latency) vs Turbo v2.5 (better quality) per contact. Premature optimization for a personal bot.
-- [ ] **Trim silence from TTS output** — ElevenLabs occasionally adds silence padding. ffmpeg can strip it. Nice-to-have for naturalness; not blocking.
+### Defer
+- **Proactive destination-aware suggestions** — Valuable but requires tuning the trigger rate carefully to avoid being spammy. High implementation risk of over-triggering. Build after Phase 3 is validated.
+- **Conversation recall** — Valuable but requires careful UX so it doesn't conflict with travel search when the @mention query is ambiguous. Build after the intent classifier is tuned.
+- **Open question tracking** — Adds complexity to the already-complex passive detection. Add as a v2 extension.
 
 ---
 
-## Feature Prioritization Matrix
+## Real-World Workflow This Feature Set Supports
 
-| Feature | User Value | Implementation Cost | Priority |
-|---------|------------|---------------------|----------|
-| Voice message detection | HIGH | LOW | P1 |
-| Audio download + ElevenLabs STT | HIGH | LOW | P1 |
-| Gemini reply from transcript | HIGH | LOW (reuse) | P1 |
-| ElevenLabs TTS with cloned voice | HIGH | MEDIUM | P1 |
-| OGG/Opus conversion (ffmpeg) | HIGH | MEDIUM | P1 |
-| WhatsApp PTT send | HIGH | LOW | P1 |
-| Per-contact voiceReplyEnabled toggle | HIGH | LOW | P1 |
-| Text-reply fallback | HIGH | LOW | P1 |
-| Draft queue integration (voice) | HIGH | MEDIUM | P1 |
-| `recording` presence indicator | MEDIUM | LOW | P1 |
-| Transcript persistence | MEDIUM | LOW | P2 |
-| Transcript in draft notification | MEDIUM | LOW | P2 |
-| Dashboard toggle for voice | MEDIUM | LOW | P2 |
-| Language detection logging | LOW | LOW | P2 |
-| Waveform in sent voice notes | LOW | MEDIUM | P3 |
-| Voice quality selection per contact | LOW | LOW | P3 |
+A group plans a trip entirely through WhatsApp. The bot's role throughout:
 
-**Priority key:**
-- P1: Required for this milestone to be declared complete
-- P2: Should ship in this milestone; add during development (low cost)
-- P3: Future milestone
-
----
-
-## Technical Constraints Affecting Feature Design
-
-### 1. Audio Format: OGG/Opus is Mandatory for WhatsApp PTT (HIGH confidence)
-
-WhatsApp voice notes must be OGG format with the Opus codec (`libopus`). Specs: 48000Hz sample rate, mono, ~32kbps bitrate. Sending MP3 with `ptt: true` works on WhatsApp Web but fails silently on Android mobile clients — the recipient never receives the audio. Multiple community reports confirm this is a persistent issue.
-
-**Implementation requirement:** ElevenLabs TTS outputs MP3 by default. Must always convert via ffmpeg before sending as PTT. ffmpeg binary required on Ubuntu server (`sudo apt install ffmpeg`). Use `fluent-ffmpeg` npm package for Node.js streaming conversion.
-
-**Alternatively:** ElevenLabs TTS supports `output_format: 'pcm_44100'` (raw PCM). ffmpeg can encode PCM → OGG/Opus. Or request `opus_48000_32` if available (check API docs at time of implementation). Using an ElevenLabs Opus output format directly would eliminate the MP3 intermediate step.
-
-### 2. Hebrew TTS Model Selection (HIGH confidence — model ID confirmed)
-
-**Use `eleven_turbo_v2_5`.** This is the correct model for Hebrew voice replies with a cloned voice:
-- Hebrew is in the 32 supported languages for Turbo v2.5 (confirmed in launch announcement)
-- Instant Voice Cloning (IVC) works with Turbo v2.5
-- Latency: ~250-300ms (acceptable for async WhatsApp use)
-- Model ID: `eleven_turbo_v2_5`
-
-**Do not use:**
-- `eleven_flash_v2_5` — Hebrew not confirmed in its 32-language list (Flash added Hungarian, Norwegian, Vietnamese over Turbo; Hebrew not mentioned)
-- `eleven_v3` — Supports Hebrew TTS but PVC/IVC "not fully optimized" on v3; higher latency, no spec provided
-- `eleven_multilingual_v2` — 29 languages, Hebrew not in the list
-
-### 3. ElevenLabs STT: Hebrew is "Good" not "Excellent" (HIGH confidence)
-
-Scribe v2 classifies Hebrew (code: `heb`) in the "Good" tier: WER 10-20%. This means roughly 1 in 10 words may be incorrect. For casual WhatsApp messages, this is acceptable — Gemini can handle slightly noisy input and will infer intent from context. For short voice messages (5-15 seconds), errors are few in absolute terms.
-
-**Mitigation:** Always store the raw transcript. If reply quality issues emerge, the transcript log will show transcription errors for debugging.
-
-### 4. End-to-End Latency Budget (MEDIUM confidence — estimated from component specs)
-
-A realistic estimate for the full voice pipeline:
-- Baileys voice message detection: ~0ms (event-driven)
-- `downloadMediaMessage` (audio buffer): ~200-800ms (network, message size)
-- ElevenLabs Scribe transcription: ~1,000-3,000ms (batch API, not realtime)
-- Gemini reply generation: ~500-1,500ms (existing pipeline)
-- ElevenLabs TTS synthesis: ~250-300ms (Turbo v2.5)
-- ffmpeg OGG conversion: ~100-300ms (local, CPU-bound)
-- `sock.sendMessage` (audio upload + send): ~500-1,500ms (network)
-
-**Total estimated: 2.5-7.5 seconds end-to-end.** This is longer than text reply (~1-3s) but acceptable for WhatsApp voice — users know voice processing takes a moment. The `recording` presence indicator (sent immediately on receipt) sets expectations.
-
-WhatsApp's own voice transcript feature (iOS/Android, late 2024) does not include Hebrew on Android; iOS 17+ includes Hebrew. This validates that Hebrew voice processing has inherent latency — users who use voice for Hebrew are accustomed to it.
-
-### 5. ElevenLabs Pricing at Personal Bot Scale (HIGH confidence)
-
-At realistic personal bot usage (10 voice interactions/day, ~30s average voice message, ~80 char average TTS reply):
-- **STT:** 10 × 0.5 min × $0.40/hr = ~$0.033/day = ~$1/month
-- **TTS:** 10 × 80 chars × $0.30/1,000 chars = ~$0.024/day = ~$0.72/month
-- **Total voice costs:** ~$1.72/month at 10 interactions/day
-
-This is negligible for a personal use case. No optimization needed. ElevenLabs free tier provides limited monthly characters/minutes — check current plan limits at time of implementation.
-
-### 6. Voice Clone Setup is a One-Time Manual Task (HIGH confidence)
-
-The bot does not automate voice clone creation. The user (owner) must:
-1. Record 1-2 minutes of clean Hebrew audio (no background noise, no reverb, one speaker)
-2. Upload to ElevenLabs dashboard → Voices → Add Voice → Instant Voice Cloning
-3. Copy the `voice_id` from the created voice
-4. Set `ELEVENLABS_VOICE_ID=<voice_id>` in the bot's `.env`
-
-Audio format for cloning: MP3 at 192kbps or above (ElevenLabs recommendation). WAV is accepted but provides no quality improvement. Recording in Hebrew is required for Hebrew language quality — the model adapts to the language of the sample.
-
----
-
-## Prior Art Analysis
-
-| Approach | Reference | What It Shows | Our Approach |
-|----------|-----------|---------------|--------------|
-| Voice transcription bot | [René Roth's WhatsApp transcriber](https://reneroth.xyz/whatsapp-voice-messages-automatic-transcript/) — Baileys + Deepgram STT, sends transcripts to an inbox group | Confirms Baileys `downloadMediaMessage` → STT API pattern works. Uses Deepgram (competitor to ElevenLabs Scribe). | Same Baileys download pattern; use ElevenLabs Scribe instead of Deepgram for Hebrew quality and vendor consolidation. |
-| Voice chatbot pipeline | n8n workflow: WhatsApp audio → Whisper → AI → TTS | Confirms the full pipeline is achievable. n8n uses Groq Whisper for speed. | Same pipeline but integrated into existing Node.js bot. ElevenLabs Scribe for Hebrew accuracy over Whisper. |
-| PTT send format | WhatsApp-web.js PR #1956 — auto-convert audio to OGG/Opus | Confirms OGG/Opus is mandatory for PTT. FFmpeg conversion is the established solution. | Apply same conversion. |
-| Hebrew STT | ElevenLabs Scribe v2 Hebrew page — "Good" tier WER 10-20% | Confirms Hebrew is supported and quality level. | Use Scribe v2 with optional `language_code: 'heb'` for better accuracy. |
-| Hebrew TTS | ElevenLabs Turbo v2.5 — 32 languages including Hebrew | Confirms model and language support. | Use `eleven_turbo_v2_5`, IVC voice ID. |
-| WhatsApp native voice transcripts | [WhatsApp Blog, Nov 2024](https://blog.whatsapp.com/introducing-voice-message-transcripts) — native on-device transcript in select languages; Hebrew supported on iOS 17+ | Context: Hebrew voice is a real use case WhatsApp is investing in. Native feature runs on-device and is not accessible via Baileys. | ElevenLabs Scribe via bot pipeline; entirely separate from native WhatsApp transcription. |
+1. **Pre-planning discussion**: Group says "let's go to Barcelona in March." Bot detects destination mention, suggests adding it as a confirmed trip decision. Group confirms.
+2. **Date locking**: Someone says "how about March 14-16?" Date extractor fires (existing), adds to calendar. Bot also stores dates in `tripDecisions`.
+3. **Accommodation search**: User asks "@bot find hotels in Barcelona for 6 people, budget €100/night." Bot injects known dates + group size from `tripDecisions` into the query automatically. Returns 5 enriched results with ratings, hours, booking links.
+4. **Activity research**: User asks "@bot what are the best restaurants near Las Ramblas?" Gets enriched results with ratings, hours, address. Formatted as numbered list for easy discussion.
+5. **Decision confirmation**: Group agrees on one option in chat. Bot detects "ok let's go with X" pattern, suggests confirming it. Group confirms — stored in `tripDecisions`.
+6. **Weekly digest**: Bot sends digest that includes confirmed decisions ("Hotel booked ✅"), upcoming events (calendar), and open items ("Nobody has booked airport transfer yet").
+7. **Trip recall**: Someone asks "@bot what hotel are we staying at?" Bot looks up `tripDecisions` for `accommodation` type and answers.
 
 ---
 
 ## Sources
 
-- [ElevenLabs: Speech-to-Text overview](https://elevenlabs.io/docs/overview/capabilities/speech-to-text) — Scribe v2 models, language support, OGG input support (HIGH confidence — official docs)
-- [ElevenLabs: Speech-to-Text convert endpoint](https://elevenlabs.io/docs/api-reference/speech-to-text/convert) — request parameters, `model_id`, `language_code`, response format (HIGH confidence — official API reference)
-- [ElevenLabs: Models overview](https://elevenlabs.io/docs/overview/models) — `eleven_v3`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`, Hebrew support, latency specs (HIGH confidence — official docs)
-- [ElevenLabs: Introducing Turbo v2.5](https://elevenlabs.io/blog/introducing-turbo-v25) — 32-language list including Hebrew, latency ~250-300ms (HIGH confidence — official announcement)
-- [ElevenLabs: Eleven v3 launch](https://elevenlabs.io/blog/eleven-v3) — 70+ languages, Hebrew included, PVC/IVC notes (HIGH confidence — official)
-- [ElevenLabs: IVC API reference](https://elevenlabs.io/docs/api-reference/voices/ivc/create) — voice clone creation endpoint, `voice_id` response (HIGH confidence — official API)
-- [ElevenLabs: Hebrew STT page](https://elevenlabs.io/speech-to-text/hebrew) — Hebrew "Good" tier classification, WER 10-20% (HIGH confidence — official product page)
-- [Baileys: downloadMediaMessage API](https://baileys.wiki/docs/api/functions/downloadMediaMessage/) — function signature, buffer/stream modes (HIGH confidence — official Baileys wiki)
-- [Baileys GitHub Issue #1745](https://github.com/WhiskeySockets/Baileys/issues/1745) — waveform display broken in v6.7.9+ (MEDIUM confidence — community issue report)
-- [WhatsApp Blog: Voice Message Transcripts, Nov 2024](https://blog.whatsapp.com/introducing-voice-message-transcripts) — native transcript feature context; Hebrew on iOS 17+ (HIGH confidence — official Meta blog)
-- [npm: @elevenlabs/elevenlabs-js](https://www.npmjs.com/package/@elevenlabs/elevenlabs-js) — v2.37.0, official SDK (HIGH confidence — npm registry)
-- [WhatsApp OGG/Opus format requirement](https://blog.ultramsg.com/how-to-send-ogg-file-using-whatsapp-api/) — 48kHz, mono, libopus required for PTT (MEDIUM confidence — community article, corroborated by multiple sources)
-- [fluent-ffmpeg: node-fluent-ffmpeg](https://github.com/fluent-ffmpeg/node-fluent-ffmpeg) — Node.js FFmpeg wrapper for audio conversion (HIGH confidence — official repo)
-- [ElevenLabs pricing: Scribe launch tweet](https://x.com/elevenlabsio/status/1894821482104266874) — $0.40/hr STT pricing (HIGH confidence — official ElevenLabs account)
-- [ElevenLabs IVC requirements](https://help.elevenlabs.io/hc/en-us/articles/13440435385105) — 1-2 min MP3, do not exceed 3 min, 192kbps recommended (MEDIUM confidence — help article, 403 at time of research; corroborated by multiple secondary sources)
-- [Voice chatbot WhatsApp pipeline reference](https://n8n.io/workflows/3586-ai-powered-whatsapp-chatbot-for-text-voice-images-and-pdfs-with-memory/) — n8n implementation showing full audio pipeline (MEDIUM confidence — community workflow)
+- [Wanderlog vs TripIt: collaborative features comparison](https://www.wandrly.app/comparisons/wanderlog-vs-tripit) — Wanderlog real-time editing, voting, expense splitting (MEDIUM confidence — third-party comparison)
+- [Best travel planning apps for groups 2025: Plan Harmony vs TripIt vs Wanderlog](https://www.planharmony.com/blog/best-travel-planning-apps-for-groups-in-2025-plan-harmony-vs-tripit-vs-wanderlog/) — group-specific feature priorities (MEDIUM confidence — vendor blog but factually grounded)
+- [Layla.ai: conversational trip planning](https://layla.ai/about) — conversational UX pattern, real-time price integration, plan flexibility (HIGH confidence — official)
+- [Grounding with Google Maps: GA announcement](https://developers.googleblog.com/en/your-ai-is-now-a-local-expert-grounding-with-google-maps-is-now-ga/) — confirmed GA Oct 2025, returns ratings, reviews, photos, hours, addresses (HIGH confidence — official Google developer blog)
+- [Gemini API Maps Grounding docs](https://ai.google.dev/gemini-api/docs/maps-grounding) — API structure, `google_maps_widget_context_token`, available data fields (HIGH confidence — official docs)
+- [Agentic AI in travel planning 2025](https://www.pymnts.com/news/artificial-intelligence/2025/agentic-ai-takes-the-wheel-in-travel-planning-and-booking/) — proactive AI travel agent patterns, Trip.com TripGenie, Expedia chatbot (MEDIUM confidence — industry news)
+- [AI agent memory patterns: Redis blog](https://redis.io/blog/ai-agent-memory-stateful-systems/) — working memory, session memory, episodic memory layers; travel concierge benefits from state-based memory (HIGH confidence — technical reference)
+- [7 mistakes in group trip planner logistics](https://www.ibookigo.com/post/7-mistakes-you-are-making-with-group-trip-planner-logistics-and-how-to-fix-them) — budget scatter, over-scheduling, communication fragmentation (MEDIUM confidence — industry blog)
+- [How to plan a group trip: SquadTrip guide](https://squadtrip.com/guides/how-to-plan-a-group-trip/) — decision-making patterns, structured voting, anchor events concept (MEDIUM confidence — industry guide)
+- [WhatsApp chatbots in travel and hospitality: Kommunicate](https://www.kommunicate.io/blog/whatsapp-chatbot-for-travel-and-hospitality/) — WhatsApp travel bot feature patterns, group chat integration (MEDIUM confidence — vendor blog, factually grounded)
+- [Google Places API: places, ratings, reviews, hours](https://developers.google.com/maps/documentation/places/web-service/overview) — structured place data fields available (HIGH confidence — official docs)
+- [TripIt 2025 features](https://www.wandrly.app/reviews/tripit) — email-based itinerary parsing, sharing, alerts — what TripIt does vs. doesn't do for groups (MEDIUM confidence — third-party review)
 
 ---
-*Feature research for: WhatsApp Bot — Voice Message Support Milestone*
-*Researched: 2026-03-01*
+
+*Feature research for: WhatsApp Bot — Travel Agent Group Bot Milestone*
+*Researched: 2026-03-02*
+*Codebase read directly: src/groups/*, src/pipeline/messageHandler.ts, src/db/schema.ts, src/groups/reminderScheduler.ts*

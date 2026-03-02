@@ -1,378 +1,466 @@
-# Pitfalls Research
+# Domain Pitfalls
 
-**Domain:** WhatsApp Bot — Milestone v1.3: Voice Message Handling (ElevenLabs TTS + Transcription)
-**Researched:** 2026-02-28
-**Confidence:** MEDIUM-HIGH — Format requirements and Baileys audio issues verified via GitHub issues and community sources. ElevenLabs rate limits and Hebrew support verified via official docs. Latency numbers verified across multiple sources. Some voice clone quality specifics inferred from official documentation.
+**Domain:** WhatsApp Group Bot — Travel Agent Milestone (Always-Listening AI, Trip Memory, Proactive Suggestions, Google Calendar Itinerary)
+**Researched:** 2026-03-02
+**Confidence:** MEDIUM-HIGH — Gemini pricing verified via multiple 2026 sources. Baileys ban risk confirmed via GitHub issues and community reports. SQLite WAL limits confirmed via official SQLite docs. Google Calendar timezone pitfalls confirmed via official API docs and GitHub issues. Context rot confirmed via published research. Some cost estimates are modeled projections rather than measured figures.
 
 ---
 
-> **Scope note:** This document covers pitfalls specific to adding voice features to the existing bot. Pre-existing pitfalls from previous milestones (ban risk, session loss, SQLite busy_timeout, OAuth token rotation, group event loop) are not repeated — they remain valid. This file extends that prior context.
+> **Scope note:** This document covers pitfalls specific to adding travel agent features (always-listening AI, trip memory, proactive suggestions, richer search, Google Calendar itinerary) to the existing bot. Pre-existing pitfalls from earlier milestones (PTT flag, waveform generation, ElevenLabs model selection, FFmpeg path, temp file cleanup, voice clone quality) remain valid and are not repeated here. This file extends that prior context.
 
 ---
 
 ## Critical Pitfalls
 
-Mistakes that cause user-facing failures, silent audio breakage, or mandatory rewrites.
+Mistakes that cause cost blow-ups, permanent account bans, or mandatory architectural rewrites.
 
 ---
 
-### Pitfall 1: OGG/Opus Audio Sent Without PTT Flag Appears as Inline File, Not Voice Note
+### Pitfall 1: Always-Listening Analysis Fires on Every Message — Gemini Costs Explode
 
 **What goes wrong:**
-The audio plays correctly when the recipient clicks it, but WhatsApp renders it as a media attachment (file icon with filename) instead of the expected voice note bubble with waveform. The recipient sees a filename like `audio.ogg` and has to tap to expand — it does not feel like a voice message at all.
+The always-listening pipeline calls Gemini to classify every group message as "travel-related or not." In an active travel planning group, the group sends 100–300 messages per day (casual chat, jokes, logistics, yes/no replies). Each classification call consumes tokens even for "ignore this" outcomes. At Gemini 2.5 Flash pricing ($0.30/M input, $2.50/M output), a naive always-on implementation with a 500-token system prompt + message costs approximately $0.50–$2.50/month at moderate traffic — but that is assuming only classification. If the classification result is positive and triggers a full AI search + response, costs spike further.
+
+The hidden multiplier: if thinking mode is accidentally enabled on the classifier (the default in some Gemini 2.5 Flash configurations), thinking tokens cost $3.50/M — 11.7x the standard output rate. A misfire with thinking-mode on a 50-message/day group can cost $5–$15/month just for message triage.
 
 **Why it happens:**
-Baileys distinguishes between audio-as-attachment and audio-as-voice-note at the message type level, not the file format level. The difference is the `ptt: true` flag in the `sendMessage` call. Developers often send `{ audio: buffer, mimetype: 'audio/ogg; codecs=opus' }` thinking the format makes it a voice note. It does not.
+Developers wire the `messages.upsert` Baileys event directly into a Gemini call, forgetting that every message — including bot-generated ones, reactions, status updates, and edit events — triggers the event. The system prompt and recent context get re-sent with every message, multiplying token cost.
 
-**How to avoid:**
-Always send voice replies with `ptt: true` explicitly set:
-```typescript
-await sock.sendMessage(jid, {
-  audio: Buffer.from(audioBytes),
-  mimetype: 'audio/ogg; codecs=opus',
-  ptt: true,
-});
-```
-Test by receiving the message on a real phone and confirming it renders as a voice note bubble with the audio waveform, not as a file attachment.
+**Consequences:**
+- Uncapped Gemini costs; a busy group during trip planning season (50+ messages/hour) could generate $10–$30/month from classification alone
+- Free tier (10 RPM, 250 RPD for Gemini 2.5 Flash) exhausted within hours of group activity
+- Rate limit errors cascade into dropped messages with no user-visible error
+
+**Prevention:**
+1. **Two-tier classification**: Use a fast, cheap pre-filter in JavaScript before calling Gemini — keyword matching (city names, hotel, flight, dates, "נסיעה", "טיסה", "מלון") with a blocklist of trivial patterns (emoji-only, < 10 characters, reactions). Only pass candidates to Gemini.
+2. **Disable thinking mode on the classifier call**: Explicitly set `thinkingConfig: { thinkingBudget: 0 }` on every classification call. Reserve thinking mode for response generation only.
+3. **Reuse the existing 10-second debounce**: The existing date-extraction debounce already batches rapid messages. Use the same debounce for travel activity detection — classify the batch, not each message individually.
+4. **Respect implicit caching**: Keep the system prompt identical across calls. As of May 2025, Gemini 2.5 models apply automatic context caching at 90% discount for repeated prefixes. A fixed system prompt cached across 100 calls costs 10% of what 100 independent calls cost.
+5. **Cap daily Gemini spend** via Google AI Studio budget alerts before deploying.
+
+**Cost estimate for correctly-implemented always-listener:**
+- Pre-filter eliminates ~70% of messages
+- 30 candidate messages/day × 700 tokens avg (prompt + message) = 21,000 input tokens/day
+- 21,000 × 30 days = 630,000 input tokens/month → $0.19/month input
+- 30 positive classifications × 200 token output = 6,000 tokens/month → $0.015/month output
+- With context caching 90% discount on repeated system prompt: effectively $0.02–$0.05/month for classification
+- Full response generation (search + calendar + reply) for 10 actions/day: ~$0.50–$1.50/month additional
 
 **Warning signs:**
-- Recipients see a file icon/attachment rather than the circular play button characteristic of voice notes
-- WhatsApp shows a filename rather than duration
-- Audio plays only when tapped, with no waveform
+- Gemini spend dashboard shows > $1/week on a personal bot
+- API logs show `gemini.generateContent` called for messages under 10 characters
+- Thinking tokens appear in usage logs on classifier calls
 
-**Phase to address:** Voice send phase — verify on a real device before calling the feature complete.
+**Phase to address:** Always-listening foundation phase — cost architecture must be decided before any Gemini classifier is wired to Baileys events.
 
-**Confidence:** HIGH — confirmed via Baileys GitHub issues #501, #1120, #1828 and multiple community implementations.
+**Confidence:** HIGH — pricing verified via official Gemini API pricing page and multiple 2026 cost guides. Thinking mode pricing ($3.50/M) confirmed via pricepertoken.com and aifreeapi.com.
 
 ---
 
-### Pitfall 2: PTT Waveform Missing — Voice Note Sends but Shows Flat Line
+### Pitfall 2: Proactive Bot Messages in a Group Trigger WhatsApp's Spam Detection
 
 **What goes wrong:**
-Voice messages send successfully and play correctly, but the waveform visualization is a flat horizontal line instead of the dynamic waveform that real voice messages show. The message feels uncanny and obviously synthetic — users notice immediately.
+The bot detects travel planning activity and unprompted sends suggestions to the group: "I noticed you're planning a trip to Rome — want me to find hotels?" If this fires multiple times in a row, or fires for ambiguous messages, the group sees the bot as noisy. More critically, if the bot sends multiple unsolicited messages within a short window, WhatsApp's spam detection flags the number. The result is a temporary ban (24–72 hours) or a permanent ban if repeated. The project already uses an account that has been running for two milestones — a ban resets two milestones of setup.
 
 **Why it happens:**
-Baileys versions 6.7.9 through approximately 6.7.18 had a regression where waveform generation was broken. The fix requires the `audio-decode` package to be installed, which Baileys uses internally to generate the 64-byte waveform array from the raw audio. If `audio-decode` is missing or the Baileys version is in the broken range, waveform is silently omitted.
+WhatsApp's spam detection evaluates messaging behavior patterns, not just volume. Sending automated messages to a group where members haven't explicitly triggered the bot looks indistinguishable from spam to WhatsApp's ML system. In 2025, WhatsApp banned 6.8 million accounts using pattern-based detection, and Baileys accounts have been banned even at low message volumes as Meta tightened unofficial API detection.
 
-The current project uses Baileys v7 (rc.9). This is in an RC phase — the waveform behavior in v7.x rc series needs explicit verification, as the RC may carry the regression or have introduced new audio-decode requirements.
+**Consequences:**
+- Account ban (temporary or permanent) — all bot state survives in SQLite, but re-registration requires a new phone number
+- Users mute or remove the bot from the group before a ban occurs
+- Trust degradation: users stop using the bot entirely after one irrelevant suggestion
 
-**How to avoid:**
-- Install `audio-decode` as an explicit project dependency (not just as a transitive dep):
-  ```bash
-  npm install audio-decode
-  ```
-- After sending the first voice message, receive it on a real phone and visually confirm the waveform animates when played — not a flat line.
-- If the waveform is still flat, generate it manually from the PCM data before sending:
-  ```typescript
-  // 64-point amplitude analysis, normalized to 0-31 per WhatsApp spec
-  const waveform = generateWaveformFromPCM(pcmData); // [12, 31, 8, 25, ...]
-  await sock.sendMessage(jid, { audio: buffer, mimetype: '...', ptt: true, waveform });
-  ```
+**Prevention:**
+1. **Require explicit trigger**: Do not send unsolicited messages. Instead, react with an emoji (e.g., a luggage emoji) to signal detection without generating a full bot message. The user can then explicitly ask the bot to proceed.
+2. **Per-group suggestion cooldown**: Never send more than 1 proactive suggestion to the same group within a 2-hour window, regardless of how many travel signals were detected.
+3. **Confidence threshold**: Only fire a proactive suggestion when the classifier confidence exceeds 90%. At 75–89%, log the detection and wait for a stronger signal.
+4. **Suggestion cap per day**: Hard cap of 3 unsolicited suggestions per group per calendar day. After the cap, switch to emoji-reaction-only mode.
+5. **Human-like message timing**: Use the existing `sendWithDelay` pattern (already in `whatsapp/sender.ts`). Add 3–8 second randomized delay before any proactive message. Never send within 30 seconds of the triggering message.
+6. **Message deduplication**: Track sent suggestion IDs to prevent resending the same suggestion if the debouncer fires the classifier twice on the same message cluster.
 
 **Warning signs:**
-- Voice notes render with a flat/straight horizontal line instead of a wave pattern
-- Baileys logging shows no `waveform` property in the outgoing message object
+- Bot sends 3+ unprompted messages within 10 minutes in a single group
+- Group members ignore bot messages consistently (UX sign, not ban risk, but leading indicator)
+- WhatsApp app on the registered phone shows "account at risk" warning (confirmed real via whatsmeow issue #810)
 
-**Phase to address:** Voice send phase — waveform test must be part of acceptance criteria.
+**Phase to address:** Proactive suggestions phase — must design the "trigger → signal → threshold → cooldown → send" chain before wiring any classifier output to `sendMessage`.
 
-**Confidence:** MEDIUM-HIGH — regression confirmed in Baileys GitHub issue #1745; fix via `audio-decode` confirmed by community contributor on v6.7.19+. Behavior in v7 RC series not independently verified.
+**Confidence:** HIGH — ban risk for proactive messaging confirmed via Baileys GitHub issues #1869, #1925, multiple community ban reports, and WhatsApp's own 2025 anti-spam announcement. Spam detection behavior confirmed via The Next Web analysis of WhatsApp's anti-spam systems.
 
 ---
 
-### Pitfall 3: ElevenLabs Hebrew TTS Only Supported by Eleven v3 — Wrong Model Breaks Quality
+### Pitfall 3: Trip Memory Accumulates Indefinitely — Context Rot Degrades AI Quality
 
 **What goes wrong:**
-If the TTS call uses `eleven_multilingual_v2`, `eleven_turbo_v2_5`, or `eleven_flash_v2_5`, Hebrew text gets silently romanised, mispronounced, or hallucinated. The output sounds like a foreign speaker attempting Hebrew phonetics rather than a native Hebrew voice. The user sends voice messages that sound nothing like them.
+The bot accumulates all conversation history for a trip: every message, every search result, every calendar event, every bot response. After 3–4 days of planning, the trip context reaches 50,000–200,000 tokens. Two effects occur simultaneously:
+1. **Token cost**: Every Gemini call includes the full trip context, causing cost to grow quadratically with conversation length
+2. **Context rot**: LLM performance degrades significantly as context grows. Research published by Chroma (2025) shows that recall accuracy drops substantially as the number of tokens in the context window increases. Old decisions ("we rejected that hotel") get confused with current state ("we liked that hotel"). The AI gives worse answers with more context than with less.
 
 **Why it happens:**
-Hebrew is only natively supported by the **Eleven v3** model (`model_id: "eleven_v3"`). The older multilingual v2 model officially lists 29 languages — Hebrew is not among them. Turbo v2.5 and Flash v2.5 support 32 languages including some Semitic languages, but Hebrew is documented as supported only in v3. Developers copy-paste multilingual v2 examples (the most documented model) and never test Hebrew output quality.
+The simplest trip memory implementation is an append-only log. Developers store every message and pass all of it to Gemini on each request. This works for the first 20 messages. After 200 messages over a multi-day trip, it breaks.
 
-**How to avoid:**
-- Use `model_id: "eleven_v3"` for all Hebrew TTS calls.
-- Pass `language_code: "he"` explicitly to enforce Hebrew processing (language enforcement is supported on Turbo and Flash v2.5, but v3 is the correct model for Hebrew quality).
-- Test the voice clone output with a sample Hebrew sentence containing nikud-less words before deploying — poor Hebrew rendering is immediately obvious to a native speaker.
-- Do not use the `eleven_flash_v2_5` model for Hebrew even though its latency is attractive (75ms claimed) — verify Hebrew quality explicitly if switching models.
+**Consequences:**
+- Gemini calls for a mature trip cost 10–50x more than for a fresh trip
+- AI suggestions contradict previous decisions because the model loses track of distant context
+- SQLite `group_messages` table grows without bound; no partition or expiry strategy
+
+**Prevention:**
+1. **Trip-scoped context, not full history**: Only include messages within the active trip window (defined by trip start/end dates or a "trip active" flag). Past trips are archived and not sent to Gemini.
+2. **Summarize-and-compress**: After each planning session (detected by a 2+ hour gap in group activity), generate and store a 200-word trip summary using Gemini. Future calls receive the summary, not the raw messages. The Mem0 pattern (2025) reduces token usage 80–90% vs. raw history while improving response quality.
+3. **Structured trip state**: Instead of raw message history, maintain a structured JSON record: `{ destination, dates, confirmed_hotels, confirmed_flights, preferences, open_questions }`. Pass the structured state to Gemini, not the raw chat. Update the struct after each decision.
+4. **Context window budget**: Hard cap the context passed to any single Gemini call at 50,000 tokens (well within the 1M window, but prevents cost explosion). Truncate oldest raw messages first, keep the trip summary always.
+5. **Trip archival**: When a trip's end date passes, archive its SQLite rows and remove them from active context construction.
 
 **Warning signs:**
-- TTS output contains English-like pronunciation of Hebrew words
-- Letters like `ח`, `ע`, `צ` are mispronounced or omitted
-- The output sounds like a non-native Hebrew speaker reading phonetically
+- Gemini call logs show token counts growing trip-over-trip for the same number of interactions
+- Bot gives contradictory suggestions ("I see you liked Hotel X" when Hotel X was previously rejected)
+- SQLite `group_messages` table row count grows unboundedly month-over-month
 
-**Phase to address:** ElevenLabs integration phase — first TTS API call must use `eleven_v3` for Hebrew; validate before wiring into the message pipeline.
+**Phase to address:** Trip memory phase — the summarize-and-compress pattern must be in place before any trip context is passed to Gemini. Retrofitting this onto an existing append-only store requires a migration.
 
-**Confidence:** HIGH — verified via ElevenLabs official models documentation (elevenlabs.io/docs/overview/models). v3 is the only model with Hebrew (heb) in its documented language list.
+**Confidence:** HIGH — context rot confirmed by Chroma Research (2025) and Anthropic context engineering guide. Summarization effectiveness confirmed by Mem0 published benchmarks (80-90% token reduction, 26% quality improvement). SQLite unbounded growth is a standard operational concern.
 
 ---
 
-### Pitfall 4: Voice Clone (IVC) Trained on WhatsApp Audio Has Degraded Quality
+### Pitfall 4: Google Calendar Service Account Owns All Calendars — Users Can't Edit Events
 
 **What goes wrong:**
-The instant voice clone is created using WhatsApp voice note recordings as training audio. The resulting clone sounds like the person but with a tinny, compressed quality that is noticeably worse than the actual voice. Short sentences in Hebrew come out robotic or drop syllables.
+The bot authenticates to Google Calendar using a service account (the simplest OAuth flow for a server-side app). The service account creates a new trip calendar and adds events. Users receive the calendar invite and can view events — but they cannot edit or delete them, because the service account is the data owner and has the highest privilege. The intent was for the whole group to collaboratively manage the itinerary. Instead, only the bot can modify it.
 
 **Why it happens:**
-WhatsApp compresses voice messages to OGG/Opus format at 32kbps mono. ElevenLabs recommends training audio at 192kbps MP3 or higher, recorded cleanly in a quiet environment. WhatsApp's codec compression specifically targets speech intelligibility, not voice fidelity — it introduces artifacts that the voice clone model learns and reproduces. Additionally, Instant Voice Clone (IVC) trained on less than 1 minute of audio yields noticeably lower quality; WhatsApp voice messages are typically 5–30 seconds each, so a small sample is easily insufficient.
+Google Calendar API documentation explicitly warns against using a service account as the calendar data owner for user-facing calendars. Service accounts own calendars with the highest privilege, and that privilege cannot be downgraded. Developers default to service accounts because they are easier to set up than OAuth with user delegation — no browser flow, no refresh token rotation, no user consent screen.
 
-**How to avoid:**
-- Record training audio directly (not via WhatsApp): use the macOS Voice Memos app or any uncompressed recording, saved as MP3 at 192kbps+ or WAV.
-- Target 1–3 minutes of continuous speech in Hebrew — reading from a text works well. Keep each training file under 3 minutes (more offers diminishing returns and can hurt quality according to ElevenLabs docs).
-- Do not use WhatsApp audio exports as training material.
-- After creating the IVC, generate 5–10 sample Hebrew sentences and listen critically before using the voice in production.
-- Professional Voice Clone (PVC) requires 30+ minutes of audio and is not yet optimized for Eleven v3 as of early 2026 — stick with IVC until PVC + v3 is generally available.
+**Consequences:**
+- Users cannot update event times, add notes, or delete events from the trip calendar — bot is the only editor
+- If the bot deletes an event erroneously, users cannot restore it
+- Sharing the calendar to group members is possible but they receive read-only access
+- Requires architectural rework: either switch to user-delegated OAuth or accept read-only user access
+
+**Prevention:**
+Two valid architectures — choose one before writing any Calendar API code:
+
+Option A (recommended for personal use): **User-delegated OAuth** — authenticate as the bot owner's Google account using offline OAuth2 with a refresh token stored in the DB. The owner's account creates the calendar and is data owner. Group members are invited as editors via the Calendar sharing API. Events can be edited by anyone in the group who accepts the invite.
+
+Option B (acceptable tradeoff): **Service account + write-back bot** — use service account ownership but build a "edit event" command in the WhatsApp bot itself. Users request changes through the bot (e.g., "!move hotel to Tuesday") and the bot makes the edit. Avoids the OAuth complexity at the cost of all edits going through the bot.
+
+Do not pursue a hybrid where you start with a service account and try to transfer ownership later — Google Calendar does not support calendar ownership transfer.
 
 **Warning signs:**
-- Clone sounds thin or compressed compared to the user's real voice
-- Specific Hebrew phonemes (`ר`, `ח`, `ע`) sound unnatural
-- Short sentences drop trailing syllables
+- Users report they cannot edit events in the trip calendar
+- Service account email appears as the event organizer (visible in Calendar UI)
+- Google Calendar API returns 403 when a group member attempts to edit via a 3rd-party calendar app
 
-**Phase to address:** Voice clone setup phase — before any code is written, validate the clone quality independently via the ElevenLabs UI.
+**Phase to address:** Google Calendar integration phase — authentication architecture must be chosen before the first `calendar.events.insert` call. Switching later requires recreating all calendars under the new owner account.
 
-**Confidence:** HIGH — ElevenLabs official documentation explicitly recommends MP3 at 192kbps+ and states that low-quality samples with artifacts are reproduced by the clone. WhatsApp OGG/Opus at 32kbps is clearly below the recommended quality threshold.
+**Confidence:** HIGH — service account ownership limitation explicitly documented in official Google Calendar API concepts page ("calendars have a single data owner with highest privileges; the data owner's access level cannot be downgraded"). OAuth vs. service account recommendation confirmed via official Google developer documentation.
 
 ---
 
-### Pitfall 5: Audio Format Mismatch — FFmpeg Not on System Path Causes Silent Failure
+## Moderate Pitfalls
+
+Mistakes that cause user-visible degradation, non-trivial debugging time, or significant cost increases, but don't force rewrites.
+
+---
+
+### Pitfall 5: Always-Listener Fires on the Bot's Own Messages — Infinite Loop
 
 **What goes wrong:**
-ElevenLabs TTS returns MP3 audio. WhatsApp voice notes require OGG/Opus. The conversion step calls `ffmpeg` via `child_process.spawn`. On the development machine, FFmpeg is installed and works. On yuval-server (Ubuntu 24.04), it may be absent or installed at a non-standard path. The spawn call fails with `ENOENT` or `spawn ffmpeg ENOENT` — but if the error is not caught and surfaced, the voice pipeline silently falls back to no response or crashes the message handler.
+The bot sends a proactive suggestion to the group. Baileys emits a `messages.upsert` event for this outgoing message (type `notify`, `fromMe: true`). The always-listener pipeline receives this event and, if not filtered, passes the bot's own message through the travel-activity classifier. The classifier detects "travel content" (because the bot's suggestion is about travel). The pipeline schedules another suggestion. The loop fires repeatedly until rate limits kick in.
 
 **Why it happens:**
-FFmpeg is not bundled with Node.js. The project currently has no FFmpeg dependency. Developers test locally (where FFmpeg is often installed via Homebrew on macOS) and assume it exists everywhere. On a minimal Ubuntu server install, `ffmpeg` may not be present.
+The existing `messageHandler.ts` already filters `fromMe: true` for 1:1 contacts, but the new group pipeline is a separate code path. Developers wire the new group activity classifier without porting the `fromMe` check from the existing handler.
 
-**How to avoid:**
-- Add FFmpeg installation to the server setup checklist:
-  ```bash
-  sudo apt install -y ffmpeg
-  ffmpeg -version  # verify
-  ```
-- Alternatively, use `fluent-ffmpeg` npm package — it provides a wrapper but still needs system FFmpeg. Or use `ffmpeg-static` which bundles a static FFmpeg binary:
-  ```bash
-  npm install ffmpeg-static
-  ```
-  Then set the FFmpeg path explicitly:
-  ```typescript
-  import ffmpegPath from 'ffmpeg-static';
-  import { execFile } from 'child_process';
-  // use ffmpegPath as the binary
-  ```
-- Add a startup check: at bot startup, verify `ffmpeg` is available and log a clear error if not.
-- Wrap all FFmpeg calls in try/catch and surface errors with context: `'FFmpeg conversion failed: ENOENT — is ffmpeg installed?'`
+**Consequences:**
+- Rapid-fire bot messages in the group (3–10 messages in seconds) before the cooldown kicks in
+- Rate-limit-induced ban risk (see Pitfall 2)
+- Inflated Gemini costs for self-generated classification
+
+**Prevention:**
+- Filter `msg.fromMe === true` as the first check in the group message pipeline, before any classification
+- Add a message ID deduplication cache (Map of `messageId → timestamp`) with a 60-second TTL; drop any message whose ID has already been processed
+- Log a warning if the classifier is called with a message whose `senderJid` matches the bot's own JID
 
 **Warning signs:**
-- `Error: spawn ffmpeg ENOENT` in bot logs
-- Voice pipeline logs show TTS succeeded but no audio message sent
-- The error only appears on the server, not in local development
+- Bot sends identical or near-identical messages multiple times within seconds
+- Gemini call logs show the bot's own reply text being classified
+- Group message count spikes after a bot action
 
-**Phase to address:** Voice infrastructure phase — verify FFmpeg availability before writing the conversion module.
+**Phase to address:** Always-listening foundation phase — add `fromMe` check before wiring the first classifier call.
 
-**Confidence:** HIGH — standard Node.js operational concern; `ffmpeg-static` pattern is well-documented and common in voice processing Node.js projects.
+**Confidence:** HIGH — `fromMe` filtering is a standard Baileys pattern; the risk of omitting it in a parallel code path is well-established in Baileys community discussions.
 
 ---
 
-### Pitfall 6: Temp Audio Files Accumulate on Disk — No Cleanup on Failure Paths
+### Pitfall 6: Google Calendar Timezone Handling Creates Wrong Event Times
 
 **What goes wrong:**
-The voice pipeline creates temporary files: downloaded voice note from WhatsApp, converted OGG file for transcription, TTS output MP3, converted OGG for sending. Each successful message cleans up after itself. But when any step fails (network error, FFmpeg crash, ElevenLabs 429), the finally/catch path either doesn't run or runs after the file reference is lost. After 1 week, `/tmp` or the app temp directory contains hundreds of orphaned `.ogg` and `.mp3` files.
+The bot extracts dates from WhatsApp messages like "let's fly on March 15 at 6pm." The date/time is stored and passed to Google Calendar API without explicit timezone specification. Google Calendar defaults to the calendar's timezone (which was set when the calendar was created — likely the server's local timezone, UTC, or Israel Standard Time). The event is created at the wrong absolute time, meaning it appears at the correct local time on the creator's device but at the wrong time for group members in a different timezone, or appears at the wrong time after daylight saving time changes.
 
 **Why it happens:**
-Async pipelines with multiple steps are difficult to clean up correctly. If cleanup is done only in the success path, failure paths leak. If cleanup is done in `finally`, but the temp file path variable is scoped inside a nested try/catch, the `finally` block can't access it. The bot runs 24/7 and processes many messages — even one leaked file per message adds up quickly.
+Google Calendar API's timezone handling is non-obvious. For timed events (not all-day events), the API accepts `dateTime` in ISO 8601 format. If no timezone offset is specified and the `timeZone` field is omitted, the API uses the calendar's configured timezone. Developers often format dates as `2025-03-15T18:00:00` (no offset), assuming it means local time — but "local" is undefined from the API's perspective. A confirmed bug in the PHP client (googleapis/google-api-php-client issue #2468) shows that even when specifying `timeZone: 'Etc/UTC'`, some API paths return events in the calendar's default timezone instead.
 
-**How to avoid:**
-- Always create temp files with a single entry point that returns a disposer:
-  ```typescript
-  async function withTempFile<T>(
-    ext: string,
-    fn: (path: string) => Promise<T>
-  ): Promise<T> {
-    const path = `/tmp/bot-audio-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-    try {
-      return await fn(path);
-    } finally {
-      await fs.unlink(path).catch(() => {}); // suppress "file not found" errors
-    }
-  }
-  ```
-- Use this wrapper for every temp file in the voice pipeline — never create temp files outside of a disposer pattern.
-- Add a startup cleanup: on bot start, delete any `/tmp/bot-audio-*` files older than 1 hour (leftover from the previous run that crashed).
-- Monitor disk usage in the server's `/tmp` directory — add to PM2 health checks.
+**Consequences:**
+- Events appear at wrong times in some group members' calendars
+- After Israel DST change (last Friday of October / last Friday of March), recurring events shift by 1 hour
+- No error is thrown — the event is created "successfully" at the wrong time
+
+**Prevention:**
+1. Always include the explicit IANA timezone in every event creation: `timeZone: 'Asia/Jerusalem'` for Israel trips, the destination timezone for international destinations
+2. Format all `dateTime` fields with the explicit UTC offset: `2025-03-15T18:00:00+02:00` rather than `2025-03-15T18:00:00`
+3. Store extracted dates as UTC timestamps in SQLite and convert to the target timezone at Calendar API call time
+4. Never use `Etc/UTC` as a timezone string for events — use the actual IANA timezone name
+5. After creating an event, immediately read it back via `calendar.events.get` and verify the `dateTime` matches the intended time
 
 **Warning signs:**
-- `ls /tmp/bot-audio-*` grows on a running server
-- Disk usage for the bot's `/tmp` area increases monotonically
-- Error logs show FFmpeg or ElevenLabs failures but no corresponding temp file cleanup logs
+- Events appear 1–2 hours off from the intended time
+- Events shift after daylight saving changes
+- Group members in different timezones see different event times in their Calendar app
 
-**Phase to address:** Voice infrastructure phase — temp file lifecycle must be designed before the first audio conversion is written.
+**Phase to address:** Google Calendar integration phase — timezone strategy must be established before writing event creation code.
 
-**Confidence:** HIGH — standard async resource management concern; pattern applies to all temporary file usage in the voice pipeline.
+**Confidence:** HIGH — confirmed via Google Calendar API official documentation on event timezones, known bug in googleapis/google-api-php-client issue #2468, and Google Calendar community thread on all-day event timezone handling.
 
 ---
 
-### Pitfall 7: Draft Queue Only Stores Text — Voice Drafts Require File Persistence
+### Pitfall 7: Richer Search Results Grounded in Google Search — Cached Pages, Not Live Prices
 
 **What goes wrong:**
-The existing draft queue stores `body: text` in SQLite. When a voice draft is created, the generated audio file is stored in `/tmp`. The user receives a notification and replies `✅` to approve 2 hours later. By then, the temp file has been cleaned up (either by design or by a server restart), and the bot tries to send the audio but finds no file — the draft is approved but nothing is sent, or it crashes.
+Gemini with Google Search grounding is used to fetch hotel prices, flight availability, and attraction hours for the trip. The bot presents these as current facts: "Hotel X costs ₪450/night." The user books based on this, only to find the actual price is ₪680/night. Google Search grounding reduces hallucinations but returns Google Search results, which may be cached, seasonal, or from aggregator sites that don't reflect real-time inventory.
 
 **Why it happens:**
-Text drafts are zero-cost to hold indefinitely — they live in the database. Audio drafts need a file on disk. If the audio file is generated eagerly (at draft creation time) and stored only as a temp file, it won't survive across server restarts or temp directory cleanups. The draft approval flow (`✅` in the owner's chat) was not designed with file-backed payloads in mind.
+Google's documentation acknowledges that "for real-time information such as stock prices, the results are mixed, with Google Search possibly returning cached content." Travel prices are similarly dynamic — hotel and flight prices fluctuate by hour. Gemini's grounding retrieves what Google Search currently indexes, not what the booking engine quotes at reservation time.
 
-**How to avoid:**
-Two valid approaches:
-1. **Lazy audio generation**: Store only the text in the draft (as now). When `✅` is approved, generate the TTS audio at that moment and send it immediately. Draft queue stays text-only. Slight delay on approval (~500ms for TTS generation) but no file management complexity.
-2. **Persistent audio storage**: Generate audio at draft creation time. Store it to a non-temp directory (e.g., `./data/voice-drafts/{draft-id}.ogg`). Store the file path in the drafts table. Clean up when the draft is actioned (sent or rejected).
+**Consequences:**
+- Users get incorrect pricing expectations, leading to frustration
+- Users blame the bot for "lying" when prices differ
+- Legal/trust issue if the bot presents grounded prices as booking-ready quotes
 
-**Recommended:** Lazy generation (option 1) — simpler, no schema migration, no file lifecycle complexity. The slight approval delay is acceptable.
+**Prevention:**
+1. Always qualify grounded price results with an explicit disclaimer: "Based on web search — prices change frequently. Verify before booking."
+2. Do not present prices as facts; present them as reference ranges: "Hotels in this area typically range from $X to $Y per night based on current search results."
+3. For flight availability specifically, note that Google Search grounding cannot provide seat-level availability — only price ranges from aggregators
+4. Structure the bot's response template to always include a booking link rather than a price figure: "Search current prices: [link]"
+5. Do not store grounded prices in the trip memory as confirmed data — store them as "estimated at time of search" with a timestamp
 
-**Warning signs (if eager generation is chosen):**
-- `ENOENT: no such file or directory` when actioning a voice draft after a server restart
-- Approved drafts produce no audio being sent, no error visible to owner
-- `/tmp/voice-draft-*.ogg` files persisting beyond draft approval
+**Warning signs:**
+- Users report price discrepancies between bot-stated prices and booking sites
+- Bot presents prices without a qualifying phrase like "approximately" or "based on current search"
+- Trip memory stores grounded prices as confirmed budget figures
 
-**Phase to address:** Draft queue integration phase — decide the lazy-vs-eager approach before writing any draft-related voice code.
+**Phase to address:** Richer search results phase — response template must include the disclaimer before any grounded search result is presented to users.
 
-**Confidence:** HIGH — directly implied by the existing draft schema (`body` is text-only) and the temp file lifecycle analysis above.
-
----
-
-## Technical Debt Patterns
-
-Shortcuts that seem reasonable but create long-term problems.
-
-| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
-|----------|-------------------|----------------|-----------------|
-| Using `eleven_multilingual_v2` for Hebrew TTS | Faster/cheaper per character | Hebrew output is wrong; users notice immediately | Never |
-| Storing voice clone ID in `.env` only | Simple setup | Forgotten during environment changes; no audit trail | Dev only; store in DB or config |
-| Creating temp files without a cleanup wrapper | Faster to write | Disk fills up over days of operation | Never in production |
-| Eager voice generation for drafts (without persistent storage) | Avoids re-generation latency | Audio lost after restart; approved drafts send nothing | Never without persistent storage |
-| Sending audio without `ptt: true` | Works as audio attachment | Users don't see voice note UX; voice clone benefit lost | Never for voice replies |
-| Skipping waveform verification on a real device | Faster testing | Flat-line waveform ships; uncanny valley effect for recipients | Never |
-| One-shot FFmpeg conversion (no retry) | Simple code | ElevenLabs output format changes or subtle audio artifacts silently break conversion | Acceptable in MVP; add validation before v1.4 |
+**Confidence:** MEDIUM-HIGH — Google Search grounding for Gemini confirmed via official Gemini API docs and developer blog. Cached content limitation acknowledged in official documentation. Real-time travel pricing limitation inferred from how Google Search indexes travel sites (LOW confidence on the specific failure rate; MEDIUM on the underlying cause).
 
 ---
 
-## Integration Gotchas
+### Pitfall 8: Suggest-Then-Confirm Flow Breaks Under Message Ordering Ambiguity
 
-Common mistakes when connecting to external services in this voice pipeline.
+**What goes wrong:**
+The bot asks "Should I add Hotel X to the itinerary? Reply ✅ or ❌." Two group members reply in quick succession: one replies ✅, another replies with an unrelated message at nearly the same time. The bot's reply parser sees two incoming messages close together and ambiguously associates both with the pending confirmation. Alternatively, the bot sends a follow-up suggestion before the first confirmation is resolved, creating two simultaneous pending confirmations. The confirmation state machine breaks.
 
-| Integration | Common Mistake | Correct Approach |
-|-------------|----------------|------------------|
-| ElevenLabs TTS (Hebrew) | Using `eleven_multilingual_v2` or `eleven_turbo_v2_5` | Use `eleven_v3` for Hebrew; pass `language_code: "he"` |
-| ElevenLabs TTS API | Not handling 429 concurrency limit | Wrap TTS calls with retry + exponential backoff; Free tier allows only 2–4 concurrent Multilingual calls |
-| ElevenLabs STT (Scribe) | Assuming Hebrew word error rate is like English | Hebrew STT has 10–20% WER on Scribe v2 per official benchmarks; treat transcriptions as noisy input to Gemini |
-| ElevenLabs STT | Sending raw WhatsApp OGG directly to STT | Works, but strip the WhatsApp-specific Opus container first; convert to 16kHz mono before sending for best accuracy |
-| ElevenLabs IVC training | Using WhatsApp voice recordings as training audio | Use clean studio-quality recordings at 192kbps+ MP3; WhatsApp's OGG at 32kbps degrades the clone |
-| FFmpeg conversion | Assuming FFmpeg exists on server | Install `ffmpeg-static` npm package or add FFmpeg to server setup checklist; add startup validation |
-| Baileys audio send | Sending `{ audio, mimetype }` without `ptt: true` | Always include `ptt: true` for voice notes; without it, message renders as file attachment |
-| Baileys audio send | Missing `audio-decode` npm dependency | Install `audio-decode` explicitly; Baileys uses it to generate waveform data for PTT messages |
-| ElevenLabs STT | Sending full audio including silence | Trim leading/trailing silence before STT — reduces token usage and improves accuracy on short messages |
+**Why it happens:**
+The existing draft system (`drafts` table + `markDraftSent`/`markDraftRejected`) was designed for 1:1 private chats where only one person confirms. In a group, multiple people can respond. The "pending confirmation" concept does not map cleanly to a multi-participant group without explicit state scoping.
 
----
+**Consequences:**
+- Bot takes the wrong action (adds a hotel that was rejected, or vice versa)
+- Two pending confirmations confuse the state machine, causing the second to never resolve
+- User confusion: "I said ✅ and it still didn't add it"
 
-## Performance Traps
+**Prevention:**
+1. **Scope confirmations to a specific quoted message**: When the bot asks for confirmation, the user must reply by quoting the bot's question message (Baileys `quotedMessageId`). Only a reply that quotes the specific bot message counts as a confirmation. Unquoted ✅/❌ messages are ignored for confirmation purposes.
+2. **One pending confirmation per group at a time**: Before sending a new confirmation request, check if a previous one is still pending. If yes, either wait or explicitly cancel the old one.
+3. **Confirmation timeout**: Pending group confirmations expire after 30 minutes. If unresolved, the bot logs the expiry and takes no action.
+4. **Only the group admin (trip organizer) can confirm**: Optionally, scope confirmation authority to the group admin JID stored in the groups table.
+5. **Do not use the existing private-chat draft table for group confirmations** — create a separate `group_confirmations` table scoped to `(group_jid, message_id)`.
 
-Patterns that work fine in testing but degrade in production.
+**Warning signs:**
+- Bot adds or removes items from the itinerary without the owner confirming
+- "Pending confirmation" state persists in DB after group resolution
+- Multiple ✅ replies in a short window cause duplicate calendar events
 
-| Trap | Symptoms | Prevention | When It Breaks |
-|------|----------|------------|----------------|
-| Awaiting full TTS audio generation before sending | 800ms–2s delay added to every voice response (Multilingual v2); Turbo v2.5 adds ~300ms | Use Turbo v2.5 or Flash for latency-sensitive paths; note Hebrew requires v3 which may have higher latency | Every single voice reply |
-| Sequential: transcribe → generate text → TTS → convert → send (no timeout) | Message handler blocked for 3–5s total; subsequent messages queue | Add an overall timeout (e.g., 8s) and fall back to text-only response if voice pipeline exceeds it | Anytime ElevenLabs has elevated latency |
-| Re-generating TTS for same draft body on each `✅` retry | Double API cost if user re-sends approval | Cache TTS result in memory for the draft lifetime (or use lazy generation) | Repeated approval attempts |
-| Storing all voice message transcriptions in SQLite `messages.body` | Table rows grow large; existing message context for Gemini includes transcribed voice noise | Keep transcriptions as a separate field or table; do not pollute style learning data with voice transcription artifacts |  After ~50 voice messages from a contact |
-| ElevenLabs Free tier: 2 concurrent Multilingual requests | 429 errors during normal conversation | Upgrade to Starter tier ($5/mo) before deploying; Free tier is testing-only at any meaningful message volume | 3+ simultaneous voice replies needed |
+**Phase to address:** Suggest-then-confirm phase — design the confirmation state machine for group semantics before writing any confirmation-resolution code.
 
----
-
-## Security Mistakes
-
-Domain-specific security concerns for voice processing.
-
-| Mistake | Risk | Prevention |
-|---------|------|------------|
-| Logging ElevenLabs API key in error messages | API key leaked to log files | Never log the key string; log `ELEVENLABS_API_KEY is set/unset` as boolean only |
-| Storing voice clone ID in plaintext `.env` committed to git | Voice clone can be used by anyone with API access | Keep in `.env` (gitignored, chmod 600); never commit |
-| Sending voice message audio to any non-private contact | Voice clone of owner exposed to unintended parties | Respect the per-contact voice toggle; always check `contact.voiceEnabled` before TTS generation |
-| Transcribed voice message content sent to both Gemini and ElevenLabs | User's contact's speech sent to two external APIs | Inform in project docs; acceptable for personal use but worth noting for privacy audit |
-| Temp audio files world-readable in `/tmp` | Other processes on the server can read voice content | Set file permissions to 600 when creating temp files: use `fs.writeFile(path, data, { mode: 0o600 })` |
+**Confidence:** MEDIUM-HIGH — inferred from the existing draft system design (private-chat scoped) and known WhatsApp group message ordering behavior. Quoted-message scoping is a well-established pattern for disambiguation in Baileys-based bots.
 
 ---
 
-## UX Pitfalls
+### Pitfall 9: Gemini Free Tier Rate Limits Are Exhausted Within Hours by Always-On Bot
 
-User experience mistakes specific to voice features.
+**What goes wrong:**
+Gemini 2.5 Flash free tier allows 10 RPM and 250 RPD as of March 2026 (reduced from higher limits in December 2025). An always-listening bot that classifies messages without batching will exhaust the 250 RPD limit before noon on an active planning day. Classification calls for 30 messages/hour × 12 hours = 360 calls/day, exceeding the 250 RPD limit by 44%. Once the limit is hit, all Gemini calls fail with 429 errors — the bot goes silent with no user-visible error.
 
-| Pitfall | User Impact | Better Approach |
-|---------|-------------|-----------------|
-| Voice reply always generated regardless of contact's conversation style | Contacts who mostly send text receive an unexpected voice message | Respect the per-contact `voiceEnabled` toggle; default it to `off` for all existing contacts |
-| Voice message sent in draft mode without owner preview | Owner cannot hear the audio before approving — approves blind | Use lazy TTS generation: show the text draft as usual, generate audio only on `✅` approval; owner sees the text first |
-| No fallback when ElevenLabs is down | Voice-enabled contact messages get no reply at all | If TTS fails after retry, fall back to text reply; never silently drop the reply |
-| Transcription errors corrupt Gemini context | Garbled transcription ("כן בסדר" → "can beside") feeds Gemini a wrong message and generates a non-sequitur reply | Pass the voice message context as `[voice message, transcribed: "<text>"]` to Gemini; include a reliability note in the system prompt |
-| Very long voice messages transcribed and fed entirely to Gemini | Prompt becomes huge; latency spikes; Gemini may lose context | Truncate transcription input at ~500 words before passing to Gemini for reply generation |
+**Why it happens:**
+Developers test on the free tier during development and assume volume is low enough. But even a quiet group generates hundreds of messages per day during active trip planning (dates, links, questions, memes). The December 2025 Google quota reductions cut free tier limits by 50–80%, making the problem worse.
 
----
+**Prevention:**
+1. **Enable billing before deploying the always-listener**: Tier 1 (paid) raises limits to 300 RPM and 1,000 RPD — enough for any personal bot. At the cost estimates above (~$0.50–$2.00/month), billing is affordable.
+2. **Aggressive batching**: The 10-second debounce already batches messages. Extend to 30 seconds for the travel classifier specifically, collapsing a burst of 10 messages into one classifier call.
+3. **Add a local RPM circuit breaker**: Track Gemini calls per minute in memory. If approaching 8/minute (80% of free tier limit), queue subsequent calls rather than dropping them.
+4. **Handle 429 gracefully**: Catch `RESOURCE_EXHAUSTED` errors from the Gemini API. Do not crash the message handler. Log the error, drop the classification silently, and resume when the window resets.
 
-## "Looks Done But Isn't" Checklist
+**Warning signs:**
+- Gemini API returns `RESOURCE_EXHAUSTED` or 429 errors after noon on active days
+- Bot stops responding to group messages during busy planning sessions
+- Logs show Gemini call counts approaching 250/day
 
-Things that pass local testing but break in real use.
+**Phase to address:** Always-listening foundation phase — add billing and the circuit breaker before deploying to any active group.
 
-- [ ] **Voice message sends** but appears as a file attachment, not a voice note — verify `ptt: true` is set and test on a real phone (not WhatsApp Web)
-- [ ] **Audio waveform is flat** even though the message plays — install `audio-decode`, verify on a real device that the waveform animates
-- [ ] **TTS sounds good in English** but Hebrew is mispronounced — confirm model is `eleven_v3`, not `eleven_multilingual_v2` or `eleven_turbo_v2_5`
-- [ ] **Voice clone approved via ElevenLabs UI** but was trained on WhatsApp recordings — retrain with clean studio-quality audio
-- [ ] **FFmpeg converts correctly on macOS** but fails on yuval-server with `ENOENT` — install FFmpeg on the server before deploying
-- [ ] **Draft approval (`✅`) sends text but not voice** — verify TTS is called at approval time (lazy) or that the audio file still exists (eager)
-- [ ] **Temp files clean up in the success path** but not when ElevenLabs throws 429 — verify cleanup runs in `finally`, not just on success
-- [ ] **Voice reply enabled for a contact** in auto mode, but sending a 3s voice clip for every reply feels spammy — add a minimum message length threshold before generating voice (e.g., only generate voice if reply is > 20 words or > 10 seconds of speech)
-- [ ] **ElevenLabs API key set** in `.env` but `audio-decode` not installed — bot starts but first voice send crashes silently
+**Confidence:** HIGH — rate limits verified via official Gemini API rate limits documentation and multiple 2026 rate limit guides confirming the December 2025 reductions.
 
 ---
 
-## Recovery Strategies
+### Pitfall 10: Message Pipeline Ordering Breaks When Always-Listener Runs Alongside Existing Handlers
 
-When pitfalls occur despite prevention, how to recover.
+**What goes wrong:**
+The existing `messageHandler.ts` already handles group messages via `groupMessageCallback`. The new always-listener registers its own event handler on the same `messages.upsert` event. Both handlers fire for every message, potentially in parallel. The new handler reads and writes `group_messages` rows; the existing handler also reads group context. SQLite WAL mode allows only one simultaneous writer — if both handlers attempt concurrent writes, one gets `SQLITE_BUSY`. With the default `busy_timeout`, the second write fails silently or throws an unhandled exception.
 
-| Pitfall | Recovery Cost | Recovery Steps |
-|---------|---------------|----------------|
-| Wrong model used for Hebrew TTS (non-v3) | LOW | Change `model_id` in config to `eleven_v3`; no migration needed |
-| Temp files accumulated on disk | LOW | `rm /tmp/bot-audio-* && rm ./data/voice-drafts/*.ogg`; add cleanup to startup |
-| Voice clone trained on WhatsApp audio (poor quality) | MEDIUM | Delete the IVC in ElevenLabs UI; record clean audio; recreate the IVC; update the `VOICE_ID` config |
-| Flat waveform shipped to users | LOW | Install `audio-decode`, redeploy; affected messages cannot be retroactively fixed |
-| FFmpeg not on server, voice pipeline broken | LOW | `sudo apt install ffmpeg` or install `ffmpeg-static`; redeploy |
-| Draft approved but audio file gone (restart) | LOW | Re-approve draft after fix is deployed (lazy generation); contact receives text fallback in the interim |
-| ElevenLabs API key exhausted (character quota) | MEDIUM | Upgrade plan; in the meantime, disable voice toggle for all contacts and fall back to text replies |
+**Why it happens:**
+Two independent `sock.ev.on('messages.upsert', ...)` listeners on the same Baileys socket both fire on the same event. Node.js executes them in registration order but does not serialize their async operations. Both can be in-flight simultaneously, racing to write to the same SQLite table.
+
+**Consequences:**
+- Intermittent `SQLITE_BUSY` errors on group message writes
+- Message dropped from `group_messages` — trip context is incomplete
+- Hard to reproduce (race condition, depends on message timing)
+
+**Prevention:**
+1. **Single entry point for all group message processing**: Do not register a second `messages.upsert` listener. Extend the existing `groupMessageCallback` pipeline to include the always-listener step. Message processing is sequential within a single async function.
+2. **Pipeline stage ordering**: Within the single handler, enforce this order:
+   1. Insert to `group_messages` (write — must complete before any reads)
+   2. Run keyword pre-filter (pure JS, no DB)
+   3. If pre-filter passes: call Gemini classifier (async, non-DB)
+   4. If classifier positive: trigger proactive suggestion flow
+3. **SQLite `busy_timeout`**: Already set to WAL mode. Verify `PRAGMA busy_timeout = 5000` is set on startup. This allows 5 seconds of retry before failing, which covers most transient write contention.
+4. **Serialize writes with a queue**: If parallel writes are unavoidable, use a lightweight async queue (e.g., `p-queue` with concurrency 1) for all SQLite writes in the message pipeline.
+
+**Warning signs:**
+- `SQLITE_BUSY` errors appearing in logs during group activity bursts
+- `group_messages` table is missing rows that should have been inserted
+- Two Gemini classification calls appearing in logs for the same `messageId`
+
+**Phase to address:** Always-listening foundation phase — pipeline integration design before any new event listener is registered.
+
+**Confidence:** HIGH — SQLite single-writer limitation confirmed via official SQLite WAL documentation. The specific risk of parallel Baileys event handlers is directly implied by the existing `messageHandler.ts` architecture (single `groupMessageCallback` hook pattern already guards against this; extending it correctly is the prevention).
 
 ---
 
-## Pitfall-to-Phase Mapping
+## Minor Pitfalls
 
-| Pitfall | Prevention Phase | Verification |
-|---------|------------------|--------------|
-| `ptt: true` missing → file attachment | Voice send phase (first task) | Receive on real phone; confirm voice note bubble renders |
-| Flat waveform | Voice send phase | Check waveform on real device; not WhatsApp Web |
-| Wrong model for Hebrew TTS | ElevenLabs integration phase | Generate 5 Hebrew sentences; listen for native quality |
-| Poor voice clone quality (WhatsApp audio training) | Voice clone setup phase (before coding) | Validate IVC in ElevenLabs UI before first API call |
-| FFmpeg missing on server | Voice infrastructure phase | Add startup check; verify on yuval-server pre-deployment |
-| Temp file accumulation | Voice infrastructure phase | Run bot for 24h; verify `/tmp` does not grow |
-| Draft queue file loss | Draft integration phase | Restart bot mid-draft; verify `✅` approval still works |
-| Hebrew STT accuracy 10–20% WER | Transcription phase | Test with real voice messages containing Hebrew slang |
-| ElevenLabs Free tier concurrency | ElevenLabs integration phase | Upgrade to Starter before production; Free tier is testing-only |
-| Voice reply in draft mode (blind approve) | Draft integration phase | Use lazy TTS; text shown to owner first, audio generated on `✅` |
+Issues that are annoying but recoverable without significant rework.
+
+---
+
+### Pitfall 11: Trip Memory Contains Privacy-Sensitive Personal Travel Data
+
+**What goes wrong:**
+The trip memory accumulates everything discussed in the group: passport details if mentioned, accommodation addresses, flight numbers, who is traveling with whom. This data lives in plaintext SQLite and is passed wholesale to Gemini (Google's servers). For a personal family bot this is an accepted tradeoff, but if a group member objects to their travel plans being processed by Google's AI, there is no mechanism to delete their specific messages.
+
+**Prevention:**
+- Document the data flow clearly in a comment in the codebase: "Group messages are stored in SQLite and sent to Google Gemini for classification. All group members implicitly accept this by remaining in the group."
+- Implement a `!forget` command that deletes all messages from a specific sender's JID from the trip memory
+- Do not send group member phone numbers or JIDs to Gemini — strip PII from the message context before classification
+- Set a retention policy for `group_messages`: delete rows older than 90 days automatically (a SQLite cleanup job on startup)
+
+**Phase to address:** Trip memory phase — retention and PII stripping built in from the start.
+
+**Confidence:** MEDIUM — GDPR chatbot compliance sources confirm the principle; specific WhatsApp/Gemini data processing details are inferred rather than from a direct official source.
+
+---
+
+### Pitfall 12: Google Calendar Event Spam When Dates Are Extracted from Casual Mentions
+
+**What goes wrong:**
+A group member says "remember when we went to Eilat last March?" The date extractor (10-second debounce, currently used for date extraction) extracts "last March" and the bot creates a calendar event for a past date, or creates an event for an ambiguous future date. The group's itinerary calendar fills with spurious events from casual historical references.
+
+**Prevention:**
+- Gate calendar event creation on an explicit confirmation flow (Pitfall 8's suggest-then-confirm). Never auto-create a calendar event without user approval.
+- Add a date relevance filter: dates more than 7 days in the past are not candidates for itinerary events
+- Distinguish date mentions by context: the classifier prompt should include "is this date being planned for the future trip, or is it a historical reference?" as a classification dimension
+- Allow `!remove last event` command as a quick recovery path for spurious events
+
+**Phase to address:** Google Calendar integration phase.
+
+**Confidence:** MEDIUM — inferred from the existing 10-second debounce and date extraction pattern in the codebase. Specific false-positive rate not measured.
+
+---
+
+### Pitfall 13: Stale In-Memory Trip State After Server Restart
+
+**What goes wrong:**
+Trip context, pending confirmations, and classifier debounce state live in `Map` objects (following the existing ephemeral state pattern in `messageHandler.ts`). After a server restart, all in-memory state is lost. A pending confirmation that was waiting for ✅/❌ is now invisible to the bot. The next ✅ from a user is treated as an orphaned message. A trip that was "active" in memory is gone — the bot has no awareness of the current planning session.
+
+**Prevention:**
+- Persist pending group confirmations in a `group_confirmations` SQLite table (not in memory)
+- Persist the "active trip" flag and current trip summary in the `groups` table or a new `trips` table
+- On startup, reload active trip state from SQLite into memory before processing any messages
+- For the classifier debounce specifically, lost state on restart is acceptable — the worst case is one missed classification after a restart
+
+**Phase to address:** Trip memory phase.
+
+**Confidence:** HIGH — directly implied by the existing architecture (`lastAutoReplyTime` Map resets on restart, per existing code comment).
+
+---
+
+## Phase-Specific Warnings
+
+| Phase Topic | Likely Pitfall | Mitigation |
+|-------------|---------------|------------|
+| Always-listening foundation | Gemini cost explosion on every message | Two-tier pre-filter + debounce batching + disable thinking mode on classifier |
+| Always-listening foundation | Self-message reflection loop | First-line `fromMe` filter before any classification |
+| Always-listening foundation | Free-tier rate limit exhaustion | Enable billing; add circuit breaker; handle 429 gracefully |
+| Always-listening foundation | Pipeline concurrency / SQLite busy | Extend single `groupMessageCallback`; do not add a second `messages.upsert` listener |
+| Proactive suggestions | Ban risk from unsolicited group messages | Emoji-reaction signal first; explicit trigger before full message; per-group 2-hour cooldown |
+| Proactive suggestions | User annoyance / trust erosion | Confidence threshold > 90%; daily cap of 3; human-like send delay |
+| Trip memory | Context rot + cost blowup | Summarize-and-compress after each session; 50K token hard cap; structured trip state |
+| Trip memory | Privacy / PII in Gemini context | Strip JIDs/phone numbers; 90-day retention; `!forget` command |
+| Trip memory | Stale state after restart | Persist active trip flag and pending confirmations in SQLite |
+| Suggest-then-confirm | Multi-user confirmation ambiguity | Quoted-message scoping; single pending confirmation per group; 30-min timeout |
+| Richer search | Stale prices presented as facts | Always include disclaimer; present as ranges; include booking link |
+| Google Calendar integration | Service account ownership lock-in | Choose auth architecture (user OAuth vs. bot-only) before first API call |
+| Google Calendar integration | Wrong event timezone | Explicit IANA timezone on every event; store UTC; read-back verification |
+| Google Calendar integration | Event spam from casual date mentions | Require confirmation before any `events.insert`; reject past dates |
+
+---
+
+## Cost Modeling: Gemini 2.5 Flash — Always-Listening Pattern
+
+**Assumptions:** Active trip planning group, 100 messages/day, 30-day trip planning period. Gemini 2.5 Flash at $0.30/M input, $2.50/M output (March 2026). Context caching active at 90% discount on system prompt.
+
+| Scenario | Monthly Gemini Cost | Notes |
+|----------|---------------------|-------|
+| Naive: every message classified, no pre-filter, thinking mode on | ~$15–$40/month | Thinking tokens ($3.50/M) are the budget killer |
+| Naive: every message classified, no pre-filter, thinking mode off | ~$1.50–$4.00/month | Much better; still suboptimal |
+| Optimized: pre-filter eliminates 70%, 30-second debounce, caching | ~$0.20–$0.80/month | Target range for personal bot |
+| Optimized + full responses (searches, calendar, replies) at 10/day | ~$0.70–$2.50/month | Total realistic monthly cost |
+
+**Bottom line:** A correctly implemented always-listener on Gemini 2.5 Flash costs $1–$3/month for a personal travel group. An incorrectly implemented one (no pre-filter, thinking mode on) costs $15–$40/month.
 
 ---
 
 ## Sources
 
-- [ElevenLabs Models Documentation](https://elevenlabs.io/docs/overview/models) — HIGH confidence — Hebrew supported only in Eleven v3; concurrency limits table per tier
-- [ElevenLabs Voice Cloning Documentation](https://elevenlabs.io/docs/creative-platform/voices/voice-cloning) — HIGH confidence — IVC quality requirements and training audio recommendations
-- [ElevenLabs — Tips for Good Quality Voice Clones (Help)](https://help.elevenlabs.io/hc/en-us/articles/13416206830097-Are-there-any-tips-to-get-good-quality-cloned-voices) — HIGH confidence — MP3 192kbps+ recommendation, quality factors
-- [ElevenLabs — Voice Cloning File Formats (Help)](https://help.elevenlabs.io/hc/en-us/articles/13440435385105-What-files-do-you-accept-for-voice-cloning) — HIGH confidence — accepted formats and bitrate guidance
-- [ElevenLabs — PVC Language Support (Help)](https://help.elevenlabs.io/hc/en-us/articles/19569659818129-What-languages-are-supported-with-Professional-Voice-Cloning-PVC) — HIGH confidence — PVC not yet optimized for Eleven v3
-- [ElevenLabs — How many TTS requests can I make? (Help)](https://help.elevenlabs.io/hc/en-us/articles/14312733311761-How-many-Text-to-Speech-requests-can-I-make-and-can-I-increase-it) — MEDIUM confidence (403 on direct fetch; concurrency limits confirmed via models doc)
-- [Baileys GitHub Issue #1745 — PTT Waveform Regression](https://github.com/WhiskeySockets/Baileys/issues/1745) — MEDIUM confidence — regression confirmed in v6.7.9, fix via `audio-decode` in v6.7.19+
-- [Baileys GitHub Issue #1828 — Audio Bug](https://github.com/WhiskeySockets/Baileys/issues/1828) — MEDIUM confidence — audio format workarounds documented by community
-- [Baileys GitHub Issue #501 — Can't Send Audio Messages](https://github.com/WhiskeySockets/Baileys/issues/501) — MEDIUM confidence — PTT flag requirement confirmed
-- [Smallest.ai TTS Benchmark 2025](https://smallest.ai/blog/tts-benchmark-2025-smallestai-vs-elevenlabs-report) — MEDIUM confidence — practical ElevenLabs latency ~350ms (US) vs. claimed 75ms
-- [ElevenLabs Latency Optimization (Official)](https://elevenlabs.io/docs/best-practices/latency-optimization) — MEDIUM confidence (page returned 404 on direct fetch; data inferred from models doc and official blog posts)
-- [WhatsApp PTT OGG/Opus Format Requirements](https://www.wappbiz.com/blogs/voice-messages-using-whatsapp-api/) — MEDIUM confidence — FFmpeg parameters for WhatsApp-compatible Opus conversion
-- [ElevenLabs Eleven v3 Blog Announcement](https://elevenlabs.io/blog/eleven-v3) — HIGH confidence — v3 as the model supporting 70+ languages including Hebrew
+- [Baileys GitHub Issue #1869 — High Number of Bans](https://github.com/WhiskeySockets/Baileys/issues/1869) — HIGH confidence — ban patterns documented by community; accounts banned after group posting
+- [kobie3717/baileys-antiban — Anti-Ban Middleware](https://github.com/kobie3717/baileys-antiban) — MEDIUM confidence — rate limit recommendations (8 msg/min, 200/hr, 1500/day) from community-maintained anti-ban library
+- [whatsmeow Issue #810 — "Account at risk" Warning](https://github.com/tulir/whatsmeow/issues/810) — MEDIUM confidence — "account may be at risk" warning affecting both WhatsMeow and Baileys accounts
+- [Gemini Developer API Pricing](https://ai.google.dev/gemini-api/docs/pricing) — HIGH confidence — $0.30/M input, $2.50/M output for Gemini 2.5 Flash; $3.50/M for thinking tokens
+- [Gemini API Rate Limits](https://ai.google.dev/gemini-api/docs/rate-limits) — HIGH confidence — 10 RPM, 250 RPD for Gemini 2.5 Flash free tier
+- [Gemini API Rate Limits 2026 — LaoZhang](https://blog.laozhang.ai/en/posts/gemini-api-rate-limits-guide) — MEDIUM confidence — December 2025 quota reduction details
+- [Gemini API Context Caching](https://ai.google.dev/gemini-api/docs/caching) — HIGH confidence — 90% discount on cached tokens for Gemini 2.5 models; implicit caching enabled by default since May 2025
+- [Gemini API Pricing 2026 — aifreeapi.com](https://www.aifreeapi.com/en/posts/gemini-api-pricing-2026) — MEDIUM confidence — pricing breakdown including thinking mode
+- [Context Rot — Chroma Research](https://research.trychroma.com/context-rot) — HIGH confidence — empirical evidence of LLM performance degradation with context growth
+- [Active Context Compression — arxiv.org](https://arxiv.org/html/2601.07190) — MEDIUM confidence — 22.7% token savings with frequent small compressions
+- [Mem0 LLM Chat History Summarization Guide](https://mem0.ai/blog/llm-chat-history-summarization-guide-2025) — MEDIUM confidence — 80-90% token reduction, 26% quality improvement with smart memory vs. raw history
+- [Effective Context Engineering — Anthropic](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents) — HIGH confidence — context management best practices for AI agents
+- [Google Calendar API — Calendars and Events Concepts](https://developers.google.com/workspace/calendar/api/concepts/events-calendars) — HIGH confidence — service account ownership limitation: "data owner's access level cannot be downgraded"
+- [Google Calendar API — Create Events](https://developers.google.com/workspace/calendar/api/guides/create-events) — HIGH confidence — timezone specification requirements for timed events
+- [Google Calendar API — googleapis/google-api-php-client Issue #2468](https://github.com/googleapis/google-api-php-client/issues/2468) — MEDIUM confidence — timezone inconsistency bug when retrieving events
+- [SQLite WAL Mode — Official Documentation](https://sqlite.org/wal.html) — HIGH confidence — "only one writer at a time" limitation in WAL mode
+- [SQLite Concurrent Writes — tenthousandmeters.com](https://tenthousandmeters.com/blog/sqlite-concurrent-writes-and-database-is-locked-errors/) — MEDIUM confidence — SQLITE_BUSY behavior under concurrent writers
+- [Grounding with Google Search — Gemini API Docs](https://ai.google.dev/gemini-api/docs/google-search) — HIGH confidence — grounding capabilities and real-time information limitations
+- [WhatsApp Anti-Spam 2025 — About.fb.com](https://about.fb.com/news/2025/08/new-whatsapp-tools-tips-beat-messaging-scams/) — HIGH confidence — 6.8M accounts banned in H1 2025; pattern-based detection
+- [Phone Number Age and Ban Risk — GREEN-API](https://green-api.com/en/blog/reduce-the-risk-of-WA-blocking/) — MEDIUM confidence — account age significantly affects ban resistance; 25–30 day safe window
+- [GDPR Chatbot Compliance — moinAI](https://www.moin.ai/en/chatbot-wiki/chatbots-data-protection-gdpr) — MEDIUM confidence — data retention, PII minimization, and right-to-deletion requirements for chatbots
 
 ---
-*Pitfalls research for: WhatsApp Bot Milestone v1.3 — Voice Message Handling*
-*Researched: 2026-02-28*
+
+*Pitfalls research for: WhatsApp Bot — Travel Agent Milestone*
+*Researched: 2026-03-02*
