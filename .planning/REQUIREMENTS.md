@@ -1,37 +1,59 @@
 # Requirements: WhatsApp Bot
 
-**Defined:** 2026-02-28
+**Defined:** 2026-03-02
 **Core Value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
 
-## v1.3 Requirements
+## v1.4 Requirements
 
-Requirements for voice response milestone. Each maps to roadmap phases.
+Requirements for Travel Agent milestone. Each maps to roadmap phases.
 
-### Voice Pipeline
+### Audit
 
-- [x] **VOICE-01**: Bot receives and downloads incoming voice messages from whitelisted contacts
-- [x] **VOICE-02**: Bot transcribes voice messages to text via ElevenLabs Scribe v2 (Hebrew supported)
-- [x] **VOICE-03**: Bot generates AI text reply from transcription using existing Gemini pipeline
-- [x] **VOICE-04**: Bot converts text reply to speech via ElevenLabs TTS with cloned voice (`eleven_v3` model)
-- [x] **VOICE-05**: Bot sends voice reply as WhatsApp PTT voice note (OGG/Opus, `ptt: true`)
+- [ ] **AUDIT-01**: Travel search returns correct results with working URLs and follow-up reply chains
+- [ ] **AUDIT-02**: Calendar date extraction correctly identifies dates, creates events, and handles reply-to-delete
 
-### Contact Configuration
+### Trip Memory
 
-- [x] **CONF-01**: User can enable/disable voice replies per contact
-- [x] **CONF-02**: Contacts with voice disabled still get text replies to voice messages (transcribe → text reply)
+- [ ] **MEM-01**: Bot stores confirmed trip decisions (destination, accommodation, activities, transport) in structured DB records
+- [ ] **MEM-02**: User can ask "@bot what did we decide about X?" and bot answers from stored decisions + chat history
+- [ ] **MEM-03**: Bot detects unanswered questions/commitments in chat and tracks them as open items
+- [ ] **MEM-04**: Open items are surfaced in weekly digest until resolved or manually dismissed
 
-### Draft Integration
+### Itinerary
 
-- [x] **DRAFT-01**: Voice replies follow contact's existing mode (auto-send or draft queue)
-- [x] **DRAFT-02**: Draft queue shows text transcript of voice reply for review
-- [x] **DRAFT-03**: Audio is generated at approval time (lazy TTS), not at draft creation
+- [ ] **ITIN-01**: Date extraction suggests adding to calendar before auto-adding (suggest-then-confirm via reply)
+- [ ] **ITIN-02**: Calendar events include location, description, and relevant links (not just title + date)
+- [ ] **ITIN-03**: User can confirm (✅) or reject (❌) a suggestion by replying to the bot's message
 
-### Management
+### Search
 
-- [x] **MGMT-01**: User can toggle voice reply setting per contact in dashboard
-- [x] **MGMT-02**: User can toggle voice reply setting per contact in CLI
+- [ ] **SRCH-01**: Travel search uses Gemini Maps Grounding to return ratings, reviews, hours, and addresses
+- [ ] **SRCH-02**: Search returns 5-6 results for accommodation/activity queries (3 for quick queries)
+- [ ] **SRCH-03**: Results from booking sites (booking.com, airbnb, etc.) are labeled with a "Book:" prefix
 
-## Future Requirements
+### Intelligence
+
+- [ ] **INTL-01**: Bot proactively suggests activities/tips when a destination is confirmed (rate-limited, max once per destination)
+- [ ] **INTL-02**: Weekly digest includes trip status section: confirmed decisions, open questions, upcoming activities
+- [ ] **INTL-03**: Proactive suggestions are relevant and not spammy (cooldown, only on new confirmations)
+
+## v1.5 Requirements
+
+Deferred to future release. Tracked but not in current roadmap.
+
+### Passive Detection
+
+- **PASS-01**: Bot passively detects activities/plans mentioned in every group message (not just dates)
+- **PASS-02**: Passive detection uses pre-filter to minimize Gemini API calls on irrelevant messages
+
+### Search Enhancements
+
+- **SRCH-04**: Trip context (dates, destination, group size) auto-injected into search queries
+- **SRCH-05**: Multi-result comparison format with numbered voting prompt
+
+### Memory Enhancements
+
+- **MEM-05**: Conversation recall from raw chat history without requiring structured decisions
 
 ### Voice Enhancements
 
@@ -43,11 +65,17 @@ Requirements for voice response milestone. Each maps to roadmap phases.
 
 | Feature | Reason |
 |---------|--------|
+| Full booking integration (reservations) | Requires OAuth, payment handling, API partnerships — bot surfaces links, humans book |
+| Expense splitting / budget tracking | Splitwise does this well; WhatsApp text is clunky for financial tracking |
+| Flight/hotel price monitoring alerts | Requires continuous polling of external APIs; high infrastructure complexity |
+| WhatsApp reaction-based voting | Reaction events unreliable in Baileys; use numbered reply voting instead |
+| Group member preference profiles | High onboarding friction; pass recent messages as context instead |
+| "Plan the whole trip" wizard flows | Group chats are non-linear; wizard state machines break with multiple participants |
+| Rich media maps/photo galleries | WhatsApp text-only; extract text fields and link to Google Maps |
+| Automatic cross-calendar deduplication | Requires reading personal calendars; high privacy surface |
+| Keyword rules audit | Not being extended in v1.4 |
 | Voice replies in groups | Groups are utility-only; voice is for private impersonation |
 | Real-time voice calls | Far beyond current Baileys capabilities |
-| Multiple voice clones | Single user, single voice |
-| Voice message forwarding | Not part of the impersonation use case |
-| Eager TTS at draft creation | Temp file loss risk on restart; lazy TTS is safer |
 
 ## Traceability
 
@@ -55,24 +83,27 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| VOICE-01 | Phase 14 | Complete |
-| VOICE-02 | Phase 13 | Complete |
-| VOICE-03 | Phase 14 | Complete |
-| VOICE-04 | Phase 13 | Complete |
-| VOICE-05 | Phase 14 | Complete |
-| CONF-01 | Phase 16 | Complete |
-| CONF-02 | Phase 14 | Complete |
-| DRAFT-01 | Phase 15 | Complete |
-| DRAFT-02 | Phase 15 | Complete |
-| DRAFT-03 | Phase 15 | Complete |
-| MGMT-01 | Phase 16 | Complete |
-| MGMT-02 | Phase 16 | Complete |
+| AUDIT-01 | — | Pending |
+| AUDIT-02 | — | Pending |
+| MEM-01 | — | Pending |
+| MEM-02 | — | Pending |
+| MEM-03 | — | Pending |
+| MEM-04 | — | Pending |
+| ITIN-01 | — | Pending |
+| ITIN-02 | — | Pending |
+| ITIN-03 | — | Pending |
+| SRCH-01 | — | Pending |
+| SRCH-02 | — | Pending |
+| SRCH-03 | — | Pending |
+| INTL-01 | — | Pending |
+| INTL-02 | — | Pending |
+| INTL-03 | — | Pending |
 
 **Coverage:**
-- v1.3 requirements: 12 total
-- Mapped to phases: 12
-- Unmapped: 0
+- v1.4 requirements: 15 total
+- Mapped to phases: 0
+- Unmapped: 15 ⚠️
 
 ---
-*Requirements defined: 2026-02-28*
-*Last updated: 2026-03-01 after 14-02 completion (Phase 14 complete)*
+*Requirements defined: 2026-03-02*
+*Last updated: 2026-03-02 after initial definition*
