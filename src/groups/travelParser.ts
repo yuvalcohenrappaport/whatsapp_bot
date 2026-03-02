@@ -1,5 +1,4 @@
-import { z } from 'zod/v3';
-import zodToJsonSchema from 'zod-to-json-schema';
+import { z } from 'zod';
 import { config } from '../config.js';
 import pino from 'pino';
 import { generateJson } from '../ai/provider.js';
@@ -53,7 +52,7 @@ const TravelIntentSchema = z.object({
 
 export type TravelIntent = z.infer<typeof TravelIntentSchema>;
 
-const TRAVEL_INTENT_JSON_SCHEMA = zodToJsonSchema(TravelIntentSchema);
+const TRAVEL_INTENT_JSON_SCHEMA = z.toJSONSchema(TravelIntentSchema);
 
 // --- Intent parsing ---
 
