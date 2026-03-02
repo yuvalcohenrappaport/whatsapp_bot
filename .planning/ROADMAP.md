@@ -241,4 +241,4 @@ Plans:
 | 18. Trip Memory | v1.4 | Complete    | 2026-03-02 | 2026-03-02 |
 | 19. Itinerary Builder | v1.4 | Complete    | 2026-03-02 | 2026-03-02 |
 | 20. Enriched Search | v1.4 | 2/2 | Complete | 2026-03-02 |
-| 21. Travel Intelligence | 2/2 | Complete   | 2026-03-02 | - |
+| 21. Travel Intelligence | 2/2 | Complete    | 2026-03-02 | - |
