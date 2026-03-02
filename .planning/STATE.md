@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
-**Current focus:** v1.4 Travel Agent — Phase 19: Itinerary Builder (in progress)
+**Current focus:** v1.4 Travel Agent — Phase 20: Enriched Search (in progress)
 
 ## Current Position
 
-Phase: 19 of 21 (Itinerary Builder)
-Plan: 3 of 3 in current phase
-Status: Plan 19-03 Complete — Phase 19 Complete
-Last activity: 2026-03-02 — Plan 19-03 complete (pipeline integration: handleConfirmReject wired, createSuggestion replaces direct calendar-add, restorePendingSuggestions at startup)
+Phase: 20 of 21 (Enriched Search)
+Plan: 1 of 2 in current phase
+Status: Plan 20-01 Complete
+Last activity: 2026-03-02 — Plan 20-01 complete (Maps Grounding primary path, updated SearchResult type, queryType-based result count, travelParser Zod v4 fix)
 
-Progress: [█████░░░░░] 57% (v1.4)
+Progress: [██████░░░░] 64% (v1.4)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 41 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 9, v1.4: 6)
+- Total plans completed: 42 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 9, v1.4: 7)
 - v1.3 shipped in 1 day (9 plans, 5 phases)
 - v1.2 shipped in 1 day (4 plans, 2 phases)
 
@@ -33,10 +33,11 @@ Progress: [█████░░░░░] 57% (v1.4)
 | 19-01 | Itinerary builder foundation | 3min | 3 | 6 |
 | 19-02 | suggestionTracker module | 2min | 1 | 1 |
 | 19-03 | Pipeline integration | 2m 23s | 2 | 1 |
+| 20-01 | Maps Grounding primary path + Zod v4 fix | 3min | 2 | 2 |
 
 **Cumulative (all milestones):**
 - 4 milestones shipped
-- 17 phases complete, 41 plans complete
+- 17 phases complete, 42 plans complete
 
 ## Accumulated Context
 
@@ -70,6 +71,10 @@ Key decisions for v1.4:
 - Calendar API failure on ✅ leaves suggestion alive for retry — sends Hebrew error, does not delete (19-02)
 - handleConfirmReject runs before handleReplyToDelete in the pipeline — both run before fromMe guard so owner can confirm/reject/delete (19-03)
 - Direct createCalendarEvent path in processGroupMessages fully replaced by createSuggestion — Phase 19 suggest-then-confirm flow complete (19-03)
+- geminiMapsSearch() is primary search path — googleMaps tool returns place-aware data with ratings and addresses (20-01)
+- Silent three-tier fallback: Maps Grounding -> Google Search Grounding -> knowledge — isFallback only true when reaching knowledge (20-01)
+- Result count: 5 for hotels/activities queries, 3 for all other queryTypes (20-01)
+- z.toJSONSchema() replaces zodToJsonSchema in travelParser.ts — Zod v4 native, package was silently broken (20-01)
 
 ### Pending Todos
 
@@ -85,6 +90,6 @@ Key decisions for v1.4:
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 19-03-PLAN.md (pipeline integration: handleConfirmReject wired, createSuggestion replaces direct calendar-add, Phase 19 complete)
-Resume with: /gsd:execute-phase 20 (Phase 20: Enriched Search — plan 01)
-Resume file: .planning/phases/19-itinerary-builder/19-03-SUMMARY.md
+Stopped at: Completed 20-01-PLAN.md (Maps Grounding primary path, updated SearchResult type, queryType-based result count, travelParser Zod v4 fix)
+Resume with: /gsd:execute-phase 20 (Phase 20: Enriched Search — plan 02)
+Resume file: .planning/phases/20-enriched-search/20-01-SUMMARY.md
