@@ -20,6 +20,7 @@ import { getState } from '../api/state.js';
 import { setGroupMessageCallback } from '../pipeline/messageHandler.js';
 import { handleTravelMention } from './travelHandler.js';
 import { handleKeywordRules } from './keywordHandler.js';
+import { addToTripContextDebounce } from './tripContextManager.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
 
@@ -417,6 +418,9 @@ export function initGroupPipeline(): void {
 
         // Keyword auto-response -- runs immediately, non-terminal
         await handleKeywordRules(groupJid, msg);
+
+        // Trip context accumulation -- non-terminal (pre-filter inside)
+        addToTripContextDebounce(groupJid, msg);
 
         // Batch for calendar date extraction
         addToDebounce(groupJid, msg);
