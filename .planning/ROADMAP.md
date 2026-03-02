@@ -196,11 +196,11 @@ Plans:
   2. An @mention quick query (e.g., "coffee near the hotel") returns 3 results
   3. Results from booking.com, airbnb.com, or similar booking domains are prefixed with "Book:" in the formatted output
   4. If Maps Grounding returns no structured data, the bot falls back to Google Search grounding and still returns a result
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 20-01-PLAN.md — Swap googleSearch for googleMaps tool in travelSearch.ts; add googleSearch fallback path
-- [ ] 20-02-PLAN.md — Update travelFormatter.ts: 5/3 result counts, rating/hours/address display, "Book:" prefix labeling
+- [ ] 20-01-PLAN.md — Maps Grounding primary path, updated SearchResult type, queryType-based result count, travelParser Zod v4 fix
+- [ ] 20-02-PLAN.md — Compact one-liner formatter, booking domain 🛒 labels, wire intent.queryType in travelHandler
 
 ### Phase 21: Travel Intelligence
 **Goal**: Open trip questions surface in the weekly digest until resolved, and the bot proactively suggests activities when a new destination is confirmed — rate-limited so it never spams the group
