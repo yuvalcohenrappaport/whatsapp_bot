@@ -3,9 +3,14 @@ import { eq, and, desc } from 'drizzle-orm';
 import { db } from '../client.js';
 import { drafts } from '../schema.js';
 
-export function createDraft(contactJid: string, inReplyToMessageId: string, body: string) {
+export function createDraft(
+  contactJid: string,
+  inReplyToMessageId: string,
+  body: string,
+  isVoice = false,
+) {
   const id = randomUUID();
-  db.insert(drafts).values({ id, contactJid, inReplyToMessageId, body }).run();
+  db.insert(drafts).values({ id, contactJid, inReplyToMessageId, body, isVoice }).run();
   return id;
 }
 

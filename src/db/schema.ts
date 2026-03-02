@@ -29,7 +29,7 @@ export const contacts = sqliteTable('contacts', {
   consecutiveAutoCount: integer('consecutive_auto_count').default(0), // counter for auto-reply cap
   voiceReplyEnabled: integer('voice_reply_enabled', { mode: 'boolean' })
     .notNull()
-    .default(false),
+    .default(true),
   voiceId: text('voice_id'), // nullable — per-contact voice override
   createdAt: integer('created_at')
     .notNull()
@@ -44,6 +44,7 @@ export const drafts = sqliteTable('drafts', {
   contactJid: text('contact_jid').notNull(),
   inReplyToMessageId: text('in_reply_to_message_id').notNull(),
   body: text('body').notNull(),
+  isVoice: integer('is_voice', { mode: 'boolean' }).notNull().default(false),
   status: text('status').notNull().default('pending'), // 'pending' | 'sent' | 'rejected'
   createdAt: integer('created_at')
     .notNull()
