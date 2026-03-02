@@ -2,19 +2,17 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-28)
+See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
-**Current focus:** v1.3 Voice Responses — Phase 16 complete (1 of 1 plan complete) — v1.3 SHIPPED
+**Current focus:** v1.4 Travel Agent
 
 ## Current Position
 
-Phase: 16 of 16 (Voice Settings Management) -- COMPLETE
-Plan: 1 of 1 complete
-Status: Phase complete — v1.3 milestone complete
-Last activity: 2026-03-02 — 16-01 complete — voiceReplyEnabled wired to dashboard toggle and CLI --voice/--no-voice flags
-
-Progress: [████████████████████] 100% (v1.3 — Phase 16 complete, 5/5 phases done, v1.3 SHIPPED)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-02 — Milestone v1.4 started
 
 ## Performance Metrics
 
@@ -86,7 +84,7 @@ Decisions from 16-01:
 
 ### Pending Todos
 
-- Vacation/travel bot overhaul + bug fixes (new milestone after v1.3)
+(None — captured in v1.4 milestone scope)
 
 ### Blockers/Concerns
 
@@ -99,6 +97,6 @@ Decisions from 16-01:
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 16-01-PLAN.md — Phase 16 complete, v1.3 Voice Responses milestone shipped
-Resume with: Next milestone (Vacation/travel bot overhaul)
-Resume file: .planning/phases/16-voice-settings-management/16-01-SUMMARY.md
+Stopped at: Started v1.4 Travel Agent milestone — defining requirements
+Resume with: /gsd:new-milestone (in progress) or /gsd:plan-phase 17 (after roadmap)
+Resume file: —

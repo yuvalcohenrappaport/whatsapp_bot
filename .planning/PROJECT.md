@@ -8,24 +8,24 @@ An AI-powered WhatsApp bot that impersonates the user in private conversations a
 
 The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
 
-## Current Milestone: v1.3 Voice Responses
+## Current Milestone: v1.4 Travel Agent
 
-**Goal:** Enable the bot to receive voice messages, transcribe them, generate replies, and respond with AI-generated voice messages using a cloned voice via ElevenLabs.
+**Goal:** Transform the group bot from a reactive search tool into a persistent travel agent that monitors conversations, builds itineraries in Google Calendar, remembers trip decisions, and proactively suggests activities.
 
 **Target features:**
-- Incoming voice message transcription via ElevenLabs
-- AI text reply generation via Gemini (existing pipeline)
-- Text-to-speech with cloned Hebrew voice via ElevenLabs
-- Send voice response as WhatsApp audio message
-- Per-contact voice reply toggle (on/off)
-- Draft queue integration (follows contact's existing mode)
-- Dashboard/CLI support for voice settings
+- Audit and fix existing group features (calendar extraction, travel search, pipeline bugs)
+- Always-listening itinerary builder — detects activities in conversation, suggests adding to calendar
+- Suggest-then-confirm flow (replaces silent auto-add for trip activities)
+- Trip memory — structured decision extraction + full chat history search for context recall
+- Richer travel search results — more details (ratings, hours, reviews), more than 3 results
+- Proactive suggestions — bot notices destination and suggests activities, restaurants, logistics
+- Trip-aware weekly digest — itinerary status, unresolved decisions, upcoming activities
 
 ## Current State
 
-**Shipped:** v1.0 Foundation + v1.1 Dashboard & Groups + v1.2 Group Auto-Response
+**Shipped:** v1.0 Foundation + v1.1 Dashboard & Groups + v1.2 Group Auto-Response + v1.3 Voice Responses
 **Codebase:** ~8,700 LOC TypeScript (backend ~4,500 + dashboard ~3,300 + CLI ~880)
-**Tech stack:** Baileys v7 + Gemini 2.5 Flash + Fastify 5 + React 19 + shadcn/ui + Drizzle/SQLite + Commander.js/Ink + googleapis
+**Tech stack:** Baileys v7 + Gemini 2.5 Flash + Fastify 5 + React 19 + shadcn/ui + Drizzle/SQLite + Commander.js/Ink + googleapis + ElevenLabs
 
 ## Requirements
 
@@ -49,14 +49,20 @@ The bot replies to WhatsApp messages in the user's authentic voice, so contacts 
 - ✓ Keyword handler integrated into group pipeline (after travel, before date extraction) — v1.2
 - ✓ Dashboard UI for creating, editing, toggling, and deleting keyword rules — v1.2
 - ✓ Dashboard displays rule match count and last triggered time — v1.2
+- ✓ Voice message transcription via ElevenLabs Scribe v2 — v1.3
+- ✓ Voice response generation (TTS) with cloned Hebrew voice via ElevenLabs eleven_v3 — v1.3
+- ✓ Per-contact voice reply toggle with dashboard and CLI controls — v1.3
+- ✓ Voice replies follow existing draft queue mode with lazy TTS at approval — v1.3
 
 ### Active
 
-- [ ] Voice message transcription via ElevenLabs API
-- [ ] Voice response generation (TTS) with cloned Hebrew voice via ElevenLabs
-- [ ] Per-contact voice reply toggle
-- [ ] Voice replies follow existing draft queue mode
-- [ ] Dashboard and CLI voice settings management
+- [ ] Audit and fix existing group pipeline (calendar extraction, travel search, keyword rules)
+- [ ] Always-listening activity detection with suggest-then-confirm flow
+- [ ] Structured trip memory (decisions, preferences, budget) with DB persistence
+- [ ] Chat history search for trip context recall ("what did we decide about...?")
+- [ ] Richer travel search results (ratings, reviews, hours, more results)
+- [ ] Proactive destination-aware suggestions (activities, restaurants, logistics)
+- [ ] Trip-aware weekly digest (itinerary status, unresolved decisions, upcoming activities)
 
 ### Out of Scope
 
@@ -106,7 +112,7 @@ The bot replies to WhatsApp messages in the user's authentic voice, so contacts 
 | In-memory cooldown map | Per-rule cooldown resets on restart — acceptable for keyword rules | ✓ Good |
 | Dialog inside Sheet via Radix Portal | Avoids z-index conflicts; form renders to document.body | ✓ Good |
 
-| ElevenLabs for voice (TTS + transcription) | Single API for both directions, high-quality Hebrew voice cloning | — Pending |
+| ElevenLabs for voice (TTS + transcription) | Single API for both directions, high-quality Hebrew voice cloning | ✓ Good — eleven_v3 for TTS, Scribe v2 for STT, Hebrew quality confirmed |
 
 ---
-*Last updated: 2026-02-28 after v1.3 milestone started*
+*Last updated: 2026-03-02 after v1.4 milestone started*
