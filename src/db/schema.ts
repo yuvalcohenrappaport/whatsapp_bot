@@ -137,3 +137,35 @@ export const keywordRules = sqliteTable(
   },
   (table) => [index('idx_keyword_rules_group').on(table.groupJid)],
 );
+
+// NOTE: group_messages_fts (FTS5 virtual table) exists outside Drizzle -- see drizzle/0010_fts5_group_messages.sql. Do NOT run db:generate after migration 0010.
+export const tripContexts = sqliteTable('trip_contexts', {
+  groupJid: text('group_jid').primaryKey(),
+  destination: text('destination'),
+  dates: text('dates'),
+  contextSummary: text('context_summary'),
+  lastClassifiedAt: integer('last_classified_at'), // Unix ms
+  updatedAt: integer('updated_at')
+    .notNull()
+    .$defaultFn(() => Date.now()),
+});
+
+export const tripDecisions = sqliteTable(
+  'trip_decisions',
+  {
+    id: text('id').primaryKey(), // UUID
+    groupJid: text('group_jid').notNull(),
+    type: text('type').notNull(), // 'destination' | 'accommodation' | 'activity' | 'transport' | 'dates' | 'budget' | 'open_question'
+    value: text('value').notNull(),
+    confidence: text('confidence').notNull().default('high'), // 'high' | 'medium' | 'low'
+    sourceMessageId: text('source_message_id'),
+    resolved: integer('resolved', { mode: 'boolean' }).notNull().default(false), // For open_question type
+    createdAt: integer('created_at')
+      .notNull()
+      .$defaultFn(() => Date.now()),
+  },
+  (table) => [
+    index('idx_trip_decisions_group').on(table.groupJid),
+    index('idx_trip_decisions_type').on(table.groupJid, table.type),
+  ],
+);
