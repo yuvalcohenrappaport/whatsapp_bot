@@ -1,5 +1,4 @@
-import { z } from 'zod/v3';
-import zodToJsonSchema from 'zod-to-json-schema';
+import { z } from 'zod';
 import { config } from '../config.js';
 import pino from 'pino';
 import { generateJson } from '../ai/provider.js';
@@ -12,6 +11,9 @@ export interface ExtractedDate {
   title: string;
   date: Date;
   confidence: string;
+  location?: string;
+  description?: string;
+  url?: string;
 }
 
 // ─── Zod schema for Gemini structured output ─────────────────────────────────
@@ -34,11 +36,27 @@ const DateExtractionSchema = z.object({
         .describe(
           'How confident you are this is a real date/event mention',
         ),
+      location: z
+        .string()
+        .optional()
+        .describe(
+          'Physical location or venue if mentioned in the message (e.g., "Isrotel Hotel, Eilat")',
+        ),
+      description: z
+        .string()
+        .optional()
+        .describe('Relevant details about the event from the message'),
+      url: z
+        .string()
+        .optional()
+        .describe(
+          'URL mentioned in the message related to this event, if any',
+        ),
     }),
   ),
 });
 
-const DATE_EXTRACTION_JSON_SCHEMA = zodToJsonSchema(DateExtractionSchema);
+const DATE_EXTRACTION_JSON_SCHEMA = z.toJSONSchema(DateExtractionSchema);
 
 // ─── Pre-filter ───────────────────────────────────────────────────────────────
 
@@ -66,12 +84,12 @@ export async function extractDates(
 ): Promise<ExtractedDate[]> {
   const nowIso = new Date().toISOString();
 
-  const systemInstruction = `You extract date and event mentions from WhatsApp group messages. The messages are in Hebrew or English. When you find a date reference, generate a concise smart title (like a calendar event name, not the raw message), resolve relative dates against the current date, and assess confidence. Only mark as 'high' confidence when there is a clear, unambiguous date or time reference tied to an event or commitment. Current date: ${nowIso}. Timezone: Asia/Jerusalem.`;
+  const systemInstruction = `You extract date and event mentions from WhatsApp group messages. The messages are in Hebrew or English. When you find a date reference, generate a concise smart title (like a calendar event name, not the raw message), resolve relative dates against the current date, and assess confidence. Only mark as 'high' confidence when there is a clear, unambiguous date or time reference tied to an event or commitment. If the message mentions a physical location, venue, or URL related to the event, include them in the extraction. Current date: ${nowIso}. Timezone: Asia/Jerusalem.`;
 
   const userContent = text;
 
   try {
-    const raw = await generateJson<{ dates: { title: string; date: string; confidence: string }[] }>({
+    const raw = await generateJson<{ dates: { title: string; date: string; confidence: string; location?: string; description?: string; url?: string }[] }>({
       systemPrompt: systemInstruction,
       userContent,
       jsonSchema: DATE_EXTRACTION_JSON_SCHEMA as Record<string, unknown>,
@@ -101,6 +119,9 @@ export async function extractDates(
       title: d.title,
       date: new Date(d.date),
       confidence: d.confidence,
+      location: d.location,
+      description: d.description,
+      url: d.url,
       _raw: d.date,
     }));
 
@@ -112,7 +133,14 @@ export async function extractDates(
       return true;
     });
 
-    return valid.map(({ title, date, confidence }) => ({ title, date, confidence }));
+    return valid.map(({ title, date, confidence, location, description, url }) => ({
+      title,
+      date,
+      confidence,
+      location,
+      description,
+      url,
+    }));
   } catch (err) {
     logger.error(
       { err, senderName, groupName },
