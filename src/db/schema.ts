@@ -169,3 +169,30 @@ export const tripDecisions = sqliteTable(
     index('idx_trip_decisions_type').on(table.groupJid, table.type),
   ],
 );
+
+export const pendingSuggestions = sqliteTable(
+  'pending_suggestions',
+  {
+    id: text('id').primaryKey(),
+    groupJid: text('group_jid').notNull(),
+    suggestionMsgId: text('suggestion_msg_id').notNull(),
+    title: text('title').notNull(),
+    eventDate: integer('event_date').notNull(), // Unix ms
+    location: text('location'),
+    description: text('description'),
+    url: text('url'),
+    calendarId: text('calendar_id').notNull(),
+    calendarLink: text('calendar_link').notNull(),
+    sourceMessageId: text('source_message_id').notNull(),
+    senderName: text('sender_name'),
+    expiresAt: integer('expires_at').notNull(), // Unix ms
+    createdAt: integer('created_at')
+      .notNull()
+      .$defaultFn(() => Date.now()),
+  },
+  (table) => [
+    index('idx_pending_suggestions_msg_id').on(table.suggestionMsgId),
+    index('idx_pending_suggestions_group').on(table.groupJid),
+    index('idx_pending_suggestions_expiry').on(table.expiresAt),
+  ],
+);
