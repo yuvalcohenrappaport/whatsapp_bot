@@ -152,7 +152,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 17-01-PLAN.md — Audit travel search: URL validity, reply chain, error handling
+- [x] 17-01-PLAN.md — Audit travel search: URL validity, reply chain, error handling (completed 2026-03-02)
 - [ ] 17-02-PLAN.md — Audit calendar extraction: date parsing, event creation, reply-to-delete
 
 ### Phase 18: Trip Memory
@@ -237,7 +237,7 @@ Plans:
 | 14. Core Voice Pipeline | v1.3 | 2/2 | Complete | 2026-03-01 |
 | 15. Draft Queue Voice Integration | v1.3 | 1/1 | Complete | 2026-03-02 |
 | 16. Voice Settings Management | v1.3 | 1/1 | Complete | 2026-03-02 |
-| 17. Pipeline Audit | v1.4 | 0/2 | Not started | - |
+| 17. Pipeline Audit | v1.4 | 1/2 | In progress | - |
 | 18. Trip Memory | v1.4 | 0/3 | Not started | - |
 | 19. Itinerary Builder | v1.4 | 0/3 | Not started | - |
 | 20. Enriched Search | v1.4 | 0/2 | Not started | - |
