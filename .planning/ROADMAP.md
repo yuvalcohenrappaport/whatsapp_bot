@@ -142,4 +142,4 @@ Plans:
 | 13. Voice Service Modules | v1.3 | 2/2 | Complete | 2026-03-01 |
 | 14. Core Voice Pipeline | v1.3 | 2/2 | Complete | 2026-03-01 |
 | 15. Draft Queue Voice Integration | v1.3 | 1/1 | Complete | 2026-03-02 |
-| 16. Voice Settings Management | v1.3 | 1/1 | Complete | 2026-03-02 |
+| 16. Voice Settings Management | v1.3 | Complete    | 2026-03-02 | 2026-03-02 |
