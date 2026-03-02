@@ -105,10 +105,10 @@ Plans:
   2. The owner's approval notification message includes the voice message transcript so the reply can be reviewed in context
   3. Approving a voice draft with `✅` triggers TTS synthesis at that moment and sends the PTT voice note
   4. Rejecting a voice draft with `❌` discards it with no cleanup required (no audio file was ever created)
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 15-01: TBD
+- [ ] 15-01-PLAN.md — Add isVoice column to drafts, wire transcript notification, and lazy TTS at approval
 
 ### Phase 16: Voice Settings Management
 **Goal**: User can enable or disable voice replies per contact via the dashboard and CLI without SSH access to the server
@@ -141,5 +141,5 @@ Plans:
 | 12. Voice Infrastructure | v1.3 | 3/3 | Complete | 2026-03-01 |
 | 13. Voice Service Modules | v1.3 | 2/2 | Complete | 2026-03-01 |
 | 14. Core Voice Pipeline | v1.3 | 2/2 | Complete | 2026-03-01 |
-| 15. Draft Queue Voice Integration | v1.3 | 0/? | Not started | - |
+| 15. Draft Queue Voice Integration | v1.3 | 0/1 | Not started | - |
 | 16. Voice Settings Management | v1.3 | 0/? | Not started | - |
