@@ -52,7 +52,7 @@
 
 **Milestone Goal:** Transform the group bot from a reactive search tool into a persistent travel agent that monitors conversations, builds itineraries in Google Calendar, remembers trip decisions, and proactively suggests activities.
 
-- [ ] **Phase 17: Pipeline Audit** - Verify and fix existing group features (travel search, calendar extraction) before extending them
+- [x] **Phase 17: Pipeline Audit** - Verify and fix existing group features (travel search, calendar extraction) before extending them (completed 2026-03-02)
 - [ ] **Phase 18: Trip Memory** - Structured trip decision storage, always-listening context accumulation, and conversation recall
 - [ ] **Phase 19: Itinerary Builder** - Suggest-then-confirm flow for calendar adds, enriched event details
 - [ ] **Phase 20: Enriched Search** - Maps Grounding upgrade for ratings/hours/addresses, more results, booking labels
@@ -164,7 +164,7 @@ Plans:
   2. A user sends "@bot what did we decide about the hotel?" and the bot replies with the stored decision (or closest match from chat history) without a live travel search
   3. Messages containing open questions or unresolved commitments ("does anyone know if the place is kosher?") result in a tracked open item in the DB
   4. The always-listening context accumulator does not call Gemini for messages that contain no travel signals (pre-filter working)
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
 - [ ] 18-01-PLAN.md — DB schema: tripContexts and tripDecisions tables, searchGroupMessages FTS query
