@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-02)
 ## Current Position
 
 Phase: 18 of 21 (Trip Memory)
-Plan: 2 of 3 in current phase
-Status: In Progress
-Last activity: 2026-03-02 — Plan 18-02 complete (trip context accumulator with pre-filter, debounce, and Gemini classifier)
+Plan: 3 of 3 in current phase
+Status: Phase Complete
+Last activity: 2026-03-02 — Plan 18-03 complete (history_search queryType and conversation recall via handleHistorySearch)
 
-Progress: [███░░░░░░░] 30% (v1.4)
+Progress: [████░░░░░░] 40% (v1.4)
 
 ## Performance Metrics
 
@@ -29,6 +29,7 @@ Progress: [███░░░░░░░] 30% (v1.4)
 | 17-02 | Calendar extraction audit | 4min | 3 | 3 |
 | 18-01 | Trip memory DB schema and FTS5 | 2min | 2 | 5 |
 | 18-02 | Trip context accumulator | 3min | 2 | 2 |
+| 18-03 | History search recall handler | 1min | 2 | 2 |
 
 **Cumulative (all milestones):**
 - 4 milestones shipped
@@ -57,6 +58,8 @@ Key decisions for v1.4:
 - Pre-filter (hasTravelSignal) executes before debounce buffer add — non-travel messages never allocate buffer state (18-02)
 - Low-confidence classifier decisions are dropped at persistence time; only high/medium inserted to tripDecisions (18-02)
 - Trip debounce buffer is a module-level Map in tripContextManager.ts, completely isolated from calendar debounce in groupMessagePipeline.ts (18-02)
+- history_search dispatch placed after vague check, before web search block — recall questions skip searchTravel entirely (18-03)
+- handleHistorySearch uses generateText (not generateJson) since the output is conversational, not structured data (18-03)
 
 ### Pending Todos
 
@@ -72,6 +75,6 @@ Key decisions for v1.4:
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 18-02-PLAN.md (trip context accumulator with pre-filter, debounce, and Gemini classifier)
-Resume with: /gsd:execute-phase 18 (Phase 18: Trip Memory — plan 03)
-Resume file: .planning/phases/18-trip-memory/18-02-SUMMARY.md
+Stopped at: Completed 18-03-PLAN.md (history_search queryType and conversation recall via handleHistorySearch)
+Resume with: /gsd:execute-phase 19 (Phase 19: Itinerary Builder — plan 01)
+Resume file: .planning/phases/18-trip-memory/18-03-SUMMARY.md

@@ -86,7 +86,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUDIT-01 | Phase 17 | Complete |
 | AUDIT-02 | Phase 17 | Complete |
 | MEM-01 | Phase 18 | Complete (DB layer, 18-01) |
-| MEM-02 | Phase 18 | Complete (DB layer, 18-01) |
+| MEM-02 | Phase 18 | Complete (history_search handler, 18-03) |
 | MEM-03 | Phase 18 | Complete (classifier + open_question, 18-02) |
 | MEM-04 | Phase 21 | Pending |
 | ITIN-01 | Phase 19 | Pending |
@@ -106,4 +106,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-02*
-*Last updated: 2026-03-02 after Phase 18-02 — MEM-01/MEM-02 DB layer complete; MEM-03 classifier + open_question tracking complete*
+*Last updated: 2026-03-02 after Phase 18-03 — MEM-01/MEM-02/MEM-03 all complete; Phase 18 (Trip Memory) fully shipped*

@@ -53,7 +53,7 @@
 **Milestone Goal:** Transform the group bot from a reactive search tool into a persistent travel agent that monitors conversations, builds itineraries in Google Calendar, remembers trip decisions, and proactively suggests activities.
 
 - [x] **Phase 17: Pipeline Audit** - Verify and fix existing group features (travel search, calendar extraction) before extending them (completed 2026-03-02)
-- [ ] **Phase 18: Trip Memory** - Structured trip decision storage, always-listening context accumulation, and conversation recall
+- [x] **Phase 18: Trip Memory** - Structured trip decision storage, always-listening context accumulation, and conversation recall (completed 2026-03-02)
 - [ ] **Phase 19: Itinerary Builder** - Suggest-then-confirm flow for calendar adds, enriched event details
 - [ ] **Phase 20: Enriched Search** - Maps Grounding upgrade for ratings/hours/addresses, more results, booking labels
 - [ ] **Phase 21: Travel Intelligence** - Open item tracking in digest, proactive destination-aware suggestions
@@ -169,7 +169,7 @@ Plans:
 Plans:
 - [x] 18-01-PLAN.md — DB schema: tripContexts and tripDecisions tables, searchGroupMessages FTS query (completed 2026-03-02)
 - [x] 18-02-PLAN.md — tripContextManager.ts: debounce buffer, Gemini classifier, DB upsert at pipeline step [3.5] (completed 2026-03-02)
-- [ ] 18-03-PLAN.md — Conversation recall: history_search queryType in travelParser + travelHandler dispatch
+- [x] 18-03-PLAN.md — Conversation recall: history_search queryType in travelParser + travelHandler dispatch (completed 2026-03-02)
 
 ### Phase 19: Itinerary Builder
 **Goal**: The bot suggests calendar additions for detected activities before adding them, enriches calendar events with location and links, and routes group member replies to confirm or reject each suggestion
@@ -238,7 +238,7 @@ Plans:
 | 15. Draft Queue Voice Integration | v1.3 | 1/1 | Complete | 2026-03-02 |
 | 16. Voice Settings Management | v1.3 | 1/1 | Complete | 2026-03-02 |
 | 17. Pipeline Audit | v1.4 | 2/2 | Complete | 2026-03-02 |
-| 18. Trip Memory | v1.4 | 2/3 | In Progress | - |
+| 18. Trip Memory | v1.4 | 3/3 | Complete | 2026-03-02 |
 | 19. Itinerary Builder | v1.4 | 0/3 | Not started | - |
 | 20. Enriched Search | v1.4 | 0/2 | Not started | - |
 | 21. Travel Intelligence | v1.4 | 0/2 | Not started | - |
