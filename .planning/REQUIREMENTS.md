@@ -33,9 +33,9 @@ Requirements for Travel Agent milestone. Each maps to roadmap phases.
 
 ### Intelligence
 
-- [ ] **INTL-01**: Bot proactively suggests activities/tips when a destination is confirmed (rate-limited, max once per destination)
+- [x] **INTL-01**: Bot proactively suggests activities/tips when a destination is confirmed (rate-limited, max once per destination)
 - [x] **INTL-02**: Weekly digest includes trip status section: confirmed decisions, open questions, upcoming activities
-- [ ] **INTL-03**: Proactive suggestions are relevant and not spammy (cooldown, only on new confirmations)
+- [x] **INTL-03**: Proactive suggestions are relevant and not spammy (cooldown, only on new confirmations)
 
 ## v1.5 Requirements
 
@@ -95,9 +95,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SRCH-01 | Phase 20 | Complete (Maps Grounding primary path, 20-01) |
 | SRCH-02 | Phase 20 | Complete (queryType-based resultCount, 20-01) |
 | SRCH-03 | Phase 20 | Complete (booking domain labels + compact formatter, 20-02) |
-| INTL-01 | Phase 21 | Pending |
+| INTL-01 | Phase 21 | Complete |
 | INTL-02 | Phase 21 | Complete (Hebrew trip status in weekly digest, 21-01) |
-| INTL-03 | Phase 21 | Pending |
+| INTL-03 | Phase 21 | Complete |
 
 **Coverage:**
 - v1.4 requirements: 15 total

@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
-**Current focus:** v1.4 Travel Agent — Phase 21: Travel Intelligence (plan 01 complete)
+**Current focus:** v1.4 Travel Agent — Phase 21: Travel Intelligence (COMPLETE)
 
 ## Current Position
 
-Phase: 21 of 21 (Travel Intelligence — in progress)
-Plan: 1 of 2 in current phase
-Status: Plan 21-01 Complete
-Last activity: 2026-03-02 — Plan 21-01 complete (open item lifecycle: Hebrew trip status digest section, auto-resolution via classifier)
+Phase: 21 of 21 (Travel Intelligence — COMPLETE)
+Plan: 2 of 2 in current phase
+Status: Phase 21 Complete — v1.4 Travel Agent milestone complete
+Last activity: 2026-03-02 — Plan 21-02 complete (proactive destination trigger with rate-limited Gemini activity suggestions)
 
-Progress: [█████████░] 90% (v1.4)
+Progress: [██████████] 100% (v1.4)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 44 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 9, v1.4: 9)
+- Total plans completed: 45 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 9, v1.4: 10)
 - v1.3 shipped in 1 day (9 plans, 5 phases)
 - v1.2 shipped in 1 day (4 plans, 2 phases)
 
@@ -36,10 +36,11 @@ Progress: [█████████░] 90% (v1.4)
 | 20-01 | Maps Grounding primary path + Zod v4 fix | 3min | 2 | 2 |
 | 20-02 | Compact formatter + queryType wiring | 2min | 2 | 2 |
 | 21-01 | Open item lifecycle (digest + resolution) | 3min | 2 | 2 |
+| 21-02 | Proactive destination trigger | 2min | 2 | 1 |
 
 **Cumulative (all milestones):**
-- 4 milestones shipped
-- 18 phases complete, 44 plans complete
+- 4 milestones shipped (v1.4 complete)
+- 21 phases complete, 45 plans complete
 
 ## Accumulated Context
 
@@ -85,6 +86,11 @@ Key decisions for v1.4:
 - Hebrew age labels always Hebrew regardless of group language — per locked project decision (21-01)
 - Fuzzy resolution matching uses 30-char lowercase prefix slice — tolerates LLM paraphrasing while preventing false positives (21-01)
 - Zero new packages confirmed for Phases 17-21 (21-01)
+- recordProactiveSent called before setTimeout to prevent double-scheduling from concurrent debounce flushes (21-02)
+- isNewDestination compares against existingContext fetched before upsert — detects genuinely new destinations (21-02)
+- Hebrew system prompt with transparency framing: bot acknowledges it saw the destination choice (21-02)
+- 5-15 minute random delay for natural-feeling proactive suggestions (21-02)
+- All proactive state in-memory only — no new tables, no new migrations (21-02)
 
 ### Pending Todos
 
@@ -100,6 +106,6 @@ Key decisions for v1.4:
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 21-01-PLAN.md (open item lifecycle: Hebrew trip status digest section, auto-resolution via classifier)
-Resume with: /gsd:execute-phase 21 (Phase 21: Travel Intelligence — plan 02)
-Resume file: .planning/phases/21-travel-intelligence/21-01-SUMMARY.md
+Stopped at: Completed 21-02-PLAN.md (proactive destination trigger with rate-limited Gemini activity suggestions) — Phase 21 complete, v1.4 milestone complete
+Resume with: Next milestone planning (v1.5 or production hardening)
+Resume file: .planning/phases/21-travel-intelligence/21-02-SUMMARY.md

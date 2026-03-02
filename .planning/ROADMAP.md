@@ -56,7 +56,7 @@
 - [x] **Phase 18: Trip Memory** - Structured trip decision storage, always-listening context accumulation, and conversation recall (completed 2026-03-02)
 - [x] **Phase 19: Itinerary Builder** - Suggest-then-confirm flow for calendar adds, enriched event details (completed 2026-03-02)
 - [ ] **Phase 20: Enriched Search** - Maps Grounding upgrade for ratings/hours/addresses, more results, booking labels
-- [ ] **Phase 21: Travel Intelligence** - Open item tracking in digest, proactive destination-aware suggestions
+- [x] **Phase 21: Travel Intelligence** - Open item tracking in digest, proactive destination-aware suggestions (completed 2026-03-02)
 
 ## Phase Details
 
@@ -241,4 +241,4 @@ Plans:
 | 18. Trip Memory | v1.4 | Complete    | 2026-03-02 | 2026-03-02 |
 | 19. Itinerary Builder | v1.4 | Complete    | 2026-03-02 | 2026-03-02 |
 | 20. Enriched Search | v1.4 | 2/2 | Complete | 2026-03-02 |
-| 21. Travel Intelligence | v1.4 | 1/2 | In progress | - |
+| 21. Travel Intelligence | 2/2 | Complete   | 2026-03-02 | - |
