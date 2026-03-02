@@ -49,3 +49,36 @@
 
 ---
 
+
+## v1.3 Voice Responses (Shipped: 2026-03-02)
+
+**Phases completed:** 5 phases (12-16), 9 plans
+**Timeline:** 1 day (2026-03-01 to 2026-03-02)
+**LOC:** ~9,200 TypeScript (+~500 from v1.2)
+
+**Key accomplishments:**
+- ElevenLabs voice infrastructure with API validation, voice clone, and ffmpeg-static binary
+- Transcription (STT) via ElevenLabs Scribe v2 and TTS via eleven_v3 with cloned Hebrew voice
+- Full voice pipeline: voice message → transcribe → Gemini reply → TTS → PTT voice note send
+- Draft queue voice integration with lazy TTS at approval (no audio generated until ✅)
+- Per-contact voice toggle via dashboard and CLI, hot-reloaded without restart
+
+---
+
+## v1.4 Travel Agent (Shipped: 2026-03-02)
+
+**Phases completed:** 5 phases (17-21), 12 plans
+**Timeline:** 1 day (2026-03-02)
+**LOC:** ~6,500 TypeScript (src/) — +6,583 / -201 lines changed
+**Commits:** 51
+
+**Key accomplishments:**
+- Pipeline audit and bugfix — grounding URL extraction, reply chain framing, fromMe guard reorder, NaN date filter
+- Trip memory system — always-listening context accumulator with pre-filter, debounce, Gemini classifier, and structured decision persistence
+- Suggest-then-confirm itinerary — calendar additions propose before adding, with reply-based confirm/reject lifecycle and 30-min TTL
+- Enriched travel search — Maps Grounding with ratings/reviews/addresses, compact formatter, booking domain labels, queryType-based result counts
+- Travel intelligence — open item tracking in weekly digest with auto-resolution, proactive destination-aware suggestions with rate limiting
+- History recall — "@bot what did we decide?" queries answered from stored decisions + FTS5 chat history search
+
+---
+

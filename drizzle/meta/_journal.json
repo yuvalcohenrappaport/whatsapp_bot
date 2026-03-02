@@ -78,6 +78,13 @@
       "when": 1772467665387,
       "tag": "0010_fts5_group_messages",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1772471593000,
+      "tag": "0011_pending_suggestions",
+      "breakpoints": true
     }
   ]
 }
