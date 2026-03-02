@@ -1,17 +1,13 @@
-import crypto from 'node:crypto';
 import pino from 'pino';
 import { config } from '../config.js';
 import { getGroup, updateGroup } from '../db/queries/groups.js';
 import { getGroupMessagesSince } from '../db/queries/groupMessages.js';
 import {
-  insertCalendarEvent,
-  updateCalendarEventConfirmation,
   getCalendarEventByConfirmationMsgId,
   deleteCalendarEvent as deleteCalendarEventRecord,
 } from '../db/queries/calendarEvents.js';
 import { hasNumberPreFilter, extractDates } from './dateExtractor.js';
 import {
-  createCalendarEvent,
   createGroupCalendar,
   shareCalendar,
   deleteCalendarEvent as deleteCalendarEventApi,
@@ -233,72 +229,21 @@ async function processGroupMessages(
         continue;
       }
 
-      // Create a calendar event for each extracted date
+      // Send a suggestion for each extracted date (suggest-then-confirm replaces silent-add)
       for (const extracted of extractedDates) {
         try {
-          const description = `${msg.body}\n\nSent by: ${msg.senderName ?? msg.senderJid}\nGroup: ${group.name ?? groupJid}`;
-
-          const calendarEventId = await createCalendarEvent({
-            calendarId,
-            title: extracted.title,
-            date: extracted.date,
-            description,
-          });
-
-          if (!calendarEventId) {
-            logger.warn(
-              { title: extracted.title },
-              'Failed to create calendar event — skipping',
-            );
-            continue;
-          }
-
-          // Save event record to DB
-          const eventRecordId = crypto.randomUUID();
-          insertCalendarEvent({
-            id: eventRecordId,
+          await createSuggestion(
             groupJid,
-            messageId: msg.id,
+            extracted,
             calendarId,
-            calendarEventId,
-            title: extracted.title,
-            eventDate: extracted.date.getTime(),
-          });
-
-          logger.info(
-            { eventRecordId, title: extracted.title, groupJid },
-            'Calendar event created and saved',
-          );
-
-          // Send confirmation in group
-          const { sock } = getState();
-          if (!sock) {
-            logger.warn({ groupJid }, 'sock is null — cannot send group confirmation');
-            continue;
-          }
-
-          const lang = await detectGroupLanguage(groupJid);
-          const confirmationText = buildConfirmationText(
-            lang,
-            extracted.title,
-            extracted.date,
             calendarLink,
+            msg.id,
+            msg.senderName,
           );
-
-          const sent = await sock.sendMessage(groupJid, { text: confirmationText });
-          const sentMsgId = sent?.key?.id ?? null;
-
-          if (sentMsgId) {
-            updateCalendarEventConfirmation(eventRecordId, sentMsgId);
-            logger.debug(
-              { sentMsgId, eventRecordId },
-              'Confirmation message sent and linked to event record',
-            );
-          }
-        } catch (eventErr) {
+        } catch (suggestionErr) {
           logger.error(
-            { err: eventErr, title: extracted.title },
-            'Error creating calendar event for extracted date',
+            { err: suggestionErr, title: extracted.title },
+            'Error creating suggestion for extracted date',
           );
         }
       }
