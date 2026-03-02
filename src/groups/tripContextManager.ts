@@ -8,6 +8,8 @@ import {
   upsertTripContext,
   insertTripDecision,
   getDecisionsByGroup,
+  getUnresolvedOpenItems,
+  resolveOpenItem,
 } from '../db/queries/tripMemory.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
@@ -132,6 +134,11 @@ const TripClassifierSchema = z.object({
       }),
     )
     .describe('Open questions or unresolved items'),
+  resolvedQuestions: z
+    .array(z.string())
+    .describe(
+      'Exact text of previously tracked open questions that appear to be answered in these messages',
+    ),
   contextSummary: z
     .string()
     .nullable()
@@ -150,6 +157,7 @@ type ClassifierOutput = z.infer<typeof TripClassifierSchema>;
 function buildClassifierPrompt(
   existingContext: ReturnType<typeof getTripContext>,
   existingDecisions: ReturnType<typeof getDecisionsByGroup>,
+  existingOpenItems: ReturnType<typeof getUnresolvedOpenItems>,
 ): string {
   const contextStr = existingContext?.contextSummary ?? 'None yet';
 
@@ -160,12 +168,18 @@ function buildClassifierPrompt(
           .join('\n')
       : 'None yet';
 
+  const openQuestionsStr =
+    existingOpenItems.length > 0
+      ? existingOpenItems.map((item) => `- ${item.value}`).join('\n')
+      : 'None';
+
   return `You are analyzing WhatsApp group messages for a trip planning assistant. The messages may be in Hebrew, English, or a mix of both.
 
 Your task is to extract:
 1. **Trip decisions**: Confirmed choices about destination, accommodation, activities, transport, dates, or budget. Only mark something as a decision if the group has clearly agreed or confirmed it (not just suggesting or asking). Hebrew decisions may use phrases like "סגרנו", "החלטנו", "הזמנו", "נסגר".
 2. **Open questions**: Unanswered questions or unresolved commitments about the trip. Include both explicit questions and implied "we need to figure out X" items.
 3. **Context summary**: A brief updated summary of the current trip planning state.
+4. **Resolved questions**: List the EXACT text of any open questions from the "Open questions currently tracked" below that appear to be answered in these messages.
 
 Confidence levels:
 - "high": Explicit agreement or confirmation in the messages
@@ -178,7 +192,10 @@ Existing trip context:
 ${contextStr}
 
 Existing decisions:
-${decisionsStr}`;
+${decisionsStr}
+
+Open questions currently tracked:
+${openQuestionsStr}`;
 }
 
 // ─── Section 5: processTripContext ────────────────────────────────────────────
@@ -193,9 +210,10 @@ async function processTripContext(
   messages: GroupMsg[],
 ): Promise<void> {
   try {
-    // 1. Load existing context and decisions for deduplication
+    // 1. Load existing context, decisions, and open items for deduplication
     const existingContext = getTripContext(groupJid);
     const existingDecisions = getDecisionsByGroup(groupJid);
+    const existingOpenItems = getUnresolvedOpenItems(groupJid);
 
     // 2. Format messages for classifier
     const messagesText = messages
@@ -203,7 +221,7 @@ async function processTripContext(
       .join('\n');
 
     // 3. Format existing decisions for the prompt
-    const systemPrompt = buildClassifierPrompt(existingContext, existingDecisions);
+    const systemPrompt = buildClassifierPrompt(existingContext, existingDecisions, existingOpenItems);
 
     // 4. Call Gemini classifier
     const result = await generateJson<ClassifierOutput>({
@@ -264,8 +282,23 @@ async function processTripContext(
       openItemsInserted++;
     }
 
+    // 8. Auto-resolve open questions
+    let resolvedCount = 0;
+    if (result.resolvedQuestions && result.resolvedQuestions.length > 0) {
+      for (const resolvedText of result.resolvedQuestions) {
+        const match = existingOpenItems.find((item) =>
+          item.value.toLowerCase().includes(resolvedText.toLowerCase().slice(0, 30)),
+        );
+        if (match) {
+          resolveOpenItem(match.id);
+          resolvedCount++;
+          logger.info({ groupJid, question: resolvedText }, 'Open question auto-resolved');
+        }
+      }
+    }
+
     logger.info(
-      { groupJid, decisionsInserted, openItemsInserted },
+      { groupJid, decisionsInserted, openItemsInserted, resolvedCount },
       'Trip context classified and persisted',
     );
   } catch (err) {
