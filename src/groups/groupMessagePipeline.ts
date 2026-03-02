@@ -21,6 +21,7 @@ import { setGroupMessageCallback } from '../pipeline/messageHandler.js';
 import { handleTravelMention } from './travelHandler.js';
 import { handleKeywordRules } from './keywordHandler.js';
 import { addToTripContextDebounce } from './tripContextManager.js';
+import { createSuggestion, handleConfirmReject, restorePendingSuggestions } from './suggestionTracker.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
 
@@ -408,12 +409,15 @@ export function initGroupPipeline(): void {
         const wasTravel = await handleTravelMention(groupJid, msg, quotedMessageId, mentionedJids);
         if (wasTravel) return;
 
+        // Confirm/reject suggestion -- runs immediately, terminal (before fromMe guard so owner can confirm/reject)
+        const wasConfirmReject = await handleConfirmReject(groupJid, msg, quotedMessageId);
+        if (wasConfirmReject) return;
+
         // Reply-to-delete -- runs immediately, terminal (before fromMe guard so owner can delete events)
         const wasDelete = await handleReplyToDelete(groupJid, msg, quotedMessageId);
         if (wasDelete) return;
 
         // Skip keyword rules and date extraction for own messages (bot confirmations etc.)
-        // Reply-to-delete already handled above.
         if (msg.fromMe) return;
 
         // Keyword auto-response -- runs immediately, non-terminal
@@ -432,6 +436,8 @@ export function initGroupPipeline(): void {
       }
     },
   );
+
+  restorePendingSuggestions();
 
   logger.info('Group message pipeline initialized');
 }
