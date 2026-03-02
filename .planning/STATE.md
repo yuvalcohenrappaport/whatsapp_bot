@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
-**Current focus:** v1.3 Voice Responses — Phase 15 in progress (1 of 1 plan complete)
+**Current focus:** v1.3 Voice Responses — Phase 16 complete (1 of 1 plan complete) — v1.3 SHIPPED
 
 ## Current Position
 
-Phase: 15 of 16 (Draft Queue Voice Integration) -- COMPLETE
+Phase: 16 of 16 (Voice Settings Management) -- COMPLETE
 Plan: 1 of 1 complete
-Status: Phase complete
-Last activity: 2026-03-02 — 15-01 complete — isVoice column, transcript notification, lazy TTS approval
+Status: Phase complete — v1.3 milestone complete
+Last activity: 2026-03-02 — 16-01 complete — voiceReplyEnabled wired to dashboard toggle and CLI --voice/--no-voice flags
 
-Progress: [████████░░░░░░░░░░░░] 44% (v1.3 — Phase 15 complete, 4/5 phases done)
+Progress: [████████████████████] 100% (v1.3 — Phase 16 complete, 5/5 phases done, v1.3 SHIPPED)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 34 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 8)
+- Total plans completed: 35 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 9)
 - v1.2 shipped in 1 day (4 plans, 11 commits)
 
 **Cumulative:**
@@ -79,6 +79,11 @@ Decisions from 15-01:
 - Lazy TTS at approval — textToSpeech called in handleOwnerCommand only when draft.isVoice is true, no audio pre-generation
 - No try/catch around TTS in approval branch — failure propagates and skips Sent confirmation (same as text send failures)
 
+Decisions from 16-01:
+- No new query functions or imports needed in API or CLI — inline drizzle update pattern handles voiceReplyEnabled identically to other fields
+- Switch uses immediate-save-on-change matching mode selector pattern — consistent UX, no save button
+- Commander.js --no-* natively handles opts.voice = false for --no-voice, undefined when neither flag is used — safe conditional update
+
 ### Pending Todos
 
 - Vacation/travel bot overhaul + bug fixes (new milestone after v1.3)
@@ -94,6 +99,6 @@ Decisions from 15-01:
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 15-01-PLAN.md — Phase 15 complete, draft queue voice integration wired
-Resume with: Plan Phase 16 (Polish/final phase)
-Resume file: .planning/phases/15-draft-queue-voice-integration/15-01-SUMMARY.md
+Stopped at: Completed 16-01-PLAN.md — Phase 16 complete, v1.3 Voice Responses milestone shipped
+Resume with: Next milestone (Vacation/travel bot overhaul)
+Resume file: .planning/phases/16-voice-settings-management/16-01-SUMMARY.md

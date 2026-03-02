@@ -17,7 +17,7 @@ Requirements for voice response milestone. Each maps to roadmap phases.
 
 ### Contact Configuration
 
-- [ ] **CONF-01**: User can enable/disable voice replies per contact
+- [x] **CONF-01**: User can enable/disable voice replies per contact
 - [x] **CONF-02**: Contacts with voice disabled still get text replies to voice messages (transcribe → text reply)
 
 ### Draft Integration
@@ -28,8 +28,8 @@ Requirements for voice response milestone. Each maps to roadmap phases.
 
 ### Management
 
-- [ ] **MGMT-01**: User can toggle voice reply setting per contact in dashboard
-- [ ] **MGMT-02**: User can toggle voice reply setting per contact in CLI
+- [x] **MGMT-01**: User can toggle voice reply setting per contact in dashboard
+- [x] **MGMT-02**: User can toggle voice reply setting per contact in CLI
 
 ## Future Requirements
 
@@ -60,13 +60,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | VOICE-03 | Phase 14 | Complete |
 | VOICE-04 | Phase 13 | Complete |
 | VOICE-05 | Phase 14 | Complete |
-| CONF-01 | Phase 16 | Pending |
+| CONF-01 | Phase 16 | Complete |
 | CONF-02 | Phase 14 | Complete |
 | DRAFT-01 | Phase 15 | Complete |
 | DRAFT-02 | Phase 15 | Complete |
 | DRAFT-03 | Phase 15 | Complete |
-| MGMT-01 | Phase 16 | Pending |
-| MGMT-02 | Phase 16 | Pending |
+| MGMT-01 | Phase 16 | Complete |
+| MGMT-02 | Phase 16 | Complete |
 
 **Coverage:**
 - v1.3 requirements: 12 total

@@ -5,7 +5,7 @@
 - [x] **v1.0 Foundation** — Phases 1-3 (shipped 2026-02-22) — [archive](milestones/v1.1-ROADMAP.md)
 - [x] **v1.1 Dashboard & Groups** — Phases 6-9 (shipped 2026-02-24) — [archive](milestones/v1.1-ROADMAP.md)
 - [x] **v1.2 Group Auto-Response** — Phases 10-11 (shipped 2026-02-25) — [archive](milestones/v1.2-ROADMAP.md)
-- 🚧 **v1.3 Voice Responses** — Phases 12-16 (in progress)
+- [x] **v1.3 Voice Responses** — Phases 12-16 (shipped 2026-03-02)
 
 ## Phases
 
@@ -36,7 +36,7 @@
 
 </details>
 
-### 🚧 v1.3 Voice Responses (Phases 12-16)
+### v1.3 Voice Responses (Phases 12-16) — SHIPPED 2026-03-02
 
 **Milestone Goal:** Enable the bot to receive voice messages, transcribe them, generate replies, and respond with AI-generated voice messages using a cloned Hebrew voice via ElevenLabs.
 
@@ -44,7 +44,7 @@
 - [x] **Phase 13: Voice Service Modules** - Build transcriber and TTS pure-function modules with isolated ElevenLabs API testing
 - [x] **Phase 14: Core Voice Pipeline** - Wire voice path into messageHandler — receive, transcribe, reply, send PTT voice note
 - [x] **Phase 15: Draft Queue Voice Integration** - Voice replies follow draft mode with lazy TTS and transcript preview
-- [ ] **Phase 16: Voice Settings Management** - Dashboard and CLI controls for per-contact voice reply toggle
+- [x] **Phase 16: Voice Settings Management** - Dashboard and CLI controls for per-contact voice reply toggle
 
 ## Phase Details
 
@@ -121,7 +121,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 16-01-PLAN.md — Wire voiceReplyEnabled to API route, dashboard toggle, and CLI flag
+- [x] 16-01-PLAN.md — Wire voiceReplyEnabled to API route, dashboard toggle, and CLI flag (completed 2026-03-02)
 
 ## Progress
 
@@ -142,4 +142,4 @@ Plans:
 | 13. Voice Service Modules | v1.3 | 2/2 | Complete | 2026-03-01 |
 | 14. Core Voice Pipeline | v1.3 | 2/2 | Complete | 2026-03-01 |
 | 15. Draft Queue Voice Integration | v1.3 | 1/1 | Complete | 2026-03-02 |
-| 16. Voice Settings Management | v1.3 | 0/1 | Not started | - |
+| 16. Voice Settings Management | v1.3 | 1/1 | Complete | 2026-03-02 |
