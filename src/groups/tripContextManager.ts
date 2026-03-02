@@ -103,6 +103,73 @@ export function addToTripContextDebounce(groupJid: string, msg: GroupMsg): void 
   }
 }
 
+// ─── Section 2b: Proactive suggestion state (in-memory only) ─────────────────
+
+interface GroupProactiveState {
+  lastSentAt: number;
+  dailyCount: number;
+  dailyDate: string; // 'YYYY-MM-DD'
+  triggeredDestinations: Set<string>;
+}
+
+const proactiveState = new Map<string, GroupProactiveState>();
+
+/**
+ * Check whether a proactive suggestion can be sent for this group + destination.
+ * Returns false if:
+ *  1. Destination already triggered (one-shot per destination)
+ *  2. Less than 2 hours since last proactive message in this group
+ *  3. Daily cap of 3 messages already reached
+ */
+function canSendProactive(groupJid: string, destination: string): boolean {
+  const entry = proactiveState.get(groupJid);
+  if (!entry) return true; // first-ever for this group
+
+  // 1. One-shot per destination
+  if (entry.triggeredDestinations.has(destination)) return false;
+
+  const now = Date.now();
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  // Reset daily counter if new day
+  if (entry.dailyDate !== todayStr) {
+    entry.dailyCount = 0;
+    entry.dailyDate = todayStr;
+  }
+
+  // 2. 2-hour cooldown
+  if (now - entry.lastSentAt < 2 * 60 * 60 * 1000) return false;
+
+  // 3. Daily cap
+  if (entry.dailyCount >= 3) return false;
+
+  return true;
+}
+
+/**
+ * Record that a proactive suggestion was sent/scheduled for this group + destination.
+ * Called BEFORE setTimeout fires to prevent double-scheduling from concurrent flushes.
+ */
+function recordProactiveSent(groupJid: string, destination: string): void {
+  const now = Date.now();
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const entry = proactiveState.get(groupJid);
+
+  if (!entry || entry.dailyDate !== todayStr) {
+    // First entry or new day — create fresh
+    proactiveState.set(groupJid, {
+      lastSentAt: now,
+      dailyCount: 1,
+      dailyDate: todayStr,
+      triggeredDestinations: new Set([destination]),
+    });
+  } else {
+    entry.lastSentAt = now;
+    entry.dailyCount++;
+    entry.triggeredDestinations.add(destination);
+  }
+}
+
 // ─── Section 3: Zod schema for classifier output ─────────────────────────────
 
 const TripClassifierSchema = z.object({
