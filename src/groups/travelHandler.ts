@@ -181,12 +181,21 @@ export async function handleTravelMention(
     : null;
   if (priorContext) {
     recentContext =
-      `Previous search query: ${priorContext.query}\nPrevious results:\n${priorContext.results}\n\nUser follow-up: ${msg.body}\n\n` +
+      `[FOLLOW-UP SEARCH] This message is a reply to a previous travel search result. ` +
+      `The user is refining or continuing their search. Treat this as travel-related.\n` +
+      `Previous search query: ${priorContext.query}\n` +
+      `Previous results:\n${priorContext.results}\n\n` +
+      `User follow-up message: ${msg.body}\n\n` +
       recentContext;
   }
 
   // Parse travel intent via Gemini
-  const intent = await parseTravelIntent(msg.body, recentContext, lang);
+  // When follow-up context exists, augment the message text so the parser sees
+  // both the original query context and the follow-up in the primary field.
+  const intentMessageText = priorContext
+    ? `Follow-up to: ${priorContext.query}. User says: ${msg.body}`
+    : msg.body;
+  const intent = await parseTravelIntent(intentMessageText, recentContext, lang);
 
   // Non-travel mention or parsing failed: send help text
   if (!intent || intent.isTravelRelated === false) {
