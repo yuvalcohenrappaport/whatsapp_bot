@@ -10,16 +10,16 @@ See: .planning/PROJECT.md (updated 2026-03-02)
 ## Current Position
 
 Phase: 18 of 21 (Trip Memory)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In Progress
-Last activity: 2026-03-02 — Plan 18-01 complete (trip memory DB schema and FTS5)
+Last activity: 2026-03-02 — Plan 18-02 complete (trip context accumulator with pre-filter, debounce, and Gemini classifier)
 
 Progress: [███░░░░░░░] 30% (v1.4)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 38 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 9, v1.4: 3)
+- Total plans completed: 39 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 9, v1.4: 4)
 - v1.3 shipped in 1 day (9 plans, 5 phases)
 - v1.2 shipped in 1 day (4 plans, 2 phases)
 
@@ -28,10 +28,11 @@ Progress: [███░░░░░░░] 30% (v1.4)
 | 17-01 | Travel search audit | 5min | 3 | 3 |
 | 17-02 | Calendar extraction audit | 4min | 3 | 3 |
 | 18-01 | Trip memory DB schema and FTS5 | 2min | 2 | 5 |
+| 18-02 | Trip context accumulator | 3min | 2 | 2 |
 
 **Cumulative (all milestones):**
 - 4 milestones shipped
-- 17 phases complete, 38 plans complete
+- 17 phases complete, 39 plans complete
 
 ## Accumulated Context
 
@@ -53,6 +54,9 @@ Key decisions for v1.4:
 - Follow-up framing: augment both recentContext AND messageText for dual-path coverage (17-01)
 - Pipeline guard reorder: handleReplyToDelete runs before fromMe guard so owner can delete calendar events (17-02)
 - Minimal NaN date patch in dateExtractor.ts since Phase 19 rewrites the extraction flow (17-02)
+- Pre-filter (hasTravelSignal) executes before debounce buffer add — non-travel messages never allocate buffer state (18-02)
+- Low-confidence classifier decisions are dropped at persistence time; only high/medium inserted to tripDecisions (18-02)
+- Trip debounce buffer is a module-level Map in tripContextManager.ts, completely isolated from calendar debounce in groupMessagePipeline.ts (18-02)
 
 ### Pending Todos
 
@@ -62,12 +66,12 @@ Key decisions for v1.4:
 
 - Baileys v7.0.0-rc.9 is a release candidate — monitor stability
 - Platform.MACOS patch required via patch-package
-- Phase 18 classifier prompt needs tuning for mixed Hebrew/English group chat before wiring to pipeline
+- Phase 18 classifier is now live in pipeline — prompt may need tuning after real-world testing for mixed Hebrew/English accuracy
 - Phase 21 proactive trigger has highest WhatsApp ban risk — must validate Phase 18 confidence calibration first
 
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 18-01-PLAN.md (trip memory DB schema and FTS5)
-Resume with: /gsd:execute-phase 18 (Phase 18: Trip Memory — plan 02)
-Resume file: .planning/phases/18-trip-memory/18-01-SUMMARY.md
+Stopped at: Completed 18-02-PLAN.md (trip context accumulator with pre-filter, debounce, and Gemini classifier)
+Resume with: /gsd:execute-phase 18 (Phase 18: Trip Memory — plan 03)
+Resume file: .planning/phases/18-trip-memory/18-02-SUMMARY.md
