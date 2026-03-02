@@ -118,10 +118,10 @@ Plans:
   1. Dashboard contacts page shows a voice reply toggle per contact that persists when saved
   2. CLI `contact` command accepts a `--voice` flag to enable or disable voice replies for a contact
   3. Changing the toggle in dashboard or CLI takes effect on the next voice message from that contact (no restart required)
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 16-01: TBD
+- [ ] 16-01-PLAN.md — Wire voiceReplyEnabled to API route, dashboard toggle, and CLI flag
 
 ## Progress
 
@@ -141,5 +141,5 @@ Plans:
 | 12. Voice Infrastructure | v1.3 | 3/3 | Complete | 2026-03-01 |
 | 13. Voice Service Modules | v1.3 | 2/2 | Complete | 2026-03-01 |
 | 14. Core Voice Pipeline | v1.3 | 2/2 | Complete | 2026-03-01 |
-| 15. Draft Queue Voice Integration | v1.3 | Complete    | 2026-03-02 | 2026-03-02 |
-| 16. Voice Settings Management | v1.3 | 0/? | Not started | - |
+| 15. Draft Queue Voice Integration | v1.3 | 1/1 | Complete | 2026-03-02 |
+| 16. Voice Settings Management | v1.3 | 0/1 | Not started | - |
