@@ -6,6 +6,7 @@ import { getGroupMessagesSince } from '../db/queries/groupMessages.js';
 import { listUpcomingEvents } from '../calendar/calendarService.js';
 import { getState } from '../api/state.js';
 import { generateText } from '../ai/provider.js';
+import { getUnresolvedOpenItems } from '../db/queries/tripMemory.js';
 
 const logger = pino({
   level: config.LOG_LEVEL,
@@ -56,6 +57,41 @@ function relativeTime(timestampMs: number): string {
   if (diffDays >= 1) return `${diffDays}d ago`;
   if (diffHours >= 1) return `${diffHours}h ago`;
   return 'just now';
+}
+
+/**
+ * Build a Hebrew trip status section listing unresolved open questions with age indicators.
+ * Returns null if there are no qualifying items (no empty placeholder).
+ */
+function buildTripStatusSection(groupJid: string): string | null {
+  const openItems = getUnresolvedOpenItems(groupJid);
+  const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+
+  const recent = openItems.filter((item) => item.createdAt >= thirtyDaysAgo);
+  if (recent.length === 0) return null;
+
+  const lines = recent.map((item) => {
+    // Truncate question text to 80 chars
+    const text =
+      item.value.length > 80 ? item.value.slice(0, 77) + '...' : item.value;
+
+    // Age label in Hebrew
+    const ageDays = Math.floor(
+      (Date.now() - item.createdAt) / (24 * 60 * 60 * 1000),
+    );
+    let ageLabel: string;
+    if (ageDays === 0) {
+      ageLabel = 'היום';
+    } else if (ageDays === 1) {
+      ageLabel = 'לפני יום';
+    } else {
+      ageLabel = `לפני ${ageDays} ימים`;
+    }
+
+    return `❓ ${text} (${ageLabel})`;
+  });
+
+  return `\n\n🧳 שאלות פתוחות לטיול:\n${lines.join('\n')}`;
 }
 
 /**
@@ -134,7 +170,8 @@ Format with these exact emoji headers:
       logger.warn({ groupJid }, 'AI returned empty digest');
       return null;
     }
-    return text;
+    const tripStatus = buildTripStatusSection(groupJid);
+    return tripStatus ? text + tripStatus : text;
   } catch (err) {
     logger.error({ err, groupJid }, 'Failed to generate weekly digest');
     return null;
