@@ -214,7 +214,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 21-01-PLAN.md — Open item lifecycle: MEM-04 surfacing in weekly digest, resolution detection in tripContextManager
+- [x] 21-01-PLAN.md — Open item lifecycle: MEM-04 surfacing in weekly digest, resolution detection in tripContextManager (completed 2026-03-02)
 - [ ] 21-02-PLAN.md — Proactive trigger: destination-confirmed signal, per-group cooldown (2h), daily cap (3/day), 90% confidence gate
 
 ## Progress
@@ -241,4 +241,4 @@ Plans:
 | 18. Trip Memory | v1.4 | Complete    | 2026-03-02 | 2026-03-02 |
 | 19. Itinerary Builder | v1.4 | Complete    | 2026-03-02 | 2026-03-02 |
 | 20. Enriched Search | v1.4 | 2/2 | Complete | 2026-03-02 |
-| 21. Travel Intelligence | v1.4 | 0/2 | Not started | - |
+| 21. Travel Intelligence | v1.4 | 1/2 | In progress | - |

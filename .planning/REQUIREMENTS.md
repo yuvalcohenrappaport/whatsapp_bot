@@ -17,7 +17,7 @@ Requirements for Travel Agent milestone. Each maps to roadmap phases.
 - [x] **MEM-01**: Bot stores confirmed trip decisions (destination, accommodation, activities, transport) in structured DB records
 - [x] **MEM-02**: User can ask "@bot what did we decide about X?" and bot answers from stored decisions + chat history
 - [x] **MEM-03**: Bot detects unanswered questions/commitments in chat and tracks them as open items
-- [ ] **MEM-04**: Open items are surfaced in weekly digest until resolved or manually dismissed
+- [x] **MEM-04**: Open items are surfaced in weekly digest until resolved or manually dismissed
 
 ### Itinerary
 
@@ -34,7 +34,7 @@ Requirements for Travel Agent milestone. Each maps to roadmap phases.
 ### Intelligence
 
 - [ ] **INTL-01**: Bot proactively suggests activities/tips when a destination is confirmed (rate-limited, max once per destination)
-- [ ] **INTL-02**: Weekly digest includes trip status section: confirmed decisions, open questions, upcoming activities
+- [x] **INTL-02**: Weekly digest includes trip status section: confirmed decisions, open questions, upcoming activities
 - [ ] **INTL-03**: Proactive suggestions are relevant and not spammy (cooldown, only on new confirmations)
 
 ## v1.5 Requirements
@@ -88,7 +88,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MEM-01 | Phase 18 | Complete (DB layer, 18-01) |
 | MEM-02 | Phase 18 | Complete (history_search handler, 18-03) |
 | MEM-03 | Phase 18 | Complete (classifier + open_question, 18-02) |
-| MEM-04 | Phase 21 | Pending |
+| MEM-04 | Phase 21 | Complete (digest section + auto-resolution, 21-01) |
 | ITIN-01 | Phase 19 | Complete |
 | ITIN-02 | Phase 19 | Complete |
 | ITIN-03 | Phase 19 | Complete |
@@ -96,7 +96,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SRCH-02 | Phase 20 | Complete (queryType-based resultCount, 20-01) |
 | SRCH-03 | Phase 20 | Complete (booking domain labels + compact formatter, 20-02) |
 | INTL-01 | Phase 21 | Pending |
-| INTL-02 | Phase 21 | Pending |
+| INTL-02 | Phase 21 | Complete (Hebrew trip status in weekly digest, 21-01) |
 | INTL-03 | Phase 21 | Pending |
 
 **Coverage:**
@@ -106,4 +106,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-02*
-*Last updated: 2026-03-02 after Phase 20-02 — SRCH-01/SRCH-02/SRCH-03 complete; Phase 20 (Enriched Search) fully shipped*
+*Last updated: 2026-03-02 after Phase 21-01 — MEM-04/INTL-02 complete; open item lifecycle shipped*
