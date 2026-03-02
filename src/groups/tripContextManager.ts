@@ -1,7 +1,8 @@
 import crypto from 'node:crypto';
 import pino from 'pino';
 import { config } from '../config.js';
-import { generateJson } from '../ai/provider.js';
+import { generateJson, generateText } from '../ai/provider.js';
+import { getState } from '../api/state.js';
 import { z } from 'zod';
 import {
   getTripContext,
@@ -168,6 +169,41 @@ function recordProactiveSent(groupJid: string, destination: string): void {
     entry.dailyCount++;
     entry.triggeredDestinations.add(destination);
   }
+}
+
+// ─── Section 2c: Proactive suggestion sender ─────────────────────────────────
+
+async function sendProactiveSuggestion(
+  groupJid: string,
+  destination: string,
+): Promise<void> {
+  const { sock } = getState();
+  if (!sock) {
+    logger.warn({ groupJid }, 'sendProactiveSuggestion: sock is null — skipping');
+    return;
+  }
+
+  const tips = await generateText({
+    systemPrompt:
+      'אתה חבר שטייל הרבה ויודע המלצות טובות. כתוב רשימה קצרה של 3-4 פעילויות מומלצות ליעד שנבחר. ' +
+      'הסגנון: ידידותי, קצר, מעשי — כמו חבר שמשתף טיפ טוב. ' +
+      'פתח עם "ראיתי שבחרתם [יעד]! הנה כמה רעיונות:" ואז רשימת נקודות קצרות. ' +
+      'כתוב בעברית בלבד. אל תוסיף הקדמה או סיום נוספים.',
+    messages: [
+      {
+        role: 'user',
+        content: `יעד הטיול: ${destination}. תן 3-4 המלצות פעילויות קצרות ומעשיות.`,
+      },
+    ],
+  });
+
+  if (!tips) {
+    logger.warn({ groupJid, destination }, 'Proactive suggestion: Gemini returned null');
+    return;
+  }
+
+  await sock.sendMessage(groupJid, { text: tips });
+  logger.info({ groupJid, destination }, 'Proactive travel suggestion sent');
 }
 
 // ─── Section 3: Zod schema for classifier output ─────────────────────────────
@@ -361,6 +397,34 @@ async function processTripContext(
           resolvedCount++;
           logger.info({ groupJid, question: resolvedText }, 'Open question auto-resolved');
         }
+      }
+    }
+
+    // 9. Check for new destination -> proactive suggestion trigger
+    const newDestinationDecision = result.decisions.find(
+      (d) => d.type === 'destination' && d.confidence !== 'low',
+    );
+
+    if (newDestinationDecision) {
+      // Compare against what was in DB BEFORE this classifier run
+      const isNewDestination =
+        existingContext?.destination !== newDestinationDecision.value;
+
+      if (isNewDestination && canSendProactive(groupJid, newDestinationDecision.value)) {
+        // Record immediately to prevent double-scheduling from concurrent debounce flushes
+        recordProactiveSent(groupJid, newDestinationDecision.value);
+
+        const delayMs = (5 + Math.floor(Math.random() * 11)) * 60 * 1000; // 5-15 minutes
+        setTimeout(() => {
+          sendProactiveSuggestion(groupJid, newDestinationDecision.value).catch((err) => {
+            logger.error({ err, groupJid }, 'Error sending proactive suggestion');
+          });
+        }, delayMs);
+
+        logger.info(
+          { groupJid, destination: newDestinationDecision.value, delayMs: Math.round(delayMs / 1000) },
+          'Proactive suggestion scheduled',
+        );
       }
     }
 
