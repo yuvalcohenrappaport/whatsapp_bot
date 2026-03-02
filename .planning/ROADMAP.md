@@ -180,12 +180,12 @@ Plans:
   2. Replying ✅ to the bot's suggestion creates a Google Calendar event; replying ❌ dismisses it with no event created
   3. The created event contains location and description fields (not just title and date) when the source message includes that information
   4. A suggestion expires after 30 minutes with no group member response — no calendar event is created
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 19-01-PLAN.md — suggestionTracker.ts: pendingSuggestions Map with TTL; group_confirmations DB table for restart persistence
-- [ ] 19-02-PLAN.md — Modify dateExtractor.ts: suggest-then-confirm flow replaces auto-add; add optional location/description/url to Zod schema
-- [ ] 19-03-PLAN.md — Confirmation routing: quoted-reply check in travelHandler, calendar event creation on ✅ with enriched fields
+- [ ] 19-01-PLAN.md — Foundation: DB schema + migration for pending suggestions, dateExtractor Zod v4 + enriched fields, calendarService location param, export pipeline helpers
+- [ ] 19-02-PLAN.md — suggestionTracker.ts: pending suggestions Map with TTL, suggest/confirm/reject lifecycle, deduplication, startup DB restore
+- [ ] 19-03-PLAN.md — Pipeline integration: wire handleConfirmReject + createSuggestion into groupMessagePipeline, replace direct calendar-add
 
 ### Phase 20: Enriched Search
 **Goal**: Travel search returns richer results with ratings, hours, and addresses via Maps Grounding, returns more results for accommodation and activity queries, and labels booking-ready links
