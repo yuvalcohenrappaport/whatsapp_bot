@@ -149,7 +149,7 @@ Plans:
   2. Reply-chain follow-up to a travel search result triggers a refined search (not an unhandled message)
   3. A message with a date (e.g., "נסיעה ב-15 לאפריל") produces a Google Calendar event with the correct title, date, and in-group confirmation message
   4. Replying to the bot's calendar confirmation with the designated delete reply removes the event from Google Calendar
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
 - [ ] 17-01-PLAN.md — Audit travel search: URL validity, reply chain, error handling
