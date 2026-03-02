@@ -56,7 +56,7 @@ let lastNotifiedJid: string | null = null;
 /** Callback for downstream pipeline (e.g., date extraction, travel search) to process group messages. */
 let groupMessageCallback: ((
   groupJid: string,
-  msg: { id: string; senderJid: string; senderName: string | null; body: string; timestamp: number },
+  msg: { id: string; senderJid: string; senderName: string | null; body: string; timestamp: number; fromMe?: boolean },
   quotedMessageId: string | null,
   mentionedJids: string[],
 ) => void) | null = null;
@@ -177,12 +177,19 @@ async function handleOwnerCommand(
 
   if (approvalTrimmed === '✅') {
     markDraftSent(draft.id);
-    await sendWithDelay(sock, draft.contactJid, draft.body);
+    if (draft.isVoice) {
+      // Lazy TTS: synthesize audio only at approval time (DRAFT-03)
+      const oggBuffer = await textToSpeech(draft.body, logger);
+      await sendVoiceWithDelay(sock, draft.contactJid, oggBuffer, draft.body);
+    } else {
+      await sendWithDelay(sock, draft.contactJid, draft.body);
+    }
     // Reset auto count on draft approval per locked decision
     resetAutoCount(draft.contactJid).run();
-    await sock.sendMessage(config.USER_JID, {
-      text: `Sent to ${draft.contactJid}.`,
-    });
+    const confirmText = draft.isVoice
+      ? `Sent voice note to ${draft.contactJid}.`
+      : `Sent to ${draft.contactJid}.`;
+    await sock.sendMessage(config.USER_JID, { text: confirmText });
   } else {
     markDraftRejected(draft.id);
     await sock.sendMessage(config.USER_JID, {
@@ -259,7 +266,7 @@ async function processMessage(sock: WASocket, msg: WAMessage): Promise<void> {
     if (fromMe) {
       groupMessageCallback?.(
         remoteJid,
-        { id: msg.key.id!, senderJid, senderName, body: text, timestamp },
+        { id: msg.key.id!, senderJid, senderName, body: text, timestamp, fromMe: true },
         quotedMessageId,
         mentionedJids,
       );
@@ -515,13 +522,13 @@ async function handleVoiceMessage(
       incrementAutoCount(contactJid).run();
 
     } else if (mode === 'draft') {
-      // Draft mode: always create text draft (Phase 15 adds voice drafts)
+      // Voice draft with transcript + lazy TTS
       await sock.sendPresenceUpdate('paused', contactJid);
-      const draftId = createDraft(contactJid, msg.key.id!, reply);
+      const draftId = createDraft(contactJid, msg.key.id!, reply, true);
       const name = contact?.name ?? contactJid;
       lastNotifiedJid = contactJid;
       await sock.sendMessage(config.USER_JID, {
-        text: `Draft for ${name} (voice msg):\n\n${reply}\n\nReply \u2705 to send | \u274c to reject | 'snooze 1h' to pause ${name}`,
+        text: `Voice draft for ${name}:\n\nThey said: "${transcript}"\n\nProposed reply:\n${reply}\n\nReply \u2705 to send as voice note | \u274c to reject | 'snooze 1h' to pause ${name}`,
       });
       logger.info({ draftId, contactJid }, 'Voice draft created for approval');
     }
