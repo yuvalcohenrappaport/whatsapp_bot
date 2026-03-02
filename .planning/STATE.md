@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-02)
 ## Current Position
 
 Phase: 19 of 21 (Itinerary Builder)
-Plan: 2 of 3 in current phase
-Status: Plan 19-02 Complete
-Last activity: 2026-03-02 — Plan 19-02 complete (suggestionTracker module: Hebrew TTL suggestions, ✅/❌ routing, deduplication, startup DB restore)
+Plan: 3 of 3 in current phase
+Status: Plan 19-03 Complete — Phase 19 Complete
+Last activity: 2026-03-02 — Plan 19-03 complete (pipeline integration: handleConfirmReject wired, createSuggestion replaces direct calendar-add, restorePendingSuggestions at startup)
 
-Progress: [████░░░░░░] 43% (v1.4)
+Progress: [█████░░░░░] 57% (v1.4)
 
 ## Performance Metrics
 
@@ -32,6 +32,7 @@ Progress: [████░░░░░░] 43% (v1.4)
 | 18-03 | History search recall handler | 1min | 2 | 2 |
 | 19-01 | Itinerary builder foundation | 3min | 3 | 6 |
 | 19-02 | suggestionTracker module | 2min | 1 | 1 |
+| 19-03 | Pipeline integration | 2m 23s | 2 | 1 |
 
 **Cumulative (all milestones):**
 - 4 milestones shipped
@@ -67,6 +68,8 @@ Key decisions for v1.4:
 - Rejection is silent (no acknowledgment message on ❌) per locked decision (19-02)
 - Suggestion text always Hebrew; confirmation text uses detectGroupLanguage/buildConfirmationText for language-aware output (19-02)
 - Calendar API failure on ✅ leaves suggestion alive for retry — sends Hebrew error, does not delete (19-02)
+- handleConfirmReject runs before handleReplyToDelete in the pipeline — both run before fromMe guard so owner can confirm/reject/delete (19-03)
+- Direct createCalendarEvent path in processGroupMessages fully replaced by createSuggestion — Phase 19 suggest-then-confirm flow complete (19-03)
 
 ### Pending Todos
 
@@ -82,6 +85,6 @@ Key decisions for v1.4:
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 19-02-PLAN.md (suggestionTracker module: Hebrew TTL suggestions, ✅/❌ routing, deduplication, startup DB restore)
-Resume with: /gsd:execute-phase 19 (Phase 19: Itinerary Builder — plan 03)
-Resume file: .planning/phases/19-itinerary-builder/19-02-SUMMARY.md
+Stopped at: Completed 19-03-PLAN.md (pipeline integration: handleConfirmReject wired, createSuggestion replaces direct calendar-add, Phase 19 complete)
+Resume with: /gsd:execute-phase 20 (Phase 20: Enriched Search — plan 01)
+Resume file: .planning/phases/19-itinerary-builder/19-03-SUMMARY.md

@@ -54,7 +54,7 @@
 
 - [x] **Phase 17: Pipeline Audit** - Verify and fix existing group features (travel search, calendar extraction) before extending them (completed 2026-03-02)
 - [x] **Phase 18: Trip Memory** - Structured trip decision storage, always-listening context accumulation, and conversation recall (completed 2026-03-02)
-- [ ] **Phase 19: Itinerary Builder** - Suggest-then-confirm flow for calendar adds, enriched event details
+- [x] **Phase 19: Itinerary Builder** - Suggest-then-confirm flow for calendar adds, enriched event details (completed 2026-03-02)
 - [ ] **Phase 20: Enriched Search** - Maps Grounding upgrade for ratings/hours/addresses, more results, booking labels
 - [ ] **Phase 21: Travel Intelligence** - Open item tracking in digest, proactive destination-aware suggestions
 
@@ -185,7 +185,7 @@ Plans:
 Plans:
 - [x] 19-01-PLAN.md — Foundation: DB schema + migration for pending suggestions, dateExtractor Zod v4 + enriched fields, calendarService location param, export pipeline helpers (completed 2026-03-02)
 - [x] 19-02-PLAN.md — suggestionTracker.ts: pending suggestions Map with TTL, suggest/confirm/reject lifecycle, deduplication, startup DB restore (completed 2026-03-02)
-- [ ] 19-03-PLAN.md — Pipeline integration: wire handleConfirmReject + createSuggestion into groupMessagePipeline, replace direct calendar-add
+- [x] 19-03-PLAN.md — Pipeline integration: wire handleConfirmReject + createSuggestion into groupMessagePipeline, replace direct calendar-add (completed 2026-03-02)
 
 ### Phase 20: Enriched Search
 **Goal**: Travel search returns richer results with ratings, hours, and addresses via Maps Grounding, returns more results for accommodation and activity queries, and labels booking-ready links
@@ -239,6 +239,6 @@ Plans:
 | 16. Voice Settings Management | v1.3 | 1/1 | Complete | 2026-03-02 |
 | 17. Pipeline Audit | v1.4 | 2/2 | Complete | 2026-03-02 |
 | 18. Trip Memory | v1.4 | Complete    | 2026-03-02 | 2026-03-02 |
-| 19. Itinerary Builder | v1.4 | 2/3 | In Progress | - |
+| 19. Itinerary Builder | v1.4 | 3/3 | Complete | 2026-03-02 |
 | 20. Enriched Search | v1.4 | 0/2 | Not started | - |
 | 21. Travel Intelligence | v1.4 | 0/2 | Not started | - |
