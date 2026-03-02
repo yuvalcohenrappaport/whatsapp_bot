@@ -211,7 +211,7 @@ Plans:
   2. A resolved open item (answered in chat and re-classified by the context manager) no longer appears in the digest
   3. When a destination is confirmed for the first time, the bot sends one proactive suggestion message with relevant activities or tips — and does not send another for the same destination
   4. The bot does not send proactive messages more than 3 times per day per group, regardless of how many new destinations are confirmed
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
 - [ ] 21-01-PLAN.md — Open item lifecycle: MEM-04 surfacing in weekly digest, resolution detection in tripContextManager
