@@ -97,11 +97,22 @@ export async function extractDates(
       (d) => d.confidence === 'high',
     );
 
-    return highConfidence.map((d) => ({
+    const mapped = highConfidence.map((d) => ({
       title: d.title,
       date: new Date(d.date),
       confidence: d.confidence,
+      _raw: d.date,
     }));
+
+    const valid = mapped.filter((d) => {
+      if (isNaN(d.date.getTime())) {
+        logger.warn({ dateStr: d._raw, title: d.title }, 'Invalid date from Gemini — skipping');
+        return false;
+      }
+      return true;
+    });
+
+    return valid.map(({ title, date, confidence }) => ({ title, date, confidence }));
   } catch (err) {
     logger.error(
       { err, senderName, groupName },
