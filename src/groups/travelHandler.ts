@@ -324,7 +324,7 @@ export async function handleTravelMention(
         'Travel intent parsed -- executing search',
       );
 
-      const { results, isFallback } = await searchTravel(queryText, lang);
+      const { results, isFallback } = await searchTravel(queryText, lang, intent.queryType);
       const formattedMessage = formatTravelResults(results, lang, isFallback);
 
       const sent = await sock.sendMessage(groupJid, { text: formattedMessage });
