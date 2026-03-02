@@ -200,7 +200,7 @@ Plans:
 
 Plans:
 - [x] 20-01-PLAN.md — Maps Grounding primary path, updated SearchResult type, queryType-based result count, travelParser Zod v4 fix (completed 2026-03-02)
-- [ ] 20-02-PLAN.md — Compact one-liner formatter, booking domain 🛒 labels, wire intent.queryType in travelHandler
+- [x] 20-02-PLAN.md — Compact one-liner formatter, booking domain 🛒 labels, wire intent.queryType in travelHandler (completed 2026-03-02)
 
 ### Phase 21: Travel Intelligence
 **Goal**: Open trip questions surface in the weekly digest until resolved, and the bot proactively suggests activities when a new destination is confirmed — rate-limited so it never spams the group
@@ -240,5 +240,5 @@ Plans:
 | 17. Pipeline Audit | v1.4 | 2/2 | Complete | 2026-03-02 |
 | 18. Trip Memory | v1.4 | Complete    | 2026-03-02 | 2026-03-02 |
 | 19. Itinerary Builder | v1.4 | Complete    | 2026-03-02 | 2026-03-02 |
-| 20. Enriched Search | v1.4 | 1/2 | In progress | - |
+| 20. Enriched Search | v1.4 | 2/2 | Complete | 2026-03-02 |
 | 21. Travel Intelligence | v1.4 | 0/2 | Not started | - |

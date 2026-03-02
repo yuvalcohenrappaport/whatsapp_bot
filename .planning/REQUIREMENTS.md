@@ -29,7 +29,7 @@ Requirements for Travel Agent milestone. Each maps to roadmap phases.
 
 - [x] **SRCH-01**: Travel search uses Gemini Maps Grounding to return ratings, reviews, hours, and addresses
 - [x] **SRCH-02**: Search returns 5-6 results for accommodation/activity queries (3 for quick queries)
-- [ ] **SRCH-03**: Results from booking sites (booking.com, airbnb, etc.) are labeled with a "Book:" prefix
+- [x] **SRCH-03**: Results from booking sites (booking.com, airbnb, etc.) are labeled with a "Book:" prefix
 
 ### Intelligence
 
@@ -94,7 +94,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ITIN-03 | Phase 19 | Complete |
 | SRCH-01 | Phase 20 | Complete (Maps Grounding primary path, 20-01) |
 | SRCH-02 | Phase 20 | Complete (queryType-based resultCount, 20-01) |
-| SRCH-03 | Phase 20 | Pending |
+| SRCH-03 | Phase 20 | Complete (booking domain labels + compact formatter, 20-02) |
 | INTL-01 | Phase 21 | Pending |
 | INTL-02 | Phase 21 | Pending |
 | INTL-03 | Phase 21 | Pending |
@@ -106,4 +106,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-02*
-*Last updated: 2026-03-02 after Phase 20-01 — SRCH-01/SRCH-02 complete; Maps Grounding primary path and result count control shipped*
+*Last updated: 2026-03-02 after Phase 20-02 — SRCH-01/SRCH-02/SRCH-03 complete; Phase 20 (Enriched Search) fully shipped*

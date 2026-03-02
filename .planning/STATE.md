@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
-**Current focus:** v1.4 Travel Agent — Phase 20: Enriched Search (in progress)
+**Current focus:** v1.4 Travel Agent — Phase 20: Enriched Search (complete), next: Phase 21
 
 ## Current Position
 
-Phase: 20 of 21 (Enriched Search)
-Plan: 1 of 2 in current phase
-Status: Plan 20-01 Complete
-Last activity: 2026-03-02 — Plan 20-01 complete (Maps Grounding primary path, updated SearchResult type, queryType-based result count, travelParser Zod v4 fix)
+Phase: 20 of 21 (Enriched Search — complete)
+Plan: 2 of 2 in current phase (phase complete)
+Status: Phase 20 Complete
+Last activity: 2026-03-02 — Plan 20-02 complete (compact one-liner formatter, booking domain labels, intent.queryType wired to searchTravel)
 
-Progress: [██████░░░░] 64% (v1.4)
+Progress: [████████░░] 80% (v1.4)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 42 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 9, v1.4: 7)
+- Total plans completed: 43 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 9, v1.4: 8)
 - v1.3 shipped in 1 day (9 plans, 5 phases)
 - v1.2 shipped in 1 day (4 plans, 2 phases)
 
@@ -34,10 +34,11 @@ Progress: [██████░░░░] 64% (v1.4)
 | 19-02 | suggestionTracker module | 2min | 1 | 1 |
 | 19-03 | Pipeline integration | 2m 23s | 2 | 1 |
 | 20-01 | Maps Grounding primary path + Zod v4 fix | 3min | 2 | 2 |
+| 20-02 | Compact formatter + queryType wiring | 2min | 2 | 2 |
 
 **Cumulative (all milestones):**
 - 4 milestones shipped
-- 17 phases complete, 42 plans complete
+- 18 phases complete, 43 plans complete
 
 ## Accumulated Context
 
@@ -75,6 +76,9 @@ Key decisions for v1.4:
 - Silent three-tier fallback: Maps Grounding -> Google Search Grounding -> knowledge — isFallback only true when reaching knowledge (20-01)
 - Result count: 5 for hotels/activities queries, 3 for all other queryTypes (20-01)
 - z.toJSONSchema() replaces zodToJsonSchema in travelParser.ts — Zod v4 native, package was silently broken (20-01)
+- Compact one-liner format replaces multi-line cards in travelFormatter — keeps 5-6 results readable in WhatsApp (20-02)
+- Shopping cart emoji prefix for booking domains (booking.com, airbnb.com, hotels.com, expedia.com, agoda.com) — quick visual cue (20-02)
+- Single newline between result lines (not double) — maximizes density for WhatsApp readability (20-02)
 
 ### Pending Todos
 
@@ -90,6 +94,6 @@ Key decisions for v1.4:
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 20-01-PLAN.md (Maps Grounding primary path, updated SearchResult type, queryType-based result count, travelParser Zod v4 fix)
-Resume with: /gsd:execute-phase 20 (Phase 20: Enriched Search — plan 02)
-Resume file: .planning/phases/20-enriched-search/20-01-SUMMARY.md
+Stopped at: Completed 20-02-PLAN.md (compact one-liner formatter, booking domain labels, intent.queryType wired to searchTravel) — Phase 20 complete
+Resume with: /gsd:execute-phase 21 (Phase 21: Travel Intelligence — plan 01)
+Resume file: .planning/phases/20-enriched-search/20-02-SUMMARY.md
