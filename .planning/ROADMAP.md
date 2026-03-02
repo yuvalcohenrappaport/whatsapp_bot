@@ -6,6 +6,7 @@
 - [x] **v1.1 Dashboard & Groups** — Phases 6-9 (shipped 2026-02-24) — [archive](milestones/v1.1-ROADMAP.md)
 - [x] **v1.2 Group Auto-Response** — Phases 10-11 (shipped 2026-02-25) — [archive](milestones/v1.2-ROADMAP.md)
 - [x] **v1.3 Voice Responses** — Phases 12-16 (shipped 2026-03-02)
+- [ ] **v1.4 Travel Agent** — Phases 17-21 (in progress)
 
 ## Phases
 
@@ -36,17 +37,31 @@
 
 </details>
 
-### v1.3 Voice Responses (Phases 12-16) — SHIPPED 2026-03-02
+<details>
+<summary>v1.3 Voice Responses (Phases 12-16) — SHIPPED 2026-03-02</summary>
 
-**Milestone Goal:** Enable the bot to receive voice messages, transcribe them, generate replies, and respond with AI-generated voice messages using a cloned Hebrew voice via ElevenLabs.
+- [x] Phase 12: Voice Infrastructure (3/3 plans) — completed 2026-03-01
+- [x] Phase 13: Voice Service Modules (2/2 plans) — completed 2026-03-01
+- [x] Phase 14: Core Voice Pipeline (2/2 plans) — completed 2026-03-01
+- [x] Phase 15: Draft Queue Voice Integration (1/1 plans) — completed 2026-03-02
+- [x] Phase 16: Voice Settings Management (1/1 plans) — completed 2026-03-02
 
-- [x] **Phase 12: Voice Infrastructure** - Install deps, configure ElevenLabs credentials, migrate DB schema, validate voice clone
-- [x] **Phase 13: Voice Service Modules** - Build transcriber and TTS pure-function modules with isolated ElevenLabs API testing
-- [x] **Phase 14: Core Voice Pipeline** - Wire voice path into messageHandler — receive, transcribe, reply, send PTT voice note
-- [x] **Phase 15: Draft Queue Voice Integration** - Voice replies follow draft mode with lazy TTS and transcript preview
-- [x] **Phase 16: Voice Settings Management** - Dashboard and CLI controls for per-contact voice reply toggle
+</details>
+
+### v1.4 Travel Agent (Phases 17-21) — IN PROGRESS
+
+**Milestone Goal:** Transform the group bot from a reactive search tool into a persistent travel agent that monitors conversations, builds itineraries in Google Calendar, remembers trip decisions, and proactively suggests activities.
+
+- [ ] **Phase 17: Pipeline Audit** - Verify and fix existing group features (travel search, calendar extraction) before extending them
+- [ ] **Phase 18: Trip Memory** - Structured trip decision storage, always-listening context accumulation, and conversation recall
+- [ ] **Phase 19: Itinerary Builder** - Suggest-then-confirm flow for calendar adds, enriched event details
+- [ ] **Phase 20: Enriched Search** - Maps Grounding upgrade for ratings/hours/addresses, more results, booking labels
+- [ ] **Phase 21: Travel Intelligence** - Open item tracking in digest, proactive destination-aware suggestions
 
 ## Phase Details
+
+<details>
+<summary>v1.3 Voice Responses — Phase Details (SHIPPED)</summary>
 
 ### Phase 12: Voice Infrastructure
 **Goal**: Voice prerequisites are in place — dependencies installed, credentials configured, DB schema migrated, voice clone validated
@@ -123,9 +138,88 @@ Plans:
 Plans:
 - [x] 16-01-PLAN.md — Wire voiceReplyEnabled to API route, dashboard toggle, and CLI flag (completed 2026-03-02)
 
+</details>
+
+### Phase 17: Pipeline Audit
+**Goal**: Existing group pipeline features (travel search, calendar date extraction) are verified against real group messages and any bugs are fixed before new features are layered on top
+**Depends on**: Phase 16 (v1.3 complete)
+**Requirements**: AUDIT-01, AUDIT-02
+**Success Criteria** (what must be TRUE):
+  1. A travel search @mention returns a formatted result with at least one working URL that opens to the correct destination page
+  2. Reply-chain follow-up to a travel search result triggers a refined search (not an unhandled message)
+  3. A message with a date (e.g., "נסיעה ב-15 לאפריל") produces a Google Calendar event with the correct title, date, and in-group confirmation message
+  4. Replying to the bot's calendar confirmation with the designated delete reply removes the event from Google Calendar
+**Plans**: TBD
+
+Plans:
+- [ ] 17-01-PLAN.md — Audit travel search: URL validity, reply chain, error handling
+- [ ] 17-02-PLAN.md — Audit calendar extraction: date parsing, event creation, reply-to-delete
+
+### Phase 18: Trip Memory
+**Goal**: The bot accumulates and persists trip decisions from group conversations, answers recall questions about past decisions, and tracks open questions the group has not resolved
+**Depends on**: Phase 17
+**Requirements**: MEM-01, MEM-02, MEM-03
+**Success Criteria** (what must be TRUE):
+  1. After a group conversation where accommodation or destination is decided, the bot's DB contains a `tripDecisions` record with the correct type, value, and group ID
+  2. A user sends "@bot what did we decide about the hotel?" and the bot replies with the stored decision (or closest match from chat history) without a live travel search
+  3. Messages containing open questions or unresolved commitments ("does anyone know if the place is kosher?") result in a tracked open item in the DB
+  4. The always-listening context accumulator does not call Gemini for messages that contain no travel signals (pre-filter working)
+**Plans**: TBD
+
+Plans:
+- [ ] 18-01-PLAN.md — DB schema: tripContexts and tripDecisions tables, searchGroupMessages FTS query
+- [ ] 18-02-PLAN.md — tripContextManager.ts: debounce buffer, Gemini classifier, DB upsert at pipeline step [3.5]
+- [ ] 18-03-PLAN.md — Conversation recall: history_search queryType in travelParser + travelHandler dispatch
+
+### Phase 19: Itinerary Builder
+**Goal**: The bot suggests calendar additions for detected activities before adding them, enriches calendar events with location and links, and routes group member replies to confirm or reject each suggestion
+**Depends on**: Phase 17 (calendar extraction working), Phase 18 (trip context available)
+**Requirements**: ITIN-01, ITIN-02, ITIN-03
+**Success Criteria** (what must be TRUE):
+  1. A message with a trip activity and date triggers a bot suggestion message ("Add 'Dinner at Isrotel' on April 15 to calendar? Reply ✅ or ❌") instead of a silent calendar add
+  2. Replying ✅ to the bot's suggestion creates a Google Calendar event; replying ❌ dismisses it with no event created
+  3. The created event contains location and description fields (not just title and date) when the source message includes that information
+  4. A suggestion expires after 30 minutes with no group member response — no calendar event is created
+**Plans**: TBD
+
+Plans:
+- [ ] 19-01-PLAN.md — suggestionTracker.ts: pendingSuggestions Map with TTL; group_confirmations DB table for restart persistence
+- [ ] 19-02-PLAN.md — Modify dateExtractor.ts: suggest-then-confirm flow replaces auto-add; add optional location/description/url to Zod schema
+- [ ] 19-03-PLAN.md — Confirmation routing: quoted-reply check in travelHandler, calendar event creation on ✅ with enriched fields
+
+### Phase 20: Enriched Search
+**Goal**: Travel search returns richer results with ratings, hours, and addresses via Maps Grounding, returns more results for accommodation and activity queries, and labels booking-ready links
+**Depends on**: Phase 17 (audit confirms existing search baseline)
+**Requirements**: SRCH-01, SRCH-02, SRCH-03
+**Success Criteria** (what must be TRUE):
+  1. An @mention accommodation search returns 5-6 results, each including rating, review count, and address alongside the URL
+  2. An @mention quick query (e.g., "coffee near the hotel") returns 3 results
+  3. Results from booking.com, airbnb.com, or similar booking domains are prefixed with "Book:" in the formatted output
+  4. If Maps Grounding returns no structured data, the bot falls back to Google Search grounding and still returns a result
+**Plans**: TBD
+
+Plans:
+- [ ] 20-01-PLAN.md — Swap googleSearch for googleMaps tool in travelSearch.ts; add googleSearch fallback path
+- [ ] 20-02-PLAN.md — Update travelFormatter.ts: 5/3 result counts, rating/hours/address display, "Book:" prefix labeling
+
+### Phase 21: Travel Intelligence
+**Goal**: Open trip questions surface in the weekly digest until resolved, and the bot proactively suggests activities when a new destination is confirmed — rate-limited so it never spams the group
+**Depends on**: Phase 18 (trip memory working and calibrated), Phase 19 (suggest-then-confirm working)
+**Requirements**: MEM-04, INTL-01, INTL-02, INTL-03
+**Success Criteria** (what must be TRUE):
+  1. The weekly digest message includes a "Trip Status" section listing confirmed decisions and any open questions that have not been resolved
+  2. A resolved open item (answered in chat and re-classified by the context manager) no longer appears in the digest
+  3. When a destination is confirmed for the first time, the bot sends one proactive suggestion message with relevant activities or tips — and does not send another for the same destination
+  4. The bot does not send proactive messages more than 3 times per day per group, regardless of how many new destinations are confirmed
+**Plans**: TBD
+
+Plans:
+- [ ] 21-01-PLAN.md — Open item lifecycle: MEM-04 surfacing in weekly digest, resolution detection in tripContextManager
+- [ ] 21-02-PLAN.md — Proactive trigger: destination-confirmed signal, per-group cooldown (2h), daily cap (3/day), 90% confidence gate
+
 ## Progress
 
-**Execution Order:** 12 → 13 → 14 → 15 → 16
+**Execution Order:** 17 → 18 → 19 → 20 → 21
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -142,4 +236,9 @@ Plans:
 | 13. Voice Service Modules | v1.3 | 2/2 | Complete | 2026-03-01 |
 | 14. Core Voice Pipeline | v1.3 | 2/2 | Complete | 2026-03-01 |
 | 15. Draft Queue Voice Integration | v1.3 | 1/1 | Complete | 2026-03-02 |
-| 16. Voice Settings Management | v1.3 | Complete    | 2026-03-02 | 2026-03-02 |
+| 16. Voice Settings Management | v1.3 | 1/1 | Complete | 2026-03-02 |
+| 17. Pipeline Audit | v1.4 | 0/2 | Not started | - |
+| 18. Trip Memory | v1.4 | 0/3 | Not started | - |
+| 19. Itinerary Builder | v1.4 | 0/3 | Not started | - |
+| 20. Enriched Search | v1.4 | 0/2 | Not started | - |
+| 21. Travel Intelligence | v1.4 | 0/2 | Not started | - |

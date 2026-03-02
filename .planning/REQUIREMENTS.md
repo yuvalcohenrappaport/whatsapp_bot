@@ -83,27 +83,27 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUDIT-01 | — | Pending |
-| AUDIT-02 | — | Pending |
-| MEM-01 | — | Pending |
-| MEM-02 | — | Pending |
-| MEM-03 | — | Pending |
-| MEM-04 | — | Pending |
-| ITIN-01 | — | Pending |
-| ITIN-02 | — | Pending |
-| ITIN-03 | — | Pending |
-| SRCH-01 | — | Pending |
-| SRCH-02 | — | Pending |
-| SRCH-03 | — | Pending |
-| INTL-01 | — | Pending |
-| INTL-02 | — | Pending |
-| INTL-03 | — | Pending |
+| AUDIT-01 | Phase 17 | Pending |
+| AUDIT-02 | Phase 17 | Pending |
+| MEM-01 | Phase 18 | Pending |
+| MEM-02 | Phase 18 | Pending |
+| MEM-03 | Phase 18 | Pending |
+| MEM-04 | Phase 21 | Pending |
+| ITIN-01 | Phase 19 | Pending |
+| ITIN-02 | Phase 19 | Pending |
+| ITIN-03 | Phase 19 | Pending |
+| SRCH-01 | Phase 20 | Pending |
+| SRCH-02 | Phase 20 | Pending |
+| SRCH-03 | Phase 20 | Pending |
+| INTL-01 | Phase 21 | Pending |
+| INTL-02 | Phase 21 | Pending |
+| INTL-03 | Phase 21 | Pending |
 
 **Coverage:**
 - v1.4 requirements: 15 total
-- Mapped to phases: 0
-- Unmapped: 15 ⚠️
+- Mapped to phases: 15
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-02*
-*Last updated: 2026-03-02 after initial definition*
+*Last updated: 2026-03-02 after roadmap creation — all 15 requirements mapped*
