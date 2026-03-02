@@ -5,6 +5,8 @@ import { parseTravelIntent, type TravelIntent } from './travelParser.js';
 import { searchTravel } from './travelSearch.js';
 import { formatTravelResults, formatHelpText } from './travelFormatter.js';
 import { getGroupMessagesSince } from '../db/queries/groupMessages.js';
+import { getDecisionsByGroup, searchGroupMessages, getTripContext } from '../db/queries/tripMemory.js';
+import { generateText } from '../ai/provider.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
 
@@ -85,6 +87,101 @@ async function getDetectGroupLanguage(): Promise<(groupJid: string) => Promise<'
     detectGroupLanguageFn = mod.detectGroupLanguage;
   }
   return detectGroupLanguageFn;
+}
+
+// --- History search handler ---
+
+/**
+ * Handle a history_search intent: queries stored trip decisions and FTS5 message history,
+ * then synthesizes a natural language answer via Gemini.
+ * Never triggers a live web search.
+ */
+async function handleHistorySearch(
+  groupJid: string,
+  intent: TravelIntent,
+  lang: 'he' | 'en',
+): Promise<string> {
+  // 1. Load stored trip decisions and trip context for this group
+  const decisions = getDecisionsByGroup(groupJid);
+  const tripContext = getTripContext(groupJid);
+
+  // 2. Determine search terms from intent
+  const searchTerms =
+    intent.searchQuery ??
+    intent.destination ??
+    intent.preferences ??
+    '';
+
+  // 3. Run FTS5 search if we have search terms
+  const ftsResults =
+    searchTerms.trim().length > 0
+      ? searchGroupMessages(groupJid, searchTerms, 15)
+      : [];
+
+  // 4. Format decisions as a readable list
+  const decisionsText =
+    decisions.length > 0
+      ? decisions
+          .map((d) => {
+            const date = new Date(d.createdAt).toLocaleDateString();
+            return `- [${d.type}]: ${d.value} (${d.confidence}, ${date})`;
+          })
+          .join('\n')
+      : '(no stored decisions)';
+
+  // 5. Format FTS results as a readable list
+  const ftsText =
+    ftsResults.length > 0
+      ? ftsResults
+          .map((r) => {
+            const truncated =
+              r.body.length > 200 ? r.body.slice(0, 200) + '...' : r.body;
+            return `- ${r.senderName ?? 'Unknown'}: ${truncated}`;
+          })
+          .join('\n')
+      : '(no relevant messages found)';
+
+  // 6. Format trip context summary
+  const contextText = tripContext
+    ? [
+        tripContext.destination ? `Destination: ${tripContext.destination}` : null,
+        tripContext.dates ? `Dates: ${tripContext.dates}` : null,
+        tripContext.contextSummary ? `Summary: ${tripContext.contextSummary}` : null,
+      ]
+        .filter(Boolean)
+        .join('\n')
+    : '(no trip context)';
+
+  // 7. Build Gemini generateText call
+  const langLabel = lang === 'he' ? 'Hebrew' : 'English';
+  const systemPrompt = `You are a WhatsApp group trip assistant. Answer the user's question about past trip decisions based ONLY on the provided data. If no relevant decision or message exists, say so honestly -- do not make up information. Reply in ${langLabel}. Keep the answer concise (2-4 sentences).`;
+
+  const userQuestion = intent.searchQuery ?? intent.destination ?? intent.preferences ?? 'What did we decide?';
+
+  const userMessage = `User question: ${userQuestion}
+
+Stored trip decisions:
+${decisionsText}
+
+Relevant messages from chat history:
+${ftsText}
+
+Trip context:
+${contextText}`;
+
+  const answer = await generateText({
+    systemPrompt,
+    messages: [{ role: 'user', content: userMessage }],
+  });
+
+  // 8. Fallback if Gemini returns empty
+  if (!answer) {
+    return lang === 'he'
+      ? 'אין לי החלטות מאוחסנות על הנושא הזה.'
+      : "I don't have any stored decisions about that topic.";
+  }
+
+  return answer;
 }
 
 // --- Main handler ---
@@ -207,6 +304,13 @@ export async function handleTravelMention(
   // Vague travel request: ask for clarification
   if (intent.isVague === true && intent.clarificationQuestion) {
     await sock.sendMessage(groupJid, { text: intent.clarificationQuestion });
+    return true;
+  }
+
+  // History search: recall stored decisions and chat history, no web search
+  if (intent.queryType === 'history_search') {
+    const answer = await handleHistorySearch(groupJid, intent, lang);
+    await sock.sendMessage(groupJid, { text: answer });
     return true;
   }
 
