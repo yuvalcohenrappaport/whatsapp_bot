@@ -98,6 +98,7 @@ export default async function contactRoutes(fastify: FastifyInstance) {
         relationship: string;
         customInstructions: string;
         name: string;
+        voiceReplyEnabled: boolean;
       }>;
 
       const updates: Record<string, unknown> = { updatedAt: Date.now() };
@@ -106,6 +107,7 @@ export default async function contactRoutes(fastify: FastifyInstance) {
       if (body.customInstructions !== undefined)
         updates.customInstructions = body.customInstructions;
       if (body.name !== undefined) updates.name = body.name;
+      if (body.voiceReplyEnabled !== undefined) updates.voiceReplyEnabled = body.voiceReplyEnabled;
 
       db.update(contacts).set(updates).where(eq(contacts.jid, jid)).run();
 

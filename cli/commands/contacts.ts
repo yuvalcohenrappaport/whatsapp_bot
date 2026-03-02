@@ -113,10 +113,12 @@ export function addContactsCommand(program: Command): void {
     .option('-m, --mode <mode>', 'Contact mode (off|draft|auto)')
     .option('-r, --relationship <text>', 'Relationship description')
     .option('-i, --instructions <text>', 'Custom instructions')
+    .option('--voice', 'Enable voice replies for this contact')
+    .option('--no-voice', 'Disable voice replies for this contact')
     .action(
       (
         jid: string,
-        opts: { mode?: string; relationship?: string; instructions?: string },
+        opts: { mode?: string; relationship?: string; instructions?: string; voice?: boolean },
       ) => {
         const normalizedJid = normalizeJid(jid);
 
@@ -135,9 +137,13 @@ export function addContactsCommand(program: Command): void {
           updates.customInstructions = opts.instructions;
           changed.push(`instructions="${opts.instructions}"`);
         }
+        if (opts.voice !== undefined) {
+          updates.voiceReplyEnabled = opts.voice;
+          changed.push(`voiceReplyEnabled=${opts.voice}`);
+        }
 
         if (changed.length === 0) {
-          console.log('No options provided. Use --mode, --relationship, or --instructions.');
+          console.log('No options provided. Use --mode, --relationship, --instructions, --voice, or --no-voice.');
           return;
         }
 
