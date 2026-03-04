@@ -22,9 +22,14 @@ export function AppSidebar() {
   return (
     <ShadcnSidebar collapsible="offcanvas">
       <SidebarHeader className="px-4 py-5">
-        <span className="text-lg font-bold tracking-tight text-sidebar-foreground">
-          WA Bot
-        </span>
+        <div className="flex items-center gap-2.5">
+          <div className="flex size-8 items-center justify-center rounded-lg bg-emerald-subtle glow-emerald">
+            <span className="text-emerald text-sm font-bold">W</span>
+          </div>
+          <span className="text-lg font-bold tracking-tight text-sidebar-foreground font-[var(--font-heading)]" style={{ fontFamily: 'var(--font-heading)' }}>
+            WA Bot
+          </span>
+        </div>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
@@ -35,8 +40,8 @@ export function AppSidebar() {
                   <NavLink to={item.to} end={item.to === '/'}>
                     {({ isActive }) => (
                       <SidebarMenuButton isActive={isActive} className="gap-3">
-                        <item.icon className="size-4" />
-                        <span>{item.label}</span>
+                        <item.icon className={`size-4 ${isActive ? 'text-emerald' : ''}`} />
+                        <span className={isActive ? 'text-emerald font-medium' : ''}>{item.label}</span>
                       </SidebarMenuButton>
                     )}
                   </NavLink>

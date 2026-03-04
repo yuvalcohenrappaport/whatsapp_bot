@@ -19,25 +19,28 @@ export function GroupCard({ group }: GroupCardProps) {
   return (
     <>
       <Card
-        className="cursor-pointer hover:bg-accent/50 transition-colors p-6 space-y-3"
+        className={`card-shine cursor-pointer hover:bg-accent/30 transition-all duration-200 p-6 space-y-3 border-border/50 hover:border-border ${group.active ? 'border-l-2 border-l-[oklch(0.68_0.16_200)]' : ''}`}
         onClick={() => setPanelOpen(true)}
       >
         <div className="flex items-center justify-between">
           <div className="font-medium truncate">
             {group.name ?? group.id}
           </div>
-          <Badge variant={group.active ? 'default' : 'secondary'}>
+          <Badge
+            variant={group.active ? 'default' : 'secondary'}
+            className={group.active ? 'bg-emerald-subtle text-emerald border-glow-emerald' : ''}
+          >
             {group.active ? 'Active' : 'Inactive'}
           </Badge>
         </div>
         {group.reminderDay && (
-          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          <div className="flex items-center gap-1.5 text-sm text-amber-accent">
             <Calendar className="size-3.5" />
             <span>Reminder: {group.reminderDay.charAt(0).toUpperCase() + group.reminderDay.slice(1)}</span>
           </div>
         )}
         {group.calendarLink && (
-          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          <div className="flex items-center gap-1.5 text-sm text-teal">
             <LinkIcon className="size-3.5" />
             <span className="truncate">Calendar linked</span>
           </div>

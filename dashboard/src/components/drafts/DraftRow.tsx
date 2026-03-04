@@ -17,7 +17,7 @@ export function DraftRow({ draft }: DraftRowProps) {
   const reject = useRejectDraft();
 
   return (
-    <Card className="p-6">
+    <Card className="card-shine p-6 border-border/50 border-l-2 border-l-[oklch(0.80_0.18_85)]">
       <div className="flex flex-col sm:flex-row sm:items-start gap-4">
         <div className="flex-1 space-y-3 min-w-0">
           <div className="font-medium">
@@ -28,7 +28,7 @@ export function DraftRow({ draft }: DraftRowProps) {
           </p>
           {editing ? (
             <TextareaAutosize
-              className="w-full resize-none bg-muted rounded-md p-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full resize-none bg-muted/50 rounded-md p-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring border border-border/50"
               value={body}
               onChange={(e) => setBody(e.target.value)}
               onBlur={() => setEditing(false)}
@@ -37,7 +37,7 @@ export function DraftRow({ draft }: DraftRowProps) {
             />
           ) : (
             <p
-              className="text-sm cursor-pointer hover:bg-muted rounded-md p-3 transition-colors whitespace-pre-wrap"
+              className="text-sm cursor-pointer hover:bg-accent/30 rounded-md p-3 transition-colors whitespace-pre-wrap border border-transparent hover:border-border/50"
               onClick={() => setEditing(true)}
               title="Click to edit"
             >
@@ -55,6 +55,7 @@ export function DraftRow({ draft }: DraftRowProps) {
               );
             }}
             disabled={approve.isPending}
+            className="glow-emerald"
           >
             Approve
           </Button>
@@ -63,6 +64,7 @@ export function DraftRow({ draft }: DraftRowProps) {
             variant="outline"
             onClick={() => reject.mutate(draft.id)}
             disabled={reject.isPending}
+            className="border-border/50"
           >
             Reject
           </Button>

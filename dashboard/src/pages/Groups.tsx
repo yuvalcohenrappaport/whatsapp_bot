@@ -28,7 +28,7 @@ export default function Groups() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold">Groups</h1>
+        <h1 className="text-2xl font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>Groups</h1>
         <Button onClick={() => setDialogOpen(true)}>
           <Plus className="size-4 mr-2" />
           Add Group

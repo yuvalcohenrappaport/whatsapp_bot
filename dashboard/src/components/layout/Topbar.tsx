@@ -22,10 +22,12 @@ export function Topbar({ status, qr }: TopbarProps) {
 
   return (
     <>
-      <header className="flex h-14 items-center justify-between border-b border-border px-6">
+      <header className="flex h-14 items-center justify-between border-b border-border/50 px-6 backdrop-blur-sm bg-background/80">
         <div className="flex items-center gap-2">
           <SidebarTrigger className="md:hidden" />
-          <span className="font-semibold text-lg">WhatsApp Bot</span>
+          <span className="font-semibold text-lg" style={{ fontFamily: 'var(--font-heading)' }}>
+            WhatsApp Bot
+          </span>
         </div>
         <ConnectionBadge status={status} />
       </header>

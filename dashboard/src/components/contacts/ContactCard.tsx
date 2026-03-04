@@ -11,8 +11,14 @@ interface ContactCardProps {
 
 const modeBadgeClass: Record<string, string> = {
   off: 'bg-muted text-muted-foreground',
-  draft: 'bg-blue-600/20 text-blue-400 border-blue-500/30',
-  auto: 'bg-green-600/20 text-green-400 border-green-500/30',
+  draft: 'bg-[oklch(0.55_0.20_260_/_0.2)] text-[oklch(0.75_0.15_260)] border-[oklch(0.55_0.20_260_/_0.3)]',
+  auto: 'bg-emerald-subtle text-emerald border-glow-emerald',
+};
+
+const modeAccentBorder: Record<string, string> = {
+  off: '',
+  draft: 'border-l-[oklch(0.60_0.18_260)] border-l-2',
+  auto: 'border-l-[oklch(0.72_0.19_155)] border-l-2',
 };
 
 function relativeTime(timestamp: number): string {
@@ -41,7 +47,7 @@ export function ContactCard({ contact }: ContactCardProps) {
   return (
     <>
       <Card
-        className="cursor-pointer hover:bg-accent/50 transition-colors p-6 space-y-3"
+        className={`card-shine cursor-pointer hover:bg-accent/30 transition-all duration-200 p-6 space-y-3 border-border/50 hover:border-border ${modeAccentBorder[contact.mode] ?? ''}`}
         onClick={() => setPanelOpen(true)}
       >
         {/* Name + mode badge row */}

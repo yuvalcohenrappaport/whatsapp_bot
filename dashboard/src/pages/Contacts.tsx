@@ -25,7 +25,7 @@ export default function Contacts() {
     <div>
       {/* Page header */}
       <div className="flex items-center justify-between mb-8">
-        <h1 className="text-2xl font-semibold">Contacts</h1>
+        <h1 className="text-2xl font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>Contacts</h1>
         <Button onClick={() => setAddDialogOpen(true)}>
           <UserPlus className="size-4 mr-2" />
           Add Contact

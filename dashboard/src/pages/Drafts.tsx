@@ -14,7 +14,7 @@ export default function Drafts() {
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">
-        <h1 className="text-2xl font-semibold">Drafts</h1>
+        <h1 className="text-2xl font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>Drafts</h1>
         {drafts && drafts.length > 0 && (
           <>
             <Badge variant="secondary">{drafts.length}</Badge>

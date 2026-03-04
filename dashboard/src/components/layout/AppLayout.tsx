@@ -9,7 +9,7 @@ export function AppLayout() {
 
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-full bg-background text-foreground">
+      <div className="flex h-screen w-full bg-background text-foreground gradient-mesh-bg">
         <AppSidebar />
         <div className="flex flex-col flex-1 min-w-0">
           <Topbar status={status} qr={qr} />
