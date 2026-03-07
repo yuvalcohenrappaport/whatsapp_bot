@@ -15,7 +15,8 @@ interface Contact {
 }
 
 interface Group {
-  active: boolean;
+  travelBotActive: boolean;
+  keywordRulesActive: boolean;
 }
 
 const statConfig = [
@@ -71,7 +72,7 @@ export default function Overview() {
   const values: Record<string, number> = {
     drafts: drafts?.length ?? 0,
     contacts: contacts?.filter((c) => c.mode !== 'off').length ?? 0,
-    groups: groups?.filter((g) => g.active).length ?? 0,
+    groups: groups?.filter((g) => g.travelBotActive || g.keywordRulesActive).length ?? 0,
   };
 
   return (

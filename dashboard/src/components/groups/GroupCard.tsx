@@ -19,19 +19,28 @@ export function GroupCard({ group }: GroupCardProps) {
   return (
     <>
       <Card
-        className={`card-shine cursor-pointer hover:bg-accent/30 transition-all duration-200 p-6 space-y-3 border-border/50 hover:border-border ${group.active ? 'border-l-2 border-l-[oklch(0.68_0.16_200)]' : ''}`}
+        className={`card-shine cursor-pointer hover:bg-accent/30 transition-all duration-200 p-6 space-y-3 border-border/50 hover:border-border ${(group.travelBotActive || group.keywordRulesActive) ? 'border-l-2 border-l-[oklch(0.68_0.16_200)]' : ''}`}
         onClick={() => setPanelOpen(true)}
       >
         <div className="flex items-center justify-between">
           <div className="font-medium truncate">
             {group.name ?? group.id}
           </div>
-          <Badge
-            variant={group.active ? 'default' : 'secondary'}
-            className={group.active ? 'bg-emerald-subtle text-emerald border-glow-emerald' : ''}
-          >
-            {group.active ? 'Active' : 'Inactive'}
-          </Badge>
+          <div className="flex gap-1.5">
+            {group.travelBotActive && (
+              <Badge variant="default" className="bg-emerald-subtle text-emerald border-glow-emerald text-xs">
+                Travel
+              </Badge>
+            )}
+            {group.keywordRulesActive && (
+              <Badge variant="default" className="bg-emerald-subtle text-emerald border-glow-emerald text-xs">
+                Keywords
+              </Badge>
+            )}
+            {!group.travelBotActive && !group.keywordRulesActive && (
+              <Badge variant="secondary">Inactive</Badge>
+            )}
+          </div>
         </div>
         {group.reminderDay && (
           <div className="flex items-center gap-1.5 text-sm text-amber-accent">

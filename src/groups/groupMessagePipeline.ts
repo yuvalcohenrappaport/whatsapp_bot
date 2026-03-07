@@ -350,29 +350,38 @@ export function initGroupPipeline(): void {
       mentionedJids: string[],
     ) => {
       try {
-        // Travel @mention -- runs immediately, terminal
-        const wasTravel = await handleTravelMention(groupJid, msg, quotedMessageId, mentionedJids);
-        if (wasTravel) return;
+        const group = getGroup(groupJid);
+        if (!group) return;
 
-        // Confirm/reject suggestion -- runs immediately, terminal (before fromMe guard so owner can confirm/reject)
-        const wasConfirmReject = await handleConfirmReject(groupJid, msg, quotedMessageId);
-        if (wasConfirmReject) return;
+        if (group.travelBotActive) {
+          // Travel @mention -- runs immediately, terminal
+          const wasTravel = await handleTravelMention(groupJid, msg, quotedMessageId, mentionedJids);
+          if (wasTravel) return;
 
-        // Reply-to-delete -- runs immediately, terminal (before fromMe guard so owner can delete events)
-        const wasDelete = await handleReplyToDelete(groupJid, msg, quotedMessageId);
-        if (wasDelete) return;
+          // Confirm/reject suggestion -- runs immediately, terminal (before fromMe guard so owner can confirm/reject)
+          const wasConfirmReject = await handleConfirmReject(groupJid, msg, quotedMessageId);
+          if (wasConfirmReject) return;
+
+          // Reply-to-delete -- runs immediately, terminal (before fromMe guard so owner can delete events)
+          const wasDelete = await handleReplyToDelete(groupJid, msg, quotedMessageId);
+          if (wasDelete) return;
+        }
 
         // Skip keyword rules and date extraction for own messages (bot confirmations etc.)
         if (msg.fromMe) return;
 
         // Keyword auto-response -- runs immediately, non-terminal
-        await handleKeywordRules(groupJid, msg);
+        if (group.keywordRulesActive) {
+          await handleKeywordRules(groupJid, msg);
+        }
 
-        // Trip context accumulation -- non-terminal (pre-filter inside)
-        addToTripContextDebounce(groupJid, msg);
+        if (group.travelBotActive) {
+          // Trip context accumulation -- non-terminal (pre-filter inside)
+          addToTripContextDebounce(groupJid, msg);
 
-        // Batch for calendar date extraction
-        addToDebounce(groupJid, msg);
+          // Batch for calendar date extraction
+          addToDebounce(groupJid, msg);
+        }
       } catch (err) {
         logger.error(
           { err, groupJid, msgId: msg.id },

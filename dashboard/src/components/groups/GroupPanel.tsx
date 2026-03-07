@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Trash2, X } from 'lucide-react';
+import { Send, Trash2, X } from 'lucide-react';
 import {
   SheetHeader,
   SheetTitle,
@@ -18,9 +18,41 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { useUpdateGroup, useDeleteGroup } from '@/hooks/useGroups';
+import { useUpdateGroup, useDeleteGroup, useSendGroupMessage } from '@/hooks/useGroups';
 import type { Group } from '@/hooks/useGroups';
 import { KeywordRuleList } from './KeywordRuleList';
+
+function buildWelcomeMessage(calendarLink: string | null): string {
+  const calendarLine = calendarLink
+    ? `\nלוח השנה של הקבוצה:\n${calendarLink}`
+    : '';
+
+  return `\u{202B}היי לכולם! 👋
+
+הבוט של הקבוצה כאן כדי לעזור לתכנן את החופשה. הנה מה שאני יודע לעשות:
+
+✈️ *חיפוש טיולים*
+תייגו אותי עם בקשה ואני אחפש בשבילכם ברגע:
+• טיסות לרומא בחודש הבא
+• מלונות בברצלונה 10-15 במרץ
+• מסעדות ליד מגדל אייפל
+• השכרת רכב באתונה
+
+אפשר גם להגיב על תוצאה שקיבלתם ולשאול שאלת המשך — אני אזכור את ההקשר.
+
+📅 *לוח שנה משותף*
+כל פעם שמישהו כותב תאריך בקבוצה (למשל "הטיסה ב-15 למרץ בשעה 10:00"), אני אוסיף את זה אוטומטית ללוח שנה של Google ואשלח אישור. רוצים למחוק אירוע? פשוט הגיבו על ההודעה שלי עם "מחק" או ❌.${calendarLine}
+
+🔔 *תקציר שבועי*
+כל שבוע אני שולח סיכום של מה שקורה — אירועים קרובים, משימות פתוחות ונקודות עיקריות מהשיחה.
+
+💬 *טיפים*
+• אפשר לכתוב בעברית או באנגלית — אני מבין שניהם
+• בין חיפושים יש המתנה קצרה של 30 שניות
+• לא צריך להוסיף אירועים ידנית — פשוט כתבו תאריכים בצ'אט ואני אתפוס אותם
+
+יאללה, לאן טסים? ✈️`;
+}
 
 interface GroupPanelProps {
   group: Group;
@@ -52,6 +84,7 @@ function parseEmails(raw: string | null): string[] {
 export function GroupPanel({ group, onClose }: GroupPanelProps) {
   const updateGroup = useUpdateGroup();
   const deleteGroup = useDeleteGroup();
+  const sendMessage = useSendGroupMessage();
 
   const [name, setName] = useState(group.name ?? '');
   const [calendarLink, setCalendarLink] = useState(group.calendarLink ?? '');
@@ -68,9 +101,16 @@ export function GroupPanel({ group, onClose }: GroupPanelProps) {
     }
   }
 
-  function handleActiveToggle(checked: boolean) {
+  function handleTravelBotToggle(checked: boolean) {
     updateGroup.mutate(
-      { id: group.id, patch: { active: checked } },
+      { id: group.id, patch: { travelBotActive: checked } },
+      { onSuccess: () => toast.success('Saved') },
+    );
+  }
+
+  function handleKeywordRulesToggle(checked: boolean) {
+    updateGroup.mutate(
+      { id: group.id, patch: { keywordRulesActive: checked } },
       { onSuccess: () => toast.success('Saved') },
     );
   }
@@ -144,13 +184,22 @@ export function GroupPanel({ group, onClose }: GroupPanelProps) {
           />
         </div>
 
-        {/* Active toggle */}
-        <div className="flex items-center justify-between">
-          <Label>Active</Label>
-          <Switch
-            checked={group.active}
-            onCheckedChange={handleActiveToggle}
-          />
+        {/* Feature toggles */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label>Travel Bot</Label>
+            <Switch
+              checked={group.travelBotActive}
+              onCheckedChange={handleTravelBotToggle}
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <Label>Keyword Rules</Label>
+            <Switch
+              checked={group.keywordRulesActive}
+              onCheckedChange={handleKeywordRulesToggle}
+            />
+          </div>
         </div>
 
         <Separator />
@@ -227,6 +276,36 @@ export function GroupPanel({ group, onClose }: GroupPanelProps) {
               Add
             </Button>
           </div>
+        </div>
+
+        <Separator />
+
+        {/* Welcome Message */}
+        <div className="space-y-3">
+          <Label>Welcome Message</Label>
+          <div
+            dir="rtl"
+            className="bg-muted rounded-md p-3 text-sm whitespace-pre-wrap max-h-60 overflow-y-auto leading-relaxed"
+          >
+            {buildWelcomeMessage(group.calendarLink)}
+          </div>
+          <Button
+            size="sm"
+            className="w-full"
+            disabled={sendMessage.isPending}
+            onClick={() => {
+              sendMessage.mutate(
+                { id: group.id, text: buildWelcomeMessage(group.calendarLink) },
+                {
+                  onSuccess: () => toast.success('Welcome message sent'),
+                  onError: () => toast.error('Failed to send message'),
+                },
+              );
+            }}
+          >
+            <Send className="size-4 mr-2" />
+            {sendMessage.isPending ? 'Sending...' : 'Send to Group'}
+          </Button>
         </div>
 
         <Separator />

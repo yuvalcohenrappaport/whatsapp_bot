@@ -244,10 +244,10 @@ async function processMessage(sock: WASocket, msg: WAMessage): Promise<void> {
 
   // Group messages: persist tracked group messages with sender info
   if (remoteJid.endsWith('@g.us')) {
-    // Only process messages from tracked, active groups
+    // Only process messages from tracked groups with at least one feature active
     const group = getGroup(remoteJid);
-    if (!group || group.active !== true) {
-      return; // Silently drop non-tracked/inactive group messages
+    if (!group || (!group.travelBotActive && !group.keywordRulesActive)) {
+      return; // Silently drop non-tracked/fully-inactive group messages
     }
 
     // Extract sender info from Baileys group message structure

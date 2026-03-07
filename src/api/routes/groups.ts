@@ -1,4 +1,6 @@
 import type { FastifyInstance } from 'fastify';
+import pino from 'pino';
+import { config } from '../../config.js';
 import {
   getGroups,
   getGroup,
@@ -6,7 +8,10 @@ import {
   updateGroup,
   deleteGroup,
 } from '../../db/queries/groups.js';
+import { createGroupCalendar, shareCalendar } from '../../calendar/calendarService.js';
 import { getState } from '../state.js';
+
+const logger = pino({ level: config.LOG_LEVEL });
 
 export default async function groupRoutes(fastify: FastifyInstance) {
   // GET /api/groups - all groups
@@ -39,14 +44,26 @@ export default async function groupRoutes(fastify: FastifyInstance) {
     },
   );
 
-  // POST /api/groups - create a group
+  // POST /api/groups - create a group and initialize its Google Calendar
   fastify.post(
     '/api/groups',
     { onRequest: [fastify.authenticate] },
     async (request, reply) => {
       const { id, name } = request.body as { id: string; name?: string };
       createGroup(id, name);
-      return reply.status(201).send({ ok: true });
+
+      // Create a Google Calendar for the group immediately
+      try {
+        const calendarResult = await createGroupCalendar(name ?? id);
+        if (calendarResult) {
+          updateGroup(id, { calendarLink: calendarResult.calendarLink });
+          logger.info({ groupId: id, calendarId: calendarResult.calendarId }, 'Calendar created for new group');
+        }
+      } catch (err) {
+        logger.warn({ err, groupId: id }, 'Failed to create calendar for new group — can be created later');
+      }
+
+      return reply.status(201).send(getGroup(id) ?? { ok: true });
     },
   );
 
@@ -58,7 +75,8 @@ export default async function groupRoutes(fastify: FastifyInstance) {
       const { id } = request.params;
       const patch = request.body as Partial<{
         name: string;
-        active: boolean;
+        travelBotActive: boolean;
+        keywordRulesActive: boolean;
         reminderDay: string;
         calendarLink: string;
         memberEmails: string;
@@ -77,6 +95,28 @@ export default async function groupRoutes(fastify: FastifyInstance) {
       const { id } = request.params;
       deleteGroup(id);
       return reply.status(204).send();
+    },
+  );
+
+  // POST /api/groups/:id/send - send a text message to the group
+  fastify.post<{ Params: { id: string } }>(
+    '/api/groups/:id/send',
+    { onRequest: [fastify.authenticate] },
+    async (request, reply) => {
+      const { id } = request.params;
+      const { text } = request.body as { text: string };
+
+      if (!text || typeof text !== 'string') {
+        return reply.status(400).send({ error: 'text is required' });
+      }
+
+      const { sock } = getState();
+      if (!sock) {
+        return reply.status(503).send({ error: 'WhatsApp not connected' });
+      }
+
+      await sock.sendMessage(id, { text });
+      return { ok: true };
     },
   );
 }

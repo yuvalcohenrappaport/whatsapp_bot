@@ -241,7 +241,7 @@ export function initReminderScheduler(): void {
   let scheduled = 0;
 
   for (const group of activeGroups) {
-    if (!group.reminderDay) continue;
+    if (!group.travelBotActive || !group.reminderDay) continue;
 
     scheduleGroupReminder(
       group.id,

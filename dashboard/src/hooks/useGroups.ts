@@ -4,7 +4,8 @@ import { apiFetch } from '@/api/client';
 export interface Group {
   id: string;
   name: string | null;
-  active: boolean;
+  travelBotActive: boolean;
+  keywordRulesActive: boolean;
   reminderDay: string | null;
   calendarLink: string | null;
   memberEmails: string | null;
@@ -68,5 +69,15 @@ export function useDeleteGroup() {
     mutationFn: (id: string) =>
       apiFetch(`/api/groups/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['groups'] }),
+  });
+}
+
+export function useSendGroupMessage() {
+  return useMutation({
+    mutationFn: ({ id, text }: { id: string; text: string }) =>
+      apiFetch(`/api/groups/${encodeURIComponent(id)}/send`, {
+        method: 'POST',
+        body: JSON.stringify({ text }),
+      }),
   });
 }

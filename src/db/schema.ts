@@ -55,7 +55,8 @@ export const drafts = sqliteTable('drafts', {
 export const groups = sqliteTable('groups', {
   id: text('id').primaryKey(), // WhatsApp group JID (e.g. 123456789@g.us)
   name: text('name'),
-  active: integer('active', { mode: 'boolean' }).notNull().default(true),
+  travelBotActive: integer('travel_bot_active', { mode: 'boolean' }).notNull().default(true),
+  keywordRulesActive: integer('keyword_rules_active', { mode: 'boolean' }).notNull().default(true),
   reminderDay: text('reminder_day'), // 'monday' | 'tuesday' | ... | 'sunday'
   reminderHour: integer('reminder_hour').default(9), // Hour (0-23) for weekly reminder
   calendarLink: text('calendar_link'),
