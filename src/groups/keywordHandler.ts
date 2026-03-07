@@ -54,10 +54,8 @@ export async function handleKeywordRules(
   const { botJid, sock } = getState();
   if (!sock) return false;
 
-  // Skip bot's own messages to prevent self-triggering loops
-  if (botJid && msg.senderJid.split('@')[0] === botJid.split('@')[0]) {
-    return false;
-  }
+  // No botJid guard — the bot runs on the user's own account, so we allow
+  // keyword matching on all messages. Per-rule cooldowns prevent loops.
 
   const rules = getActiveKeywordRulesByGroup(groupJid);
   if (rules.length === 0) return false;

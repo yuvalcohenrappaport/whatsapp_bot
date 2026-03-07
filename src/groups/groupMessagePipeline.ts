@@ -367,13 +367,13 @@ export function initGroupPipeline(): void {
           if (wasDelete) return;
         }
 
-        // Skip keyword rules and date extraction for own messages (bot confirmations etc.)
-        if (msg.fromMe) return;
-
-        // Keyword auto-response -- runs immediately, non-terminal
+        // Keyword auto-response -- runs for all messages including own
         if (group.keywordRulesActive) {
           await handleKeywordRules(groupJid, msg);
         }
+
+        // Skip date extraction for own messages (bot confirmations etc.)
+        if (msg.fromMe) return;
 
         if (group.travelBotActive) {
           // Trip context accumulation -- non-terminal (pre-filter inside)
