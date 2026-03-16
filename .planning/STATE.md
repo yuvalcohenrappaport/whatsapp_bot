@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-03-16)
 
 **Core value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
-**Current focus:** Phase 24 - Smart Reminders
+**Current focus:** Phase 25 - Commitment Detection
 
 ## Current Position
 
-Phase: 24 of 26 (Smart Reminders)
-Plan: 3 of 3 (complete)
-Status: Phase 24 Complete
-Last activity: 2026-03-16 — Plan 24-02 executed (smart routing, restart recovery, cancel/edit commands)
+Phase: 25 of 26 (Commitment Detection)
+Plan: 1 of 3 (in progress)
+Status: Executing Phase 25
+Last activity: 2026-03-16 — Plan 25-01 executed (CommitmentDetectionService with pre-filter and Gemini extraction)
 
 Progress: [██████░░░░] 65% (v1.5)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 53 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 9, v1.4: 12, v1.5: 8)
+- Total plans completed: 54 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 9, v1.4: 12, v1.5: 9)
 - v1.4 shipped in 1 day (12 plans, 5 phases)
 - v1.3 shipped in 1 day (9 plans, 5 phases)
 
@@ -60,6 +60,8 @@ Recent decisions affecting current work:
 - [v1.5/P24]: Single-reminder optimization: skip Gemini call when only one pending
 - [v1.5/P24]: Calendar events not deleted on cancel (v1 simplification, user deletes manually)
 - [v1.5/P24]: Disambiguation uses module-level Map state, cleared on non-digit input
+- [v1.5/P25]: Hebrew regex uses non-word-boundary patterns (JS \b fails with Unicode)
+- [v1.5/P25]: Medium + high confidence included for commitments (calendar is high-only)
 
 ### Pending Todos
 
@@ -76,5 +78,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-03-16
-Stopped at: Completed 24-02-PLAN.md
-Resume with: Phase 24 complete (all 3 plans done). Next: Phase 25 (Commitment Detection)
+Stopped at: Completed 25-01-PLAN.md
+Resume with: Continue Phase 25 Plan 02 (commitment pipeline integration)
