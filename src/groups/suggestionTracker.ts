@@ -17,7 +17,7 @@ import {
 import {
   buildConfirmationText,
   detectGroupLanguage,
-} from './groupMessagePipeline.js';
+} from './calendarHelpers.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
 

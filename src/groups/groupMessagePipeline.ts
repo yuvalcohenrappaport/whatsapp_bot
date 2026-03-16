@@ -1,12 +1,12 @@
 import pino from 'pino';
 import { config } from '../config.js';
 import { getGroup, updateGroup } from '../db/queries/groups.js';
-import { getGroupMessagesSince } from '../db/queries/groupMessages.js';
 import {
   getCalendarEventByConfirmationMsgId,
   deleteCalendarEvent as deleteCalendarEventRecord,
 } from '../db/queries/calendarEvents.js';
-import { hasNumberPreFilter, extractDates } from './dateExtractor.js';
+import { calendarDetection } from '../calendar/CalendarDetectionService.js';
+import { getCalendarIdFromLink, buildConfirmationText, detectGroupLanguage } from './calendarHelpers.js';
 import {
   createGroupCalendar,
   shareCalendar,
@@ -48,73 +48,6 @@ const DEBOUNCE_MS = 10_000;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/**
- * Extract calendarId from a calendarLink URL.
- * Format: https://calendar.google.com/calendar/embed?src={encodedCalendarId}
- */
-export function getCalendarIdFromLink(calendarLink: string): string | null {
-  try {
-    const url = new URL(calendarLink);
-    const src = url.searchParams.get('src');
-    return src ? decodeURIComponent(src) : null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Format a Date for display in a confirmation message.
- * Returns e.g. "Tuesday, March 5 at 3:00 PM"
- */
-function formatDateForDisplay(date: Date): string {
-  return date.toLocaleString('en-IL', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'Asia/Jerusalem',
-  });
-}
-
-/**
- * Detect whether the group predominantly uses Hebrew based on recent messages.
- * Counts Hebrew chars (U+0590-U+05FF) vs Latin chars.
- */
-export async function detectGroupLanguage(groupJid: string): Promise<'he' | 'en'> {
-  try {
-    const sinceMs = Date.now() - 7 * 24 * 60 * 60 * 1000; // Last 7 days
-    const recentMsgs = getGroupMessagesSince(groupJid, sinceMs, 10);
-
-    let hebrewChars = 0;
-    let latinChars = 0;
-
-    for (const msg of recentMsgs) {
-      hebrewChars += (msg.body.match(/[\u0590-\u05FF]/g) ?? []).length;
-      latinChars += (msg.body.match(/[a-zA-Z]/g) ?? []).length;
-    }
-
-    return hebrewChars >= latinChars ? 'he' : 'en';
-  } catch {
-    return 'en'; // Default to English on error
-  }
-}
-
-/**
- * Build confirmation message text based on language.
- */
-export function buildConfirmationText(
-  lang: 'he' | 'en',
-  title: string,
-  date: Date,
-  calendarLink: string,
-): string {
-  const dateStr = formatDateForDisplay(date);
-  if (lang === 'he') {
-    return `קלטתי! הוספתי ${title} ב${dateStr} ללוח השנה\n${calendarLink}`;
-  }
-  return `Got it! Added ${title} on ${dateStr} to the calendar\n${calendarLink}`;
-}
 
 /**
  * Build delete confirmation message text based on language.
@@ -153,16 +86,19 @@ async function processGroupMessages(
   for (const msg of messages) {
     try {
       // Pre-filter: skip messages without any digits
-      if (!hasNumberPreFilter(msg.body)) {
+      if (!calendarDetection.hasDateSignal(msg.body)) {
         logger.debug({ msgId: msg.id }, 'Pre-filter: no digits, skipping Gemini');
         continue;
       }
 
       // Extract dates using Gemini
-      const extractedDates = await extractDates(
+      const extractedDates = await calendarDetection.extractDates(
         msg.body,
-        msg.senderName,
-        group.name ?? null,
+        {
+          senderName: msg.senderName,
+          chatName: group.name ?? null,
+          chatType: 'group',
+        },
       );
 
       if (extractedDates.length === 0) {
