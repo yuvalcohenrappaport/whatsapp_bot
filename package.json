@@ -7,7 +7,7 @@
     "bot": "./cli/bot.ts"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest run",
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
     "cli": "tsx cli/bot.ts",
@@ -59,6 +59,7 @@
     "@types/node-cron": "^3.0.11",
     "drizzle-kit": "^0.31.9",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0"
   }
 }
