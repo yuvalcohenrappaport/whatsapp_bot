@@ -115,11 +115,41 @@ export async function createPersonalCalendarEvent(params: {
   date: Date;
   description?: string;
   location?: string;
+  isAllDay?: boolean;
 }): Promise<string | null> {
   if (!calendarClient) return null;
 
   const timeZone = 'Asia/Jerusalem';
-  const endDate = new Date(params.date.getTime() + 3600000); // +1 hour
+
+  // Build start/end based on all-day vs timed event
+  let start: { date?: string; dateTime?: string; timeZone?: string };
+  let end: { date?: string; dateTime?: string; timeZone?: string };
+
+  if (params.isAllDay) {
+    // All-day events use date format (YYYY-MM-DD) in Asia/Jerusalem timezone
+    const dateInTz = new Date(
+      params.date.toLocaleString('en-US', { timeZone }),
+    );
+    const yyyy = dateInTz.getFullYear();
+    const mm = String(dateInTz.getMonth() + 1).padStart(2, '0');
+    const dd = String(dateInTz.getDate()).padStart(2, '0');
+    const startDate = `${yyyy}-${mm}-${dd}`;
+
+    // End date is next day for single all-day event
+    const nextDay = new Date(dateInTz);
+    nextDay.setDate(nextDay.getDate() + 1);
+    const endYyyy = nextDay.getFullYear();
+    const endMm = String(nextDay.getMonth() + 1).padStart(2, '0');
+    const endDd = String(nextDay.getDate()).padStart(2, '0');
+    const endDate = `${endYyyy}-${endMm}-${endDd}`;
+
+    start = { date: startDate };
+    end = { date: endDate };
+  } else {
+    const endDate = new Date(params.date.getTime() + 3600000); // +1 hour
+    start = { dateTime: params.date.toISOString(), timeZone };
+    end = { dateTime: endDate.toISOString(), timeZone };
+  }
 
   try {
     const res = await calendarClient.events.insert({
@@ -128,14 +158,8 @@ export async function createPersonalCalendarEvent(params: {
         summary: params.title,
         description: params.description,
         location: params.location,
-        start: {
-          dateTime: params.date.toISOString(),
-          timeZone,
-        },
-        end: {
-          dateTime: endDate.toISOString(),
-          timeZone,
-        },
+        start,
+        end,
         reminders: {
           useDefault: true,
         },

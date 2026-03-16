@@ -14,6 +14,7 @@ export interface ExtractedDate {
   location?: string;
   description?: string;
   url?: string;
+  isAllDay?: boolean;
 }
 
 export interface DetectionContext {
@@ -57,6 +58,11 @@ const DateExtractionSchema = z.object({
         .optional()
         .describe(
           'URL mentioned in the message related to this event, if any',
+        ),
+      isAllDay: z
+        .boolean()
+        .describe(
+          'True when no specific time was mentioned, only a date (e.g., "next Friday", "March 20th" without time)',
         ),
     }),
   ),
@@ -104,6 +110,7 @@ export class CalendarDetectionService {
           location?: string;
           description?: string;
           url?: string;
+          isAllDay: boolean;
         }[];
       }>({
         systemPrompt: systemInstruction,
@@ -138,6 +145,7 @@ export class CalendarDetectionService {
         location: d.location,
         description: d.description,
         url: d.url,
+        isAllDay: d.isAllDay,
         _raw: d.date,
       }));
 
@@ -153,13 +161,14 @@ export class CalendarDetectionService {
       });
 
       return valid.map(
-        ({ title, date, confidence, location, description, url }) => ({
+        ({ title, date, confidence, location, description, url, isAllDay }) => ({
           title,
           date,
           confidence,
           location,
           description,
           url,
+          isAllDay,
         }),
       );
     } catch (err) {

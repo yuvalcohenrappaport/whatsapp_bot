@@ -69,6 +69,7 @@ describe('CalendarDetectionService', () => {
             title: 'Flight to Barcelona',
             date: '2026-03-20T10:00:00',
             confidence: 'high',
+            isAllDay: false,
           },
         ],
       });
@@ -80,6 +81,7 @@ describe('CalendarDetectionService', () => {
       expect(results[0].date).toBeInstanceOf(Date);
       expect(results[0].date.getFullYear()).toBe(2026);
       expect(results[0].confidence).toBe('high');
+      expect(results[0].isAllDay).toBe(false);
     });
 
     it('filters out low/medium confidence results', async () => {
@@ -89,16 +91,19 @@ describe('CalendarDetectionService', () => {
             title: 'Flight to Barcelona',
             date: '2026-03-20T10:00:00',
             confidence: 'high',
+            isAllDay: false,
           },
           {
             title: 'Maybe lunch',
             date: '2026-03-21T12:00:00',
             confidence: 'medium',
+            isAllDay: false,
           },
           {
             title: 'Vague reference',
             date: '2026-03-22T09:00:00',
             confidence: 'low',
+            isAllDay: false,
           },
         ],
       });
@@ -132,6 +137,7 @@ describe('CalendarDetectionService', () => {
             title: 'Bad event',
             date: 'not-a-date',
             confidence: 'high',
+            isAllDay: false,
           },
         ],
       });
@@ -151,6 +157,7 @@ describe('CalendarDetectionService', () => {
             location: 'Tel Aviv Convention Center',
             description: 'Annual tech conference',
             url: 'https://example.com/conference',
+            isAllDay: false,
           },
         ],
       });
