@@ -160,7 +160,7 @@ Phases execute in numeric order: 22 -> 23 -> 24 -> 25 -> 26
 | 20. Enriched Search | v1.4 | 2/2 | Complete | 2026-03-02 |
 | 21. Travel Intelligence | v1.4 | 2/2 | Complete | 2026-03-02 |
 | 22. Calendar Detection Refactor | v1.5 | Complete    | 2026-03-16 | 2026-03-16 |
-| 23. Universal Calendar Detection | v1.5 | 3/3 | Complete | 2026-03-16 |
+| 23. Universal Calendar Detection | v1.5 | Complete    | 2026-03-16 | 2026-03-16 |
 | 24. Smart Reminders | v1.5 | 0/TBD | Not started | - |
 | 25. Commitment Detection | v1.5 | 0/TBD | Not started | - |
 | 26. Microsoft To Do Sync | v1.5 | 0/TBD | Not started | - |
