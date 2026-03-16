@@ -1,8 +1,8 @@
-# Technology Stack — Travel Agent Milestone
+# Technology Stack — v1.5 Personal Assistant Features
 
-**Project:** WhatsApp Group Bot — Travel Agent Features
-**Researched:** 2026-03-02
-**Scope:** NEW additions only. Existing validated stack (Baileys v7, Gemini 2.5 Flash, Fastify 5, Drizzle/SQLite, zod v4, node-cron, googleapis, ElevenLabs) is not re-researched.
+**Project:** WhatsApp Bot — Universal Calendar Detection, Smart Reminders, Microsoft To Do Sync
+**Researched:** 2026-03-16
+**Scope:** NEW additions only. Existing validated stack (Baileys v7, Gemini 2.5 Flash, Fastify 5, Drizzle/SQLite, Zod v4, node-cron, googleapis, ElevenLabs, chrono-node) is not re-researched.
 
 ---
 
@@ -10,245 +10,257 @@
 
 | Capability | Decision | Library / Pattern |
 |---|---|---|
-| Trip memory / structured decision storage | Extend Drizzle schema | No new library |
-| Chat history full-text search | SQLite FTS5 via raw SQL | Built into `better-sqlite3` |
-| Semantic chat history search | Defer; add `sqlite-vec` if FTS insufficient | `sqlite-vec` (defer) |
-| Richer place data (ratings, reviews, hours) | Gemini Maps Grounding | No new library — extend existing Gemini call |
-| Proactive suggestions | Extend existing Gemini + node-cron pipeline | No new library |
-| Activity detection from conversation | Extend existing Gemini prompt pipeline with Zod response schema | No new library |
-| Suggest-then-confirm UX in WhatsApp | Baileys reactions + quoted replies | No new library |
+| Universal calendar detection (all chats) | Extend existing `dateExtractor.ts` + pipeline to private messages | No new library |
+| Smart reminders (WhatsApp messages) | Extend existing `node-cron` scheduler + new Drizzle tables | No new library |
+| Smart reminders (calendar event proximity) | Poll Google Calendar via existing `googleapis` on cron schedule | No new library |
+| Microsoft To Do sync | `@microsoft/microsoft-graph-client` + `@azure/msal-node` | **2 new packages** |
+| MSAL token cache persistence | `@azure/msal-node-extensions` (file-based, OS-encrypted) | **1 new package** |
+| Microsoft Graph TypeScript types | `@microsoft/microsoft-graph-types` | **1 new package (devDependency)** |
+| OAuth2 one-time auth flow | Fastify route for authorization code callback | No new library |
 
-**Net result: zero new npm packages required for Phase 1. One optional package (`sqlite-vec`) deferred to a later phase.**
+**Net result: 3 new runtime packages + 1 dev dependency.**
 
 ---
 
 ## Capability Detail
 
-### 1. Full-Text Search (Chat History)
+### 1. Universal Calendar Detection (All Chats)
 
-**Decision: Use SQLite FTS5 via raw SQL. No new library.**
+**Decision: Extend existing `dateExtractor.ts` to run on private messages. No new library.**
 
-`better-sqlite3` v12.6.2 (already in `package.json`) compiles SQLite with FTS5 enabled by default. Drizzle ORM does not support FTS5 virtual tables natively (GitHub issue #2046, open since March 2024, still unresolved). The workaround is clean: create the FTS5 virtual table via `db.exec()` after Drizzle migrations run, and query it with raw `db.prepare()` statements.
+The project already has a battle-tested date extraction pipeline in `src/groups/dateExtractor.ts` that uses Gemini structured output with Zod v4 schemas. It currently runs only in the group message pipeline (`groupMessagePipeline.ts`). For v1.5, this same `extractDates()` function should be called from the private message handler in `src/pipeline/messageHandler.ts`.
 
-FTS5 supports boolean queries (AND, OR, NOT), phrase queries, and column filtering — sufficient for "find conversations about hotels in Rome" type queries.
+What needs to change (code, not libraries):
+- Move `dateExtractor.ts` from `src/groups/` to `src/calendar/` (it has no group-specific logic)
+- Call `extractDates()` in the private message pipeline after message storage
+- Add a `detectedEvents` table (see Architecture) to store detections from both private and group chats
+- Add a confirmation flow: bot sends "I noticed [event] on [date] -- want me to add it to your calendar?" via WhatsApp to the user (self-chat or dashboard notification)
 
-```typescript
-// One-time setup (called after Drizzle migrations in db/client.ts)
-import { getDb } from './client.js';
+The existing `hasNumberPreFilter()` gate (line 69 of `dateExtractor.ts`) keeps Gemini calls minimal -- only messages containing digits hit the LLM. This is critical for private chats which are higher volume than group chats.
 
-const db = getDb(); // existing better-sqlite3 instance
-
-db.exec(`
-  CREATE VIRTUAL TABLE IF NOT EXISTS group_messages_fts
-  USING fts5(
-    body,
-    sender_name,
-    content='group_messages',
-    content_rowid='rowid'
-  );
-`);
-
-// Rebuild index (run after bulk inserts or on startup)
-db.exec(`INSERT INTO group_messages_fts(group_messages_fts) VALUES('rebuild');`);
-
-// Search
-const results = db
-  .prepare(`
-    SELECT gm.*, rank
-    FROM group_messages gm
-    JOIN group_messages_fts fts ON gm.rowid = fts.rowid
-    WHERE group_messages_fts MATCH ?
-    AND gm.group_jid = ?
-    ORDER BY rank
-    LIMIT 20
-  `)
-  .all(query, groupJid);
-```
-
-**Confidence:** HIGH — FTS5 inclusion in better-sqlite3 is documented on its GitHub. Drizzle FTS5 gap confirmed via GitHub issue. Pattern verified across multiple implementations.
+**Confidence:** HIGH -- reusing proven code, no new dependencies.
 
 ---
 
-### 2. Semantic Search (Deferred)
+### 2. Smart Reminders
 
-**Decision: Skip for now. Add `sqlite-vec` + `gemini-embedding-001` only if FTS5 proves insufficient.**
+**Decision: Extend existing `node-cron` + new Drizzle tables. No new library.**
 
-`sqlite-vec` (v0.1.7-alpha.2) is the successor to sqlite-vss and runs as a loadable SQLite extension with no external dependencies. It integrates with `better-sqlite3` via a single `sqliteVec.load(db)` call. The project already uses `@google/genai`, so `gemini-embedding-001` embeddings cost nothing extra (no new SDK).
+The existing `reminderScheduler.ts` handles weekly group digests with `node-cron`. Smart reminders need two new capabilities:
 
-Concerns that justify deferring:
-- sqlite-vec is in alpha. The GitHub repository had no commits for approximately 6 months as of mid-2025 (confirmed via issue #226). Maintenance status is unclear.
-- Adding embeddings storage requires a schema migration (new `vec0` virtual table), an embedding generation step on every new group message, and a retrieval path — meaningful scope for Phase 1.
-- FTS5 keyword search likely covers 80% of the "find past conversations" use case.
+**A. User-defined reminders (from chat messages):**
+When a user says "remind me to call the dentist tomorrow at 3pm" in any chat, the bot should:
+1. Detect the reminder intent via Gemini (extend the existing structured output pattern)
+2. Store in a new `reminders` table with `triggerAt` timestamp
+3. Schedule delivery via `node-cron` or a polling pattern
 
-**Embedding model if/when added:** Use `gemini-embedding-001`. Do NOT use `text-embedding-004` — Google deprecated it August 2025. `gemini-embedding-001` is GA, ranks #1 on MTEB Multilingual, supports Hebrew.
+For reminder scheduling, the existing `node-cron` is sufficient. The concern with per-reminder cron jobs is memory at scale, but for a personal bot with maybe 10-50 active reminders, creating individual `ScheduledTask` instances is fine. Alternative: a single cron job running every minute that queries the DB for due reminders -- simpler and more resilient to restarts.
 
-```bash
-# Install only when semantic search phase begins
-npm install sqlite-vec
-```
+**Recommendation: Use the single-poller pattern.** One cron job every 60 seconds: `SELECT * FROM reminders WHERE trigger_at <= now AND status = 'pending'`. This survives PM2 restarts without re-scheduling individual jobs.
 
-```typescript
-import * as sqliteVec from 'sqlite-vec';
-import { getDb } from './db/client.js';
+**B. Calendar proximity reminders:**
+For calendar events detected from chats, send a WhatsApp reminder N hours before the event. The poller pattern above handles this too -- query `detected_events` where `event_date - reminder_offset <= now AND reminder_sent = false`.
 
-const db = getDb();
-sqliteVec.load(db); // loads extension into existing connection — no separate DB file
-
-// Generate embedding via existing @google/genai client
-const embedding = await ai.models.embedContent({
-  model: 'gemini-embedding-001',
-  contents: [{ parts: [{ text: messageBody }] }],
-});
-const vector = embedding.embeddings[0].values; // float32[]
-```
-
-**Confidence (sqlite-vec):** MEDIUM — works but alpha + stalled maintenance is a risk. Validate maintenance status before committing.
+**Confidence:** HIGH -- `node-cron` v4.2.1 already in `package.json`, polling pattern is trivial.
 
 ---
 
-### 3. Richer Place Data (Ratings, Reviews, Hours)
+### 3. Microsoft To Do Sync
 
-**Decision: Switch from `googleSearch` grounding to `googleMaps` grounding in the existing Gemini call. No new library.**
+**Decision: Use `@microsoft/microsoft-graph-client` v3.0.7 + `@azure/msal-node` v5.x + `@azure/msal-node-extensions` v5.x.**
 
-Gemini Maps Grounding is generally available in 2025, supported on Gemini 2.5 Flash. It provides structured data for 250M+ places: ratings, user reviews, opening hours, addresses, and photos. This replaces the current `googleSearch: {}` tool in `travelSearch.ts` (or runs alongside it as a fallback chain).
+This is the only capability requiring new packages. Here is the detailed rationale:
 
-The change is localized to `src/groups/travelSearch.ts`. The `geminiGroundedSearch()` function already passes `tools` in the config — swap the tool:
+#### Why `@microsoft/microsoft-graph-client` (not `@microsoft/msgraph-sdk`)
 
-```typescript
-// Before (existing)
-config: {
-  tools: [{ googleSearch: {} }],
-}
-
-// After (Maps Grounding)
-config: {
-  tools: [{ googleMaps: {} }],
-  toolConfig: {
-    retrievalConfig: {
-      // Optional: bias results toward group's home city
-      latLng: { latitude: 32.0853, longitude: 34.7818 }, // Tel Aviv
-    },
-  },
-}
-```
-
-Maps Grounding returns a `contextToken` that can render an interactive widget client-side, but for WhatsApp text output this is irrelevant — extract the structured data from the model's text response as before.
-
-**Why NOT add `@googlemaps/places`:** Separate API call, separate billing dimension, second API key to manage, added latency (serial: Gemini call + Places API call). Maps Grounding achieves the same within the existing Gemini call. The `@googlemaps/google-maps-services-js` (v3.4.2) or `@googlemaps/places` packages remain a fallback if Maps Grounding proves unreliable in practice.
-
-**Confidence:** MEDIUM — Maps Grounding is newly GA in 2025; Gemini docs confirm the tool config pattern, but real-world reliability vs. the older `googleSearch` grounding is less documented. Plan a fallback path to `googleSearch` grounding.
-
----
-
-### 4. Trip Memory / Structured Decision Storage
-
-**Decision: Add a `tripPlans` table to the existing Drizzle schema. No new library.**
-
-This is the natural extension of the current `groups` table pattern. Drizzle manages migrations; SQLite WAL mode (already configured) handles concurrent reads during bot operation.
-
-```typescript
-// src/db/schema.ts — new table
-export const tripPlans = sqliteTable(
-  'trip_plans',
-  {
-    id: text('id').primaryKey(),           // UUID
-    groupJid: text('group_jid').notNull(), // FK to groups.id
-    destination: text('destination'),       // "Rome, Italy"
-    dateFrom: integer('date_from'),         // Unix ms — from existing chrono-node parser
-    dateTo: integer('date_to'),             // Unix ms
-    budget: text('budget'),                 // "€1500 per person"
-    notes: text('notes'),                   // JSON blob for flexible fields
-    status: text('status').notNull().default('planning'), // 'planning' | 'confirmed' | 'done'
-    createdAt: integer('created_at').$defaultFn(() => Date.now()),
-    updatedAt: integer('updated_at').$defaultFn(() => Date.now()),
-  },
-  (table) => [index('idx_trip_plans_group').on(table.groupJid)],
-);
-
-export const tripDecisions = sqliteTable(
-  'trip_decisions',
-  {
-    id: text('id').primaryKey(),
-    tripId: text('trip_id').notNull(),         // FK to trip_plans.id
-    category: text('category').notNull(),       // 'hotel' | 'flight' | 'activity' | 'restaurant'
-    name: text('name').notNull(),               // "Hotel Artemide"
-    url: text('url'),
-    notes: text('notes'),
-    decided: integer('decided', { mode: 'boolean' }).notNull().default(false),
-    createdAt: integer('created_at').$defaultFn(() => Date.now()),
-  },
-  (table) => [index('idx_trip_decisions_trip').on(table.tripId)],
-);
-```
-
-**Confidence:** HIGH — standard Drizzle/SQLite pattern used throughout the existing codebase.
-
----
-
-### 5. Suggest-Then-Confirm UX in WhatsApp
-
-**Decision: Use emoji reactions + quoted replies. Do NOT use interactive buttons.**
-
-WhatsApp interactive messages (buttons, list messages) are exclusive to the WhatsApp Business API and require a verified Business Account. They are unavailable on personal accounts and will fail silently or cause account bans when attempted via Baileys on a personal number. This is confirmed: all interactive button documentation (Twilio, WATI, Clickatell, etc.) explicitly requires the Business API.
-
-What works on personal accounts via Baileys:
-
-| Mechanism | Baileys API | Use For |
+| | `@microsoft/microsoft-graph-client` | `@microsoft/msgraph-sdk` |
 |---|---|---|
-| Emoji reaction | `sock.sendMessage(jid, { react: { text: '✅', key: msgKey } })` | Bot confirms it registered a user's OK |
-| Quoted reply | `sock.sendMessage(jid, { text: '...' }, { quoted: msg })` | Bot references the specific suggestion being confirmed |
-| Numbered text list | Plain text formatting | "Reply *1* for Hotel Artemide, *2* for Hotel Eden" |
-| Reply chain detection | Already in `travelHandler.ts` via `travelResultMessages` Map | Detect user's follow-up as confirmation of a specific option |
+| Version | 3.0.7 (stable GA) | 1.0.0-preview.80 (preview) |
+| Status | Production-ready, maintained | Preview -- "not for production apps" per MS docs |
+| API surface | Fluent `.api('/me/todo/...').get()` | Fluent but requires installing separate sub-packages per API area |
+| Types | Pair with `@microsoft/microsoft-graph-types` | Built-in types |
+| Risk | Low -- stable for 2+ years | Breaking changes expected before GA |
 
-No changes to Baileys configuration. The existing reply chain detection in `travelHandler.ts` already handles this pattern — extend it to parse numbered confirmations ("ok take option 2") as structured intents.
+For a personal bot where stability matters more than cutting-edge DX, the mature library is the right call. The new SDK can be adopted later when it reaches GA.
 
-**Confidence:** HIGH — Personal account button restriction confirmed across multiple official Business API documentation sources. Baileys reaction API confirmed via GitHub.
+#### Authentication: OAuth2 Authorization Code Flow (Delegated Permissions)
 
----
+**Critical constraint: Microsoft To Do API only supports delegated permissions.** Application-only permissions (client credentials flow) do NOT work for To Do tasks. This means:
 
-### 6. Structured Output for Activity Detection
+1. The bot owner must perform a one-time OAuth2 authorization code flow (browser login)
+2. MSAL stores the refresh token and handles silent token renewal
+3. The refresh token is long-lived (~90 days), and MSAL auto-refreshes access tokens
 
-**Decision: Use existing `zod` v4 + Gemini `responseSchema`. No new library. Use `z.toJSONSchema()` NOT `zod-to-json-schema` library.**
+**Implementation pattern:**
 
-The project has `zod` v4.3.6 and `zod-to-json-schema` v3.25.1. The `zod-to-json-schema` library v3.25.x was built for Zod v3 and fails silently with Zod v4 (confirmed by multiple blog posts and GitHub issues). Zod v4 ships a native `z.toJSONSchema()` method — use it directly.
+```
+One-time setup:
+  1. User clicks "Connect Microsoft To Do" in dashboard
+  2. Dashboard redirects to Microsoft login (authorization code flow)
+  3. Microsoft redirects back to Fastify callback route with auth code
+  4. Fastify exchanges code for tokens via MSAL
+  5. MSAL caches tokens to disk via msal-node-extensions
 
-Gemini structured output with `responseSchema` is supported on all Gemini 2.5 models and is the right pattern for activity detection (extracting structured intent from natural conversation).
-
-```typescript
-import { z } from 'zod';
-
-const ActivityDetectionSchema = z.object({
-  detected: z.boolean(),
-  activityType: z.enum(['hotel', 'flight', 'restaurant', 'attraction', 'transport', 'other']).optional(),
-  destination: z.string().optional(),
-  dateHint: z.string().optional(),   // natural language, feed to existing chrono-node
-  confidence: z.enum(['high', 'medium', 'low']),
-});
-
-const response = await ai.models.generateContent({
-  model: config.GEMINI_MODEL,
-  contents: [{ role: 'user', parts: [{ text: conversationChunk }] }],
-  config: {
-    responseMimeType: 'application/json',
-    responseSchema: z.toJSONSchema(ActivityDetectionSchema), // Zod v4 native — NOT zod-to-json-schema
-  },
-});
-
-const activity = ActivityDetectionSchema.parse(JSON.parse(response.text!));
+Ongoing operation:
+  - Bot calls acquireTokenSilent() before each Graph API call
+  - MSAL handles refresh transparently
+  - If refresh token expires (90d no use), dashboard shows "Re-connect" prompt
 ```
 
-**Confidence:** HIGH — Gemini structured output docs confirm this pattern. Zod v4 `z.toJSONSchema()` availability confirmed via Zod v4 release notes and multiple migration guides.
+#### Token Cache Persistence
+
+**Decision: Use `@azure/msal-node-extensions` with file persistence on Linux.**
+
+MSAL's in-memory cache is lost on PM2 restart. `msal-node-extensions` provides:
+- **Linux:** LibSecret-based encrypted storage (preferred)
+- **Fallback:** Unencrypted file persistence (acceptable for a single-user home server)
+
+Since this is a personal bot on a home server (not multi-tenant), the file persistence with appropriate file permissions (chmod 600) is acceptable. LibSecret adds a dependency on `gnome-keyring` or `kwallet` which may not be installed.
+
+**Recommendation: Use file persistence with `0600` permissions.** Simpler, no desktop environment dependency. The token cache file contains refresh tokens but the server is single-user.
+
+```typescript
+import { PublicClientApplication } from '@azure/msal-node';
+import {
+  FilePersistence,
+  PersistenceCachePlugin,
+} from '@azure/msal-node-extensions';
+
+const persistence = await FilePersistence.create(
+  '/home/yuval/whatsapp-bot/.data/msal-cache.json', // outside git
+  600, // file mode
+);
+
+const pca = new PublicClientApplication({
+  auth: {
+    clientId: config.MS_CLIENT_ID,
+    authority: 'https://login.microsoftonline.com/consumers', // personal MS accounts
+  },
+  cache: {
+    cachePlugin: new PersistenceCachePlugin(persistence),
+  },
+});
+```
+
+**Note:** For personal Microsoft accounts (not work/school), the authority MUST be `https://login.microsoftonline.com/consumers`. Using `common` or a tenant ID will fail for personal accounts.
+
+#### Graph API Scopes for To Do
+
+Required scopes:
+- `Tasks.ReadWrite` -- create/read/update/delete tasks and task lists
+- `offline_access` -- receive refresh token for long-lived access
+- `User.Read` -- basic profile (needed for initial sign-in)
+
+```typescript
+const SCOPES = ['Tasks.ReadWrite', 'offline_access', 'User.Read'];
+```
+
+#### To Do API Endpoints Used
+
+| Operation | Endpoint | Method |
+|---|---|---|
+| List task lists | `/me/todo/lists` | GET |
+| Create task | `/me/todo/lists/{listId}/tasks` | POST |
+| Update task | `/me/todo/lists/{listId}/tasks/{taskId}` | PATCH |
+| Complete task | PATCH with `status: 'completed'` | PATCH |
+| List tasks | `/me/todo/lists/{listId}/tasks` | GET |
+
+**Confidence:** HIGH -- Graph API To Do endpoints are stable v1.0 (not beta). Auth flow well-documented.
 
 ---
 
-## Installation Summary
+### 4. Detected Events Storage and Reminder Schema
+
+**Decision: Add Drizzle tables. No new library.**
+
+New tables needed:
+
+```typescript
+// Detected events from ALL chats (private + group)
+export const detectedEvents = sqliteTable('detected_events', {
+  id: text('id').primaryKey(),
+  sourceType: text('source_type').notNull(), // 'private' | 'group'
+  sourceJid: text('source_jid').notNull(),   // contact JID or group JID
+  messageId: text('message_id').notNull(),
+  title: text('title').notNull(),
+  eventDate: integer('event_date').notNull(), // Unix ms
+  location: text('location'),
+  description: text('description'),
+  status: text('status').notNull().default('detected'), // 'detected' | 'confirmed' | 'dismissed' | 'synced'
+  calendarEventId: text('calendar_event_id'), // Google Calendar event ID if synced
+  todoTaskId: text('todo_task_id'),           // Microsoft To Do task ID if synced
+  reminderSent: integer('reminder_sent', { mode: 'boolean' }).default(false),
+  reminderOffsetMs: integer('reminder_offset_ms').default(3600000), // 1 hour default
+  createdAt: integer('created_at').$defaultFn(() => Date.now()),
+});
+
+// User-defined reminders (from "remind me..." messages)
+export const reminders = sqliteTable('reminders', {
+  id: text('id').primaryKey(),
+  sourceJid: text('source_jid').notNull(),
+  messageId: text('message_id'),
+  body: text('body').notNull(),           // "Call the dentist"
+  triggerAt: integer('trigger_at').notNull(), // Unix ms
+  status: text('status').notNull().default('pending'), // 'pending' | 'sent' | 'cancelled'
+  syncedToTodo: integer('synced_to_todo', { mode: 'boolean' }).default(false),
+  todoTaskId: text('todo_task_id'),
+  createdAt: integer('created_at').$defaultFn(() => Date.now()),
+});
+
+// Microsoft auth tokens (single row for bot owner)
+export const microsoftAuth = sqliteTable('microsoft_auth', {
+  id: text('id').primaryKey().default('owner'),
+  accountId: text('account_id'),        // MSAL home account ID
+  displayName: text('display_name'),
+  connectedAt: integer('connected_at'),
+  lastRefreshedAt: integer('last_refreshed_at'),
+});
+```
+
+**Note:** MSAL handles the actual token storage via `msal-node-extensions`. The `microsoftAuth` table only stores metadata (account ID, display name) for the dashboard to show connection status. Tokens are NOT stored in SQLite.
+
+**Confidence:** HIGH -- standard Drizzle pattern, consistent with existing schema.
+
+---
+
+## Recommended Stack
+
+### New Runtime Dependencies
+
+| Technology | Version | Purpose | Why |
+|---|---|---|---|
+| `@microsoft/microsoft-graph-client` | ^3.0.7 | Microsoft Graph API client for To Do sync | Stable GA; fluent API; only option for production (new SDK is preview) |
+| `@azure/msal-node` | ^5.0.6 | OAuth2 auth for Microsoft Graph | Official MS auth library; handles token refresh automatically |
+| `@azure/msal-node-extensions` | ^5.0.3 | Persist MSAL token cache to disk | Survives PM2 restarts; file persistence with 0600 perms for home server |
+
+### New Dev Dependencies
+
+| Technology | Version | Purpose | Why |
+|---|---|---|---|
+| `@microsoft/microsoft-graph-types` | ^2.40.0 | TypeScript types for Graph API responses | Type safety for To Do task objects; zero runtime cost |
+
+### Existing Stack (Extended, Not Replaced)
+
+| Technology | Current Version | Extension for v1.5 |
+|---|---|---|
+| `node-cron` | ^4.2.1 | Add 1-minute poller job for reminders |
+| `drizzle-orm` | ^0.45.1 | New tables: `detected_events`, `reminders`, `microsoft_auth` |
+| `@google/genai` | ^1.42.0 | Reminder intent detection schema (same `generateJson` pattern) |
+| `zod` | ^4.3.6 | New schemas for reminder intent, To Do task mapping |
+| `googleapis` | ^171.4.0 | Calendar event polling for proximity reminders |
+| `fastify` | ^5.7.4 | OAuth2 callback route for Microsoft auth |
+| `chrono-node` | ^2.9.0 | Fallback date parsing for reminder extraction |
+
+---
+
+## Installation
 
 ```bash
-# Phase 1 — nothing new required
-# All capabilities use packages already in package.json
+# New runtime dependencies
+npm install @microsoft/microsoft-graph-client @azure/msal-node @azure/msal-node-extensions
 
-# Phase 2 (semantic search, if FTS proves insufficient)
-npm install sqlite-vec
+# New dev dependency
+npm install -D @microsoft/microsoft-graph-types
 ```
 
 ---
@@ -257,13 +269,15 @@ npm install sqlite-vec
 
 | Do Not Add | Why | Alternative |
 |---|---|---|
-| `@googlemaps/places` | Extra API key, billing, latency; Maps Grounding does the same inside the existing Gemini call | Gemini `googleMaps` tool |
-| `@googlemaps/google-maps-services-js` | Same reasons; added overhead | Gemini `googleMaps` tool (fallback: `googleSearch` already working) |
-| WhatsApp interactive buttons library | Doesn't exist for personal accounts — buttons require Business API | Reactions + quoted replies |
-| `zod-to-json-schema` (any new usage) | v3.25.x breaks with Zod v4 silently | `z.toJSONSchema()` (built into Zod v4) |
-| Pinecone / Weaviate / Qdrant | External vector DB service — overkill for a WhatsApp group bot | `sqlite-vec` if semantic search is ever needed |
-| `text-embedding-004` (Gemini model) | Deprecated August 2025 | `gemini-embedding-001` |
-| Separate job queue (Bull, BullMQ) | Proactive suggestions are low-frequency; `node-cron` already handles scheduling | `node-cron` (already present) |
+| `@microsoft/msgraph-sdk` | Preview (1.0.0-preview.80); breaking changes expected; requires installing sub-packages per API area | `@microsoft/microsoft-graph-client` v3.0.7 (stable GA) |
+| `@microsoft/msgraph-sdk-tasks` | Preview sub-package of the above | Direct `.api('/me/todo/...')` calls on stable client |
+| `node-ical` / `ical.js` | No iCal files to parse; events are detected from chat text via Gemini | Existing `dateExtractor.ts` with Gemini structured output |
+| `croner` / `toad-scheduler` | Marginal improvement over `node-cron` which is already in the project; switching adds churn for no benefit | `node-cron` v4.2.1 (already installed) |
+| `bull` / `bullmq` | Requires Redis; overkill for a personal bot with <50 reminders | 1-minute `node-cron` poller querying SQLite |
+| `agenda` / `bree` | Heavyweight job schedulers; unnecessary for simple time-based polling | `node-cron` poller |
+| `@azure/identity` | For Azure-hosted apps; `@azure/msal-node` is the right choice for self-hosted Node.js | `@azure/msal-node` |
+| Separate token encryption library | Home server, single user; file permissions (0600) are sufficient | `msal-node-extensions` file persistence |
+| `passport-microsoft` / `passport-azure-ad` | Passport is for multi-user web apps with sessions; bot has one owner | Direct MSAL `acquireTokenByCode` flow |
 
 ---
 
@@ -271,13 +285,64 @@ npm install sqlite-vec
 
 | Category | Recommended | Alternative | Why Not |
 |---|---|---|---|
-| Place data enrichment | Gemini Maps Grounding (existing SDK) | `@googlemaps/places` v1 | Extra API key, billing, latency |
-| Full-text search | SQLite FTS5 (built-in) | Typesense, Meilisearch | External service, overkill for one group |
-| Semantic search | sqlite-vec (deferred) | pgvector, Faiss | External infrastructure; sqlite-vec keeps everything in one SQLite file |
-| Embedding model | `gemini-embedding-001` | `text-embedding-004` | Deprecated August 2025 |
-| Confirm UX | Reactions + quoted replies | WhatsApp button templates | Business API only; personal account ban risk |
-| Structured output | `z.toJSONSchema()` (Zod v4 native) | `zod-to-json-schema` library | v3-only; silently broken with Zod v4 |
-| Trip storage | Drizzle schema extension | Redis, MongoDB | No new infrastructure; SQLite WAL handles this volume |
+| Graph SDK | `@microsoft/microsoft-graph-client` v3.0.7 | `@microsoft/msgraph-sdk` v1.0.0-preview.80 | Preview; not production-ready; MS docs say "not for production" |
+| MS auth | `@azure/msal-node` v5.x | Raw OAuth2 fetch calls | MSAL handles token refresh, cache serialization, retry; reimplementing is error-prone |
+| Token persistence | `@azure/msal-node-extensions` (file) | Custom SQLite cache plugin | File persistence is officially supported; less code; separation of concerns (tokens outside DB) |
+| Token persistence | File with 0600 perms | LibSecret (Linux keyring) | LibSecret requires `gnome-keyring` daemon; home server may not have desktop environment |
+| Reminder scheduling | 1-min `node-cron` poller | Per-reminder `ScheduledTask` | Poller survives restarts without re-hydration; simpler; single job vs N jobs |
+| Date detection | Gemini structured output (existing) | `node-ical` + calendar feed parsing | Bot detects events from chat text, not from iCal feeds; Gemini already does this |
+| Date detection | Gemini structured output (existing) | `chrono-node` as primary parser | `chrono-node` doesn't support Hebrew; already rejected in existing code (see line 66 comment in `dateExtractor.ts`) |
+
+---
+
+## Integration Points
+
+### How the 3 Features Connect
+
+```
+Private Message → dateExtractor.extractDates()
+                     ↓
+              detectedEvents table
+                     ↓
+         ┌──────────┼──────────────┐
+         ↓          ↓              ↓
+   Google Calendar  Reminder     To Do
+   (googleapis)     Poller       Sync
+                   (node-cron)  (Graph API)
+```
+
+1. **Calendar detection** feeds the `detectedEvents` table (shared data store)
+2. **Smart reminders** read from `detectedEvents` + `reminders` tables via the 1-minute poller
+3. **To Do sync** is triggered when a detected event or reminder is confirmed, pushing to Microsoft To Do via Graph API
+
+### OAuth2 Flow Integration with Existing Fastify
+
+```
+Dashboard (React) → GET /api/microsoft/auth-url → Redirect to MS login
+MS login callback → GET /api/microsoft/callback → Exchange code → Store tokens
+Dashboard polls  → GET /api/microsoft/status → { connected: true, displayName: "..." }
+```
+
+The Fastify routes follow the existing JWT-protected pattern in `src/api/routes/`.
+
+---
+
+## Environment Variables (New)
+
+```bash
+# Microsoft Graph / To Do integration
+MS_CLIENT_ID=           # Azure App Registration client ID
+MS_CLIENT_SECRET=       # Azure App Registration client secret (for confidential client)
+MS_REDIRECT_URI=        # e.g. http://localhost:3000/api/microsoft/callback
+MS_TODO_LIST_NAME=      # Default list name to sync to (e.g. "WhatsApp Bot")
+```
+
+**Azure App Registration setup:**
+1. Go to https://portal.azure.com > App registrations > New registration
+2. Supported account types: "Personal Microsoft accounts only" (for personal To Do)
+3. Redirect URI: Web > `http://localhost:3000/api/microsoft/callback`
+4. API permissions: Add `Tasks.ReadWrite` (delegated) + `User.Read` (delegated)
+5. Certificates & secrets: Create a client secret
 
 ---
 
@@ -285,31 +350,33 @@ npm install sqlite-vec
 
 | Item | Version / Status | Notes |
 |---|---|---|
-| `better-sqlite3` | 12.6.2 (already installed) | FTS5 built-in, no change needed |
-| Gemini Maps Grounding | GA as of 2025 (API feature, no npm) | Supports Gemini 2.5 Flash |
-| `gemini-embedding-001` | GA (model name, no npm) | Use via existing `@google/genai` |
-| `sqlite-vec` | 0.1.7-alpha.2 (defer) | Alpha, maintenance uncertain |
-| `z.toJSONSchema()` | Built into `zod` v4.3.6 (already installed) | Use instead of `zod-to-json-schema` |
+| `@microsoft/microsoft-graph-client` | 3.0.7 (GA, stable) | Last published ~2024; mature and maintained |
+| `@azure/msal-node` | 5.0.6 (GA) | Published 2026-03-07; actively maintained |
+| `@azure/msal-node-extensions` | 5.0.3 (GA) | Published 2026-03-04; actively maintained |
+| `@microsoft/microsoft-graph-types` | ~2.40.0 (types only) | Dev dependency; check npm for latest |
+| Microsoft To Do API | v1.0 (GA) | Stable; delegated permissions only |
+| `node-cron` | 4.2.1 (already installed) | No change needed |
+| `drizzle-orm` | 0.45.1 (already installed) | Schema extension only |
 
 ---
 
 ## Sources
 
-- [SQLite FTS5 Extension — official docs](https://www.sqlite.org/fts5.html) — HIGH confidence
-- [better-sqlite3 GitHub — FTS5 enabled by default](https://github.com/WiseLibs/better-sqlite3) — HIGH confidence
-- [Drizzle ORM FTS5 feature request #2046](https://github.com/drizzle-team/drizzle-orm/issues/2046) — no native support confirmed — HIGH confidence
-- [sqlite-vec GitHub](https://github.com/asg017/sqlite-vec) — alpha, maintenance concern (issue #226) — MEDIUM confidence
-- [sqlite-vec Node.js usage](https://alexgarcia.xyz/sqlite-vec/js.html) — integration pattern confirmed — MEDIUM confidence
-- [Gemini Maps Grounding — official docs](https://ai.google.dev/gemini-api/docs/maps-grounding) — GA, Gemini 2.5 Flash supported — MEDIUM confidence
-- [Gemini embeddings docs](https://ai.google.dev/gemini-api/docs/embeddings) — `gemini-embedding-001` GA; `text-embedding-004` deprecated August 2025 — HIGH confidence
-- [Zod v4 + Gemini structured output](https://www.buildwithmatija.com/blog/zod-v4-gemini-fix-structured-output-z-tojsonschema) — `z.toJSONSchema()` vs. broken library — HIGH confidence
-- [Gemini structured output docs](https://ai.google.dev/gemini-api/docs/structured-output) — responseSchema pattern confirmed — HIGH confidence
-- [WhatsApp Business API buttons — WATI docs](https://www.wati.io/en/blog/whatsapp-business-interactive-message-templates/) — Business API only — HIGH confidence
-- [WhatsApp buttons — Twilio docs](https://www.twilio.com/docs/whatsapp/buttons) — Business API only — HIGH confidence
-- [Baileys reactions — GitHub issue #1029](https://github.com/WhiskeySockets/Baileys/issues/1029) — `react` payload confirmed — HIGH confidence
-- [@googlemaps/places npm](https://www.npmjs.com/package/@googlemaps/places) — considered and rejected — HIGH confidence
-- [@googlemaps/google-maps-services-js npm — v3.4.2](https://www.npmjs.com/package/@googlemaps/google-maps-services-js) — considered and rejected — HIGH confidence
+- [@microsoft/microsoft-graph-client npm](https://www.npmjs.com/package/@microsoft/microsoft-graph-client) -- v3.0.7, stable GA -- HIGH confidence
+- [@microsoft/msgraph-sdk npm](https://www.npmjs.com/package/@microsoft/msgraph-sdk) -- v1.0.0-preview.80, NOT production-ready -- HIGH confidence
+- [Microsoft Graph SDK overview (MS Learn)](https://learn.microsoft.com/en-us/graph/sdks/sdks-overview) -- recommends stable client for production -- HIGH confidence
+- [@azure/msal-node npm](https://www.npmjs.com/package/@azure/msal-node) -- v5.0.6 -- HIGH confidence
+- [@azure/msal-node-extensions npm](https://www.npmjs.com/package/@azure/msal-node-extensions) -- v5.0.3, file persistence docs -- HIGH confidence
+- [MSAL Node token caching (MS Learn)](https://learn.microsoft.com/en-us/entra/msal/javascript/node/caching) -- cache plugin pattern -- HIGH confidence
+- [Microsoft To Do API overview (MS Learn)](https://learn.microsoft.com/en-us/graph/todo-concept-overview) -- API surface, capabilities -- HIGH confidence
+- [To Do API resource reference (MS Learn)](https://learn.microsoft.com/en-us/graph/api/resources/todo-overview?view=graph-rest-1.0) -- endpoints, delegated-only -- HIGH confidence
+- [Tasks.ReadWrite permission details](https://graphpermissions.merill.net/permission/Tasks.ReadWrite) -- delegated only, no application permissions for To Do -- HIGH confidence
+- [Graph API delegated auth flow (MS Learn)](https://learn.microsoft.com/en-us/graph/auth-v2-user) -- authorization code flow, refresh tokens -- HIGH confidence
+- [OAuth2 auth code flow (MS Learn)](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow) -- code exchange, token refresh -- HIGH confidence
+- [Node.js schedulers comparison (Better Stack)](https://betterstack.com/community/guides/scaling-nodejs/best-nodejs-schedulers/) -- node-cron vs croner vs toad-scheduler -- MEDIUM confidence
+- [Gemini structured output docs](https://ai.google.dev/gemini-api/docs/structured-output) -- JSON schema response pattern -- HIGH confidence
+- Existing codebase: `src/groups/dateExtractor.ts`, `src/groups/reminderScheduler.ts`, `src/calendar/calendarService.ts` -- reviewed directly
 
 ---
-*Stack research for: WhatsApp Bot — Travel Agent Features*
-*Researched: 2026-03-02*
+*Stack research for: WhatsApp Bot v1.5 -- Personal Assistant Features*
+*Researched: 2026-03-16*

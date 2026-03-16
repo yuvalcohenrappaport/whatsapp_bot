@@ -1,675 +1,669 @@
-# Architecture Patterns: Travel Agent Integration
+# Architecture Patterns: Personal Assistant Features (v1.5)
 
-**Domain:** Travel agent features for an existing WhatsApp group bot
-**Researched:** 2026-03-02
-**Confidence:** HIGH — based on direct codebase inspection of all relevant source files
-
----
-
-## Existing Architecture (Ground Truth)
-
-Every design decision below is grounded in the actual code. The codebase is ~8,700 LOC TypeScript.
-
-### The Pipeline Chain (as implemented in `src/groups/groupMessagePipeline.ts`)
-
-```
-messages.upsert event (Baileys)
-  └─> messageHandler.ts: processMessage()
-        ├─ persist to groupMessages table (not-fromMe only)
-        └─> groupMessageCallback()   [single registered callback slot]
-              └─> groupMessagePipeline.ts: the registered callback
-                    │
-                    ├─[1] handleTravelMention()   ← TERMINAL if returns true
-                    │     detects @mention OR reply-to-travel-result msgId
-                    │     returns true → pipeline stops
-                    │
-                    ├─[2] if (msg.fromMe) return  ← TERMINAL guard
-                    │
-                    ├─[3] handleKeywordRules()    ← NON-TERMINAL
-                    │     first-match-wins but pipeline continues
-                    │
-                    ├─[4] handleReplyToDelete()   ← TERMINAL if returns true
-                    │     checks reply to bot calendar confirmation + delete word
-                    │
-                    └─[5] addToDebounce()         ← DEBOUNCED (10s window, batch)
-                          └─> processGroupMessages() → Gemini date extraction → calendar
-```
-
-### Callback Registration (as implemented in `src/pipeline/messageHandler.ts`)
-
-```typescript
-// One slot — last write wins. There is no array. No pub/sub.
-let groupMessageCallback: ((groupJid, msg, quotedMessageId, mentionedJids) => void) | null = null;
-
-export function setGroupMessageCallback(cb: typeof groupMessageCallback) {
-  groupMessageCallback = cb;
-}
-```
-
-This is critical: all group message handling must live inside the single registered callback in `groupMessagePipeline.ts`. Calling `setGroupMessageCallback()` a second time from a new module silently overwrites the first registration and breaks the pipeline.
-
-### State Pattern (as implemented)
-
-- `getState()` / `updateState()` in `src/api/state.ts` — module-level singleton for `sock`, `botJid`, `botDisplayName`, connection status. All handlers use `const { sock } = getState()` to access the socket.
-- Module-level Maps for ephemeral state: `travelResultMessages`, `lastRequestTime`, `debounceBuffers`, `calendarIdCache`, `ruleCooldowns`, `lastAutoReplyTime`. Each module owns its own state.
-- SQLite (via Drizzle ORM) for persistent state across restarts.
-
-### AI Pattern (as implemented)
-
-- `generateJson<T>()` in `src/ai/provider.ts` — structured JSON output using Zod schema passed as `responseSchema` to Gemini
-- `generateText()` in `src/ai/provider.ts` — free-form text generation
-- Every caller validates with `ZodSchema.safeParse()` before trusting output; returns `null` on failure — never crashes the pipeline
-- Gemini grounded search (Google Search tool) used exclusively in `travelSearch.ts` — separate API path from `provider.ts`
-
-### DB Pattern (as implemented)
-
-- Drizzle ORM over better-sqlite3, WAL mode enabled
-- Schema in `src/db/schema.ts`, migrations in `drizzle/` folder
-- Query functions in `src/db/queries/*.ts` — one file per table, exported individually
-- `onConflictDoNothing` for dedup on insert; WAL mode allows concurrent reads with writes
+**Domain:** Universal calendar detection, smart reminders, and Microsoft To Do sync for existing WhatsApp bot
+**Researched:** 2026-03-16
+**Confidence:** HIGH -- based on direct codebase inspection of all relevant source files
 
 ---
 
-## New Feature Integration Map
+## Current Architecture Summary
 
-### Feature 1: Trip Context Manager (always-listening accumulator)
+The bot has two main pipelines:
 
-**What it is:** Every message in the group is passively scanned for travel signals (destination mentions, date references, budget, group size). This accumulated context feeds @mention handling and the proactive suggestion trigger.
+1. **Private pipeline** (`pipeline/messageHandler.ts`): Incoming message -> persist -> contact mode check (off/draft/auto) -> AI reply generation -> send or create draft
+2. **Group pipeline** (`groups/groupMessagePipeline.ts`): Registered via single-slot `setGroupMessageCallback` -> travel handler -> confirm/reject -> delete handler -> keyword handler -> trip context accumulation + date extraction (debounced 10s)
 
-**Pipeline integration point:** New non-terminal step at position [3.5] — after keyword rules, before reply-to-delete. Same shape as `handleKeywordRules()`:
+Key patterns already in use:
+- Single-slot callback registration (`setGroupMessageCallback`) -- last write wins, no pub/sub
+- Debounced message batching (10s window) before AI date extraction
+- Suggest-then-confirm flow with reply-based confirm/reject and 30-minute TTL
+- Lazy resource creation (Google Calendars created on first event)
+- In-memory Map + DB persistence for pending suggestions (crash recovery via `restorePendingSuggestions`)
+- AI provider abstraction (`generateText` / `generateJson` via `ai/provider.ts`)
+- Global state singleton (`getState()` for sock access)
+- `node-cron` for scheduled jobs (weekly digest reminders)
+- Owner command parsing in `messageHandler.ts` (snooze, resume, draft approval via emojis)
 
-```
-[3] handleKeywordRules()          ← existing non-terminal
-[3.5] updateTripContext()         ← NEW non-terminal (always-listening, never sends)
-[4] handleReplyToDelete()         ← existing terminal
-[5] addToDebounce()               ← existing
-```
-
-`updateTripContext()` must never block the pipeline noticeably. The implementation uses a **debounce + batch** approach identical to the existing `addToDebounce()` pattern: buffer messages for 30 seconds, then run one Gemini call on the batch. Not every message triggers a Gemini call.
-
-**Storage:** New DB table (`tripContexts`), not in-memory only. Trip planning conversations span hours or days. Loss on restart is a real UX bug.
-
-**New DB table: `tripContexts`**
-
-```typescript
-// src/db/schema.ts addition
-export const tripContexts = sqliteTable('trip_contexts', {
-  id: text('id').primaryKey(),
-  groupJid: text('group_jid').notNull().unique(), // one active context per group (upsert pattern)
-  destination: text('destination'),
-  dates: text('dates'),             // JSON string: { start?: string; end?: string; raw: string }
-  budget: text('budget'),
-  preferences: text('preferences'), // JSON string: string[]
-  partySize: integer('party_size'),
-  confidence: text('confidence'),   // 'low' | 'medium' | 'high'
-  updatedAt: integer('updated_at').notNull().$defaultFn(() => Date.now()),
-  createdAt: integer('created_at').notNull().$defaultFn(() => Date.now()),
-}, (table) => [
-  index('idx_trip_contexts_group').on(table.groupJid),
-]);
-```
-
-**Gemini call shape for context extraction:**
-
-```typescript
-// schemaName: 'trip_context_update'
-const TripContextUpdateSchema = z.object({
-  hasTravelSignal: z.boolean(),
-  destination: z.string().nullable(),
-  dates: z.object({
-    raw: z.string(),
-    start: z.string().nullable(),
-    end: z.string().nullable(),
-  }).nullable(),
-  budget: z.string().nullable(),
-  preferences: z.array(z.string()),
-  partySize: z.number().int().nullable(),
-  confidence: z.enum(['low', 'medium', 'high']),
-});
-```
-
-**DB write strategy:** Upsert (merge into existing context, not replace). Only overwrite a field if the new extraction is non-null. This preserves early partial context as more signals accumulate.
-
-**Component location:** `src/groups/tripContextManager.ts` (new file)
+**Calendar detection currently lives only in the group pipeline.** `dateExtractor.ts` extracts dates, `groupMessagePipeline.ts` orchestrates the debounce/batch/create flow, `suggestionTracker.ts` handles suggest-then-confirm. None of this is accessible from the private message path.
 
 ---
 
-### Feature 2: Structured Decision Storage
+## New Features Integration Map
 
-**What it is:** When the group reaches a travel decision (agreed destination, confirmed dates, chosen hotel), store it as a typed record — not just as a message in `groupMessages`.
+### Feature 1: Universal Calendar Detection (Private Messages)
 
-**Pipeline integration:** Decision detection runs inside `tripContextManager.ts` during the context update cycle. When accumulated context reaches `confidence: 'high'` AND a commitment signal appears (e.g., "נקנה", "let's book", "confirmed", "agreed"), a `tripDecision` record is written.
+**What it is:** Extend the existing date extraction capability from group-only to also work on private (1:1) messages. When a friend says "let's meet Thursday at 3pm", the bot detects the date and creates a Google Calendar event on the owner's personal calendar.
 
-This is not a new pipeline stage. It is logic within the trip context flush, reusing the same Gemini call.
+#### New Components
 
-**New DB table: `tripDecisions`**
+| Component | Location | Responsibility |
+|-----------|----------|---------------|
+| `CalendarDetectionService` | `src/calendar/calendarDetection.ts` | Source-agnostic orchestrator: wraps dateExtractor + calendar event creation logic |
+| Owner calendar config | `settings` table or `config.ts` | Owner's personal Google Calendar ID for private message events |
 
-```typescript
-// src/db/schema.ts addition
-export const tripDecisions = sqliteTable('trip_decisions', {
-  id: text('id').primaryKey(),
-  groupJid: text('group_jid').notNull(),
-  type: text('type').notNull(),        // 'destination' | 'dates' | 'accommodation' | 'activity' | 'transport'
-  value: text('value').notNull(),      // Human-readable: "Rome, 15-20 March"
-  valueJson: text('value_json'),       // Structured JSON for calendar automation
-  sourceMessageId: text('source_message_id'), // groupMessages.id that triggered this
-  status: text('status').notNull().default('active'), // 'active' | 'overridden' | 'cancelled'
-  createdAt: integer('created_at').notNull().$defaultFn(() => Date.now()),
-}, (table) => [
-  index('idx_trip_decisions_group').on(table.groupJid),
-]);
+#### Modified Components
+
+| Component | Change |
+|-----------|--------|
+| `pipeline/messageHandler.ts` | After persisting incoming private message, call `CalendarDetectionService.detectAndCreate()` before reply generation |
+| `groups/groupMessagePipeline.ts` | Refactor: delegate to `CalendarDetectionService` instead of inline date extraction + suggestion logic |
+| `config.ts` | Add optional `OWNER_CALENDAR_ID` env var |
+
+#### Data Flow: Private Messages
+
+```
+Incoming private message (not fromMe, not group)
+  |
+  v
+  Persist to messages table (existing)
+  |
+  v
+  CalendarDetectionService.detectPrivate(text, contactName)
+    |-> hasNumberPreFilter(text)  [existing, fast JS check]
+    |-> extractDates(text, contactName, null)  [existing Gemini call]
+    |-> If dates found with high confidence:
+    |     -> createCalendarEvent on OWNER_CALENDAR_ID
+    |     -> Send confirmation to owner's self-chat:
+    |        "Added 'Meeting with Dan' on Thursday at 3pm to your calendar"
+    |     -> Insert into calendarEvents table (sourceType: 'private')
+    |
+  Continue to reply generation (existing, unaffected)
 ```
 
-**Relationship to `calendarEvents`:** When a `tripDecision` of type `dates` or `activity` includes a specific time, it should create a `calendarEvent`. The existing `calendarService.ts` + `insertCalendarEvent()` handle this — no new calendar code needed. The trip decision module calls the same functions that `processGroupMessages()` already calls.
+**Key design decision: No suggest-then-confirm for private messages.**
 
-**Enhanced date extraction (modification to `src/groups/dateExtractor.ts`):** The existing `ExtractedDate` interface only has `{ title, date, confidence }`. Extend the Zod schema with optional fields for richer calendar events:
+Rationale:
+1. Sending a suggestion message in a 1:1 chat would confuse the contact (they'd see the bot asking itself to confirm)
+2. Private messages are higher signal than group chat -- a friend explicitly mentioning a date/time is very likely intentional
+3. The owner can delete events via calendar app or via a future "undo" command
+4. This matches the user's mental model: "the bot watches my chats and adds things to my calendar"
 
-```typescript
-// Extended — backward compatible (new fields optional, no existing field type changes)
-const DateExtractionSchema = z.object({
-  dates: z.array(z.object({
-    title: z.string().describe('Concise smart title for the event'),
-    date: z.string().describe('ISO 8601 date string in Asia/Jerusalem timezone'),
-    confidence: z.enum(['high', 'medium', 'low']),
-    location: z.string().optional(),     // NEW: "Rome", "Airbnb near Colosseum"
-    description: z.string().optional(),  // NEW: richer context for calendar event body
-    url: z.string().optional(),          // NEW: booking link if mentioned in message
-  })),
-});
+The confirmation goes to the owner's self-chat (existing `config.USER_JID`), not to the contact.
+
+#### Data Flow: Group Messages (Refactored)
+
+```
+Group message batch (after existing 10s debounce)
+  |
+  v
+  CalendarDetectionService.detectGroup(messages, groupJid, calendarId, calendarLink)
+    |-> Same extraction logic as today
+    |-> Routes through existing suggestionTracker (suggest-then-confirm)
+    |-> No behavior change -- just moved to shared service
 ```
 
-**`calendarService.ts` modification** — add optional `location` parameter:
-
-```typescript
-export async function createCalendarEvent(params: {
-  calendarId: string;
-  title: string;
-  date: Date;
-  description: string;
-  location?: string;   // NEW — Google Calendar API accepts this as top-level field
-  timeZone?: string;
-}): Promise<string | null>
-```
-
-Google Calendar API's `events.insert` accepts `location` as a top-level field in the request body.
-
-**Component location:** Logic in `src/groups/tripContextManager.ts`. DB queries in `src/db/queries/tripContexts.ts` and `src/db/queries/tripDecisions.ts`.
+The refactoring enables code reuse without changing any group pipeline behavior.
 
 ---
 
-### Feature 3: Suggest-Then-Confirm Flow
+### Feature 2: Smart Reminders
 
-**What it is:** The bot sends a proactive suggestion message ("I see you're planning Rome — want me to search for flights?") and waits for a reply before executing the search.
+**What it is:** Proactive reminder system that goes beyond the existing weekly digest. Supports event-triggered reminders, commitment detection from conversations, and owner-initiated "remind me" commands.
 
-**Pipeline integration:** No new pipeline stage. Confirmations arrive as regular group messages and are caught by the existing step [1] `handleTravelMention()`, which already handles reply-chain detection via `travelResultMessages.has(quotedMessageId)`. Add a parallel check for pending suggestions:
+#### New Components
 
-```
-[1] handleTravelMention()
-      │
-      ├── isReplyToTravelResult = travelResultMessages.has(quotedMessageId)  ← existing
-      │
-      ├── isPendingSuggestion = pendingSuggestions.has(quotedMessageId)       ← NEW check
-      │     └── parse user intent: confirm / deny
-      │         ├── confirm → execute pending action, clear suggestion
-      │         └── deny   → acknowledge, clear suggestion
-      │
-      └── isBotMentioned (existing)
-```
+| Component | Location | Responsibility |
+|-----------|----------|---------------|
+| `ReminderService` | `src/reminders/reminderService.ts` | Manages reminder lifecycle: create, schedule, fire, cancel |
+| `CommitmentDetector` | `src/ai/commitmentDetector.ts` | AI-powered extraction of commitments/follow-ups from messages |
+| `reminders` table | DB migration | Persists reminder definitions |
+| Owner command: "remind me" | `pipeline/messageHandler.ts` | Parse "remind me to X at/in Y" in owner self-chat |
 
-**Pending suggestions state:** Module-level Map in `src/groups/suggestionTracker.ts`. Ephemeral — acceptable, because a pending suggestion expires after 2 hours anyway and the bot can re-suggest on next proactive trigger.
+#### Modified Components
 
-```typescript
-// src/groups/suggestionTracker.ts
-const pendingSuggestions = new Map<
-  string, // WhatsApp message ID of the bot's suggestion message
-  {
-    groupJid: string;
-    type: 'travel_search' | 'calendar_confirm' | 'decision_confirm';
-    payload: unknown;     // What to execute on confirmation
-    expiresAt: number;    // Unix ms — auto-expire after 2 hours
-  }
->();
-const SUGGESTIONS_MAP_MAX = 200;
-const SUGGESTION_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
-```
+| Component | Change |
+|-----------|--------|
+| `CalendarDetectionService` | After creating calendar event, auto-create a default reminder (1h before) |
+| `pipeline/messageHandler.ts` | Add "remind me" command parsing in `handleOwnerCommand()` |
+| `groups/reminderScheduler.ts` | On startup, also call `ReminderService.loadAndSchedule()` |
+| `index.ts` | Initialize ReminderService during startup |
 
-**Confirmation language:** Text-based only (reply with "yes"/"כן" or "no"/"לא"). WhatsApp message reactions are delivered via a separate `messages.upsert` event with a different message structure — they are accessible but add complexity. Text replies are simpler and work in all WhatsApp versions.
+#### Reminder Types
 
-**Modification required:** `src/groups/travelHandler.ts` — add `pendingSuggestions.has(quotedMessageId)` check after the existing `travelResultMessages.has(quotedMessageId)` check.
+| Type | Source | Example |
+|------|--------|---------|
+| **Event reminder** | Auto-created when calendar event is created | "Reminder: Flight to Barcelona in 1 hour" |
+| **Commitment follow-up** | AI detects commitment in chat | Friend: "I'll send you the doc tomorrow" -> remind owner in 24h to follow up |
+| **Custom reminder** | Owner sends "remind me to X at Y" to self-chat | "remind me to call dentist tomorrow at 9am" |
+| **Recurring** | Owner configures via dashboard or command | "remind me every Monday to check project status" |
 
-**Component location:** `src/groups/suggestionTracker.ts` (new), `src/groups/travelHandler.ts` (modify).
-
----
-
-### Feature 4: Proactive Suggestion Trigger
-
-**What it is:** When the accumulated trip context reaches sufficient confidence (destination set, some dates present), the bot proactively offers to help without being @mentioned.
-
-**Pipeline integration:** Runs at the end of the trip context flush in `tripContextManager.ts`. After updating the DB context, if conditions are met, send a suggestion message and store the sent `msgId` in `pendingSuggestions`.
-
-**Trigger conditions (all must be true):**
-1. `context.destination` is non-null
-2. `context.confidence >= 'medium'`
-3. Per-group cooldown has elapsed (minimum 2 hours since last proactive message)
-4. No active pending suggestion already exists for this group
-
-**Rate limiting state:**
-
-```typescript
-// Module-level in tripContextManager.ts — ephemeral, resets on restart
-const lastProactiveSuggestionTime = new Map<string, number>(); // groupJid -> epoch ms
-const PROACTIVE_COOLDOWN_MS = 2 * 60 * 60 * 1000; // 2 hours
-```
-
-**Socket access:** Uses existing `const { sock } = getState()` pattern from `travelHandler.ts` and `groupMessagePipeline.ts`.
-
-**Modification required:** None to existing files except adding the call at the end of the trip context flush. The proactive message is sent from `tripContextManager.ts` using `sock.sendMessage()`.
-
----
-
-### Feature 5: Chat History Search
-
-**What it is:** Search historical `groupMessages` to answer backward-looking @mention queries ("what hotels did we look at last week?", "when did we agree on Rome?").
-
-**Pipeline integration:** No new pipeline stage. Handled inside the existing `handleTravelMention()` flow. The `travelParser.ts` detects the query type; if it is `'history_search'`, `travelHandler.ts` queries the DB instead of running a live search.
-
-**`travelParser.ts` modification** — extend `queryType` enum:
-
-```typescript
-queryType: z.enum([
-  'flights',
-  'hotels',
-  'restaurants',
-  'activities',
-  'car_rental',
-  'general',
-  'history_search',   // NEW: looking back at conversation history
-]),
-```
-
-**`groupMessages.ts` modification** — add keyword search query:
-
-```typescript
-// Simple LIKE-based search — sufficient for personal bot volumes
-export function searchGroupMessages(
-  groupJid: string,
-  keyword: string,
-  sinceMs?: number,
-  limit = 50,
-): { senderName: string | null; body: string; timestamp: number }[]
-```
-
-SQLite's built-in `LIKE` with the existing `idx_group_messages_group_ts` index is sufficient for personal bot volumes (groups rarely exceed 10,000 total messages). SQLite FTS5 is an optimization for later if search becomes slow — defer it.
-
-**`travelFormatter.ts` modification** — add formatting for history search results (messages returned from DB, formatted chronologically with sender names and timestamps).
-
-**No new components** for this feature. Pure modifications to existing files.
-
----
-
-### Feature 6: Enhanced Date Extraction
-
-**What it is:** Calendar events created from group messages include location, richer description, and booking links — instead of just the raw message body.
-
-**Pipeline integration:** Modification to `src/groups/dateExtractor.ts` only. The pipeline step and calendar service are the consumers. Changes are backward-compatible (new fields are optional).
-
-**Changes:**
-1. Extend `DateExtractionSchema` Zod object with optional `location`, `description`, `url` fields (see Feature 2 schema above)
-2. Extend `ExtractedDate` TypeScript interface with same optional fields
-3. In `processGroupMessages()` in `groupMessagePipeline.ts`, pass the new fields to `createCalendarEvent()`:
-   - `description`: use `extracted.description ?? rawBodyFallback`
-   - `location`: pass through to `createCalendarEvent()`
-
-This is the lowest-risk change in the milestone — isolated to one file's Zod schema and the `createCalendarEvent()` call in the pipeline.
-
----
-
-## Component Boundaries (Complete Picture)
+#### Scheduling Strategy
 
 ```
-src/groups/
-├── groupMessagePipeline.ts    [MODIFY] — add updateTripContext() at step [3.5]
-├── travelHandler.ts           [MODIFY] — add pendingSuggestions check alongside travelResultMessages
-├── travelParser.ts            [MODIFY] — add 'history_search' to queryType enum
-├── travelSearch.ts            [unchanged]
-├── travelFormatter.ts         [MODIFY] — formatting for history results, proactive suggestions
-├── dateExtractor.ts           [MODIFY] — extend schema with location/description/url
-├── keywordHandler.ts          [unchanged]
-├── reminderScheduler.ts       [unchanged]
-├── tripContextManager.ts      [NEW] — trip context debounce+batch, Gemini call, DB upsert,
-│                                      decision detection, proactive trigger
-└── suggestionTracker.ts       [NEW] — pendingSuggestions Map, storeSuggestion(),
-                                       checkAndClearSuggestion(), expiry cleanup
-
-src/db/
-├── schema.ts                  [MODIFY] — add tripContexts, tripDecisions table definitions
-├── queries/
-│   ├── groupMessages.ts       [MODIFY] — add searchGroupMessages() function
-│   ├── tripContexts.ts        [NEW] — upsertTripContext(), getTripContext(), clearTripContext()
-│   └── tripDecisions.ts       [NEW] — insertTripDecision(), getDecisionsByGroup()
-
-src/calendar/
-└── calendarService.ts         [MODIFY] — add optional location param to createCalendarEvent()
+Reminder created
+  |
+  |-- triggerAt <= 24h from now?
+  |     YES -> setTimeout(fireReminder, remainingMs)
+  |     NO  -> Store in DB only. Loaded on next startup or hourly check.
+  |
+  |-- On startup:
+  |     Load all pending reminders from DB
+  |     For each where triggerAt <= 24h: schedule setTimeout
+  |     For each where triggerAt > 24h: skip (hourly loader picks them up)
+  |
+  |-- Hourly loader (node-cron, every hour):
+  |     SELECT * FROM reminders WHERE status='pending' AND triggerAt <= now + 24h
+  |     Schedule setTimeout for each
 ```
 
----
+**Why setTimeout instead of node-cron for individual reminders:** node-cron is designed for recurring patterns ("every Monday at 9"), not one-shot events at arbitrary times. `setTimeout` is precise for one-shots. For reminders beyond 24h, we avoid holding thousands of timers by doing a periodic DB scan.
 
-## Data Flow Diagrams
+**Why not just use node-cron for everything:** A cron expression can't represent "March 20 at 14:37" -- it would need per-minute resolution checks, which is wasteful.
 
-### Trip Context Accumulation
-
-```
-Message arrives in monitored group
-  │
-  ▼ [step 3.5 in pipeline callback]
-updateTripContext(groupJid, msg)
-  │
-  ├── Add msg to per-group debounce buffer (30s window)
-  │
-  └── [On 30s flush] single Gemini call on buffered messages
-        │
-        ├── TripContextUpdateSchema: hasTravelSignal, destination, dates, budget, ...
-        │
-        ├── If hasTravelSignal:
-        │     └── upsertTripContext(groupJid, merged) → tripContexts table
-        │           └── Only overwrite fields where new value is non-null (merge strategy)
-        │
-        ├── If confidence === 'high' AND commitment signal detected:
-        │     └── insertTripDecision() → tripDecisions table
-        │
-        └── If confidence >= 'medium' AND destination set AND cooldown elapsed:
-              └── sock.sendMessage(groupJid, proactiveSuggestionText)
-                    └── storeSuggestion(sentMsgId, { type: 'travel_search', payload: ... })
-```
-
-### Suggest-Then-Confirm
+#### Data Flow: Event Reminder
 
 ```
-User replies to bot's suggestion message
-  │
-  ▼ [step 1 in pipeline — handleTravelMention()]
-Check: pendingSuggestions.has(quotedMessageId)  ← new check
-  │
-  ├── [YES] Parse user reply for affirmation/denial
-  │     ├── Affirmative → execute pending payload (search / calendar / etc.)
-  │     │     └── checkAndClearSuggestion(quotedMessageId)
-  │     └── Negative → send acknowledgment, clear suggestion
-  │           └── checkAndClearSuggestion(quotedMessageId)
-  │
-  └── [NO] Continue existing logic (travelResultMessages check, isBotMentioned, etc.)
+CalendarDetectionService creates event (private or group)
+  |
+  v
+  ReminderService.createEventReminder({
+    type: 'event',
+    sourceId: calendarEventRecord.id,
+    targetJid: groupJid or USER_JID,
+    message: "Reminder: Flight to Barcelona in 1 hour",
+    triggerAt: eventDate - 3600000  (1 hour before)
+  })
+  |
+  v
+  Insert into reminders table
+  |
+  v
+  If triggerAt <= 24h: schedule setTimeout
+  |
+  v
+  At trigger time:
+    const { sock } = getState();
+    sock.sendMessage(targetJid, { text: message });
+    UPDATE reminders SET status = 'fired'
 ```
 
-### Enhanced Calendar Event Creation
+#### Data Flow: Commitment Detection
 
 ```
-groupMessages debounce fires (existing step 5)
-  │
-  ▼ processGroupMessages() [existing, modified]
-extractDates() → now returns:
-  { title, date, confidence, location?, description?, url? }
-  │
-  ▼ createCalendarEvent({
-      calendarId,
-      title: extracted.title,
-      date: extracted.date,
-      description: extracted.description ?? rawBodyFallback,
-      location: extracted.location,    ← NEW passthrough
+Private message persisted
+  |
+  v
+  CommitmentDetector.detect(text, contactName)
+    |-> Pre-filter: skip if < 15 chars, no action verbs, no temporal markers
+    |-> generateJson with CommitmentSchema
+    |-> Returns: { hasCommitment, description, suggestedFollowUpDate, who }
+    |
+    v
+  If hasCommitment:
+    ReminderService.createCommitmentReminder({
+      type: 'commitment',
+      targetJid: USER_JID,
+      message: "Follow up with Dan: they said they'd send the doc",
+      triggerAt: suggestedFollowUpDate
     })
-  │
-  ▼ Google Calendar API: events.insert with location field
+    |
+    Optionally -> TodoService.createTask() (if connected)
 ```
 
-### History Search Flow
+#### Data Flow: Owner "Remind Me" Command
 
 ```
-User @mentions bot with backward-looking query
-  │
-  ▼ parseTravelIntent() in travelParser.ts
-Returns: { queryType: 'history_search', searchQuery: 'hotels in Rome last week', ... }
-  │
-  ▼ travelHandler.ts: dispatch on queryType
-  │
-  └── queryType === 'history_search'
-        └── searchGroupMessages(groupJid, keyword, sinceMs)
-              └── DB LIKE query on groupMessages table
-                    └── Format results via travelFormatter.ts
-                          └── sock.sendMessage(groupJid, formatted)
+Owner sends to self-chat: "remind me to call dentist tomorrow at 9am"
+  |
+  v
+  handleOwnerCommand() in messageHandler.ts
+    |-> Detect "remind me" prefix
+    |-> generateJson with ReminderParseSchema:
+    |     { task: "call dentist", triggerAt: "2026-03-17T09:00:00", recurring: null }
+    |-> ReminderService.createCustomReminder({
+          type: 'custom',
+          targetJid: USER_JID,
+          message: "Reminder: call dentist",
+          triggerAt: parsed timestamp
+        })
+    |-> Reply: "Got it! I'll remind you to call dentist tomorrow at 9:00 AM"
+```
+
+---
+
+### Feature 3: Microsoft To Do Sync
+
+**What it is:** One-way push of detected tasks, commitments, and calendar events to Microsoft To Do lists.
+
+#### New Components
+
+| Component | Location | Responsibility |
+|-----------|----------|---------------|
+| `TodoService` | `src/todo/todoService.ts` | Microsoft Graph API client for To Do CRUD |
+| `TodoAuthManager` | `src/todo/authManager.ts` | MSAL token management with SQLite persistence |
+| `todoAuth` table | DB migration | Persists MSAL serialized token cache |
+| `todoMappings` table | DB migration | Maps local entity IDs to To Do task IDs |
+| API route: `/api/todo` | `src/api/routes/todo.ts` | OAuth initiation + callback + sync config |
+| Dashboard component | React SPA | Connect/disconnect Microsoft account, select default list |
+
+#### Modified Components
+
+| Component | Change |
+|-----------|--------|
+| `config.ts` | Add optional `MS_CLIENT_ID`, `MS_CLIENT_SECRET`, `MS_REDIRECT_URI` env vars |
+| `CalendarDetectionService` | After event creation, optionally push to To Do |
+| `CommitmentDetector` | Detected commitments also create To Do tasks |
+| `api/server.ts` | Register `/api/todo` routes |
+
+#### Authentication Architecture
+
+**Critical decision: OAuth2 Authorization Code Flow via the existing dashboard web UI.**
+
+The bot already has a Fastify web server serving the React dashboard. Use this for the OAuth flow:
+
+```
+1. Owner logs into dashboard (existing JWT auth)
+2. Clicks "Connect Microsoft To Do"
+3. Dashboard opens: /api/todo/auth/start
+   -> Fastify redirects to Microsoft login URL
+   -> Scopes: Tasks.ReadWrite, offline_access
+4. Microsoft redirects to: /api/todo/auth/callback
+   -> Fastify exchanges code for tokens via MSAL
+   -> MSAL token cache serialized to SQLite (todoAuth table)
+   -> Redirect back to dashboard with success message
+5. Subsequent API calls:
+   -> TodoAuthManager.getClient()
+   -> MSAL silently refreshes access token using cached refresh token
+   -> If refresh fails (token expired after 90 days of inactivity):
+      -> TodoService.isConnected() returns false
+      -> Dashboard shows "Reconnect Microsoft To Do" prompt
+```
+
+**Why NOT device code flow:** Device code flow requires the owner to manually open a URL and enter a code -- unnecessary complexity when we already have a web UI.
+
+**Why NOT app-only (daemon) auth:** The To Do API requires delegated permissions (acting on behalf of a user). App-only permissions cannot access a specific user's To Do lists without admin consent for an organization.
+
+**Required Azure AD app registration:**
+- Application type: Web
+- Redirect URI: `{API_HOST}:{API_PORT}/api/todo/auth/callback`
+- Supported account types: Personal Microsoft accounts (or personal + work/school)
+- API permissions: `Tasks.ReadWrite`, `offline_access` (delegated)
+
+**Token persistence:** MSAL Node's `CachePlugin` interface writes serialized token cache to SQLite. Tokens survive restarts. Refresh tokens last 90 days if used regularly; MSAL handles rotation automatically.
+
+#### Data Flow: Task Creation
+
+```
+Event or commitment detected
+  |
+  v
+  TodoService.isConnected()
+    |
+    |-- NO -> skip silently (graceful degradation)
+    |
+    |-- YES ->
+          TodoService.createTask({
+            title: "Flight to Barcelona",
+            body: "Detected from chat with Dan",
+            dueDate: "2026-03-20",
+            listId: owner's configured default list
+          })
+          |
+          v
+          Microsoft Graph API: POST /me/todo/lists/{listId}/tasks
+          |
+          v
+          Store mapping in todoMappings table:
+            { localType: 'calendar_event', localId, todoTaskId, todoListId }
+```
+
+#### Sync Strategy
+
+**v1: One-way push only.** The bot creates tasks in To Do when events/commitments are detected. No polling for changes in To Do.
+
+Rationale:
+- Polling adds complexity, API quota concerns, and stale-data bugs
+- The bot is the source of truth for detected items
+- If the owner completes a task in To Do, that's fine -- the bot doesn't need to know
+- Microsoft Graph webhook subscriptions require a publicly accessible HTTPS endpoint, which adds infrastructure requirements
+
+**Future v2 (defer):** Add webhook subscription via Microsoft Graph change notifications for bidirectional sync. Requires HTTPS endpoint exposed to the internet (currently the bot runs on a Tailscale network at `100.124.47.99`).
+
+---
+
+## Component Boundaries (Complete New/Modified Map)
+
+```
+src/
+  calendar/
+    calendarService.ts         [UNCHANGED] -- Google Calendar API wrapper
+    calendarDetection.ts       [NEW] -- Source-agnostic detection orchestrator
+                                       Calls dateExtractor + calendarService + reminderService + todoService
+
+  reminders/
+    reminderService.ts         [NEW] -- Reminder lifecycle: create, schedule (setTimeout), fire, cancel
+                                       Hourly DB scan via node-cron for distant reminders
+                                       On-startup load of pending reminders
+
+  todo/
+    todoService.ts             [NEW] -- Microsoft Graph To Do CRUD via @microsoft/msgraph-sdk
+    authManager.ts             [NEW] -- MSAL ConfidentialClientApplication + SQLite CachePlugin
+
+  ai/
+    provider.ts                [UNCHANGED]
+    gemini.ts                  [UNCHANGED]
+    commitmentDetector.ts      [NEW] -- AI commitment extraction from messages
+                                       Pre-filter + Gemini generateJson with CommitmentSchema
+
+  pipeline/
+    messageHandler.ts          [MODIFIED] -- Add:
+                                 1. CalendarDetection hook after private message persistence
+                                 2. CommitmentDetector hook after private message persistence
+                                 3. "remind me" command in handleOwnerCommand()
+
+  groups/
+    groupMessagePipeline.ts    [MODIFIED] -- Refactor: delegate to CalendarDetectionService
+                                            (behavior unchanged, code moved)
+    dateExtractor.ts           [UNCHANGED] -- Reused by CalendarDetectionService
+    suggestionTracker.ts       [UNCHANGED] -- Still used for group suggest-then-confirm
+    reminderScheduler.ts       [MODIFIED] -- On startup, also call ReminderService.loadAndSchedule()
+
+  api/
+    routes/
+      todo.ts                  [NEW] -- /api/todo/auth/start, /api/todo/auth/callback,
+                                        GET /api/todo/status, POST /api/todo/config
+    server.ts                  [MODIFIED] -- Register todo routes
+
+  db/
+    schema.ts                  [MODIFIED] -- Add reminders, todoAuth, todoMappings tables
+    queries/
+      reminders.ts             [NEW] -- CRUD for reminders table
+      todoAuth.ts              [NEW] -- Get/set MSAL token cache
+      todoMappings.ts          [NEW] -- CRUD for local<->todo mappings
+```
+
+---
+
+## Communication Between Components
+
+```
+messageHandler.ts (private message path)
+  |
+  |-> CalendarDetectionService.detectPrivate(text, contactName)
+  |     |-> dateExtractor.extractDates()
+  |     |-> calendarService.createCalendarEvent() on OWNER_CALENDAR_ID
+  |     |-> ReminderService.createEventReminder()  [auto 1h-before]
+  |     |-> TodoService.createTask()  [if connected, graceful skip if not]
+  |     |-> sock.sendMessage(USER_JID, confirmation)
+  |
+  |-> CommitmentDetector.detect(text, contactName)
+  |     |-> Pre-filter (length, verb check)
+  |     |-> generateJson with CommitmentSchema
+  |     |-> ReminderService.createCommitmentReminder()
+  |     |-> TodoService.createTask()  [if connected]
+  |
+  |-> generateReply()  [existing, unchanged]
+
+
+groupMessagePipeline.ts (group message path)
+  |
+  |-> [existing steps: travel, confirm/reject, delete, keywords]
+  |
+  |-> CalendarDetectionService.detectGroup(messages, groupJid, ...)
+  |     |-> dateExtractor.extractDates()  [existing]
+  |     |-> suggestionTracker.createSuggestion()  [existing suggest-then-confirm]
+  |     |-> On confirmation:
+  |           |-> calendarService.createCalendarEvent()  [existing]
+  |           |-> ReminderService.createEventReminder()  [NEW]
+  |           |-> TodoService.createTask()  [NEW, if connected]
+
+
+ReminderService (background)
+  |
+  |-> On startup: loadAndSchedule() -- DB scan, setTimeout for near-term
+  |-> Hourly cron: scan DB for reminders entering 24h window
+  |-> On fire: sock.sendMessage(targetJid, reminderText), mark 'fired'
+
+
+TodoAuthManager (background)
+  |
+  |-> On OAuth callback: persist MSAL cache to DB
+  |-> On API call: MSAL silently refreshes token from cache
+  |-> On refresh failure: mark disconnected, dashboard prompts reconnect
 ```
 
 ---
 
 ## Patterns to Follow
 
-### Pattern 1: Non-Terminal Pipeline Step
+### Pattern 1: Service Isolation with Graceful Degradation
 
-Every new step that does not interrupt message flow follows this shape. The function returns `void`, not `boolean`. It wraps all errors internally and never throws.
-
-```typescript
-// In groupMessagePipeline.ts callback body
-await handleKeywordRules(groupJid, msg);          // existing
-await updateTripContext(groupJid, msg);            // new — same shape
-const wasDelete = await handleReplyToDelete(...); // existing terminal
-if (wasDelete) return;
-addToDebounce(groupJid, msg);                      // existing
-```
-
-`updateTripContext()` signature:
-```typescript
-export async function updateTripContext(
-  groupJid: string,
-  msg: GroupMsg,
-): Promise<void> {
-  try {
-    addToTripContextDebounce(groupJid, msg);
-  } catch (err) {
-    logger.error({ err, groupJid }, 'Error in trip context update — continuing pipeline');
-  }
-}
-```
-
-### Pattern 2: Debounce + Batch for AI Calls
-
-Any always-listening feature that needs Gemini must buffer messages, not call Gemini per message. Follow the existing `addToDebounce()` pattern exactly.
+Each new service must work independently. If Microsoft auth fails, calendar detection and reminders still work. If reminder scheduling fails, calendar events still get created.
 
 ```typescript
-// In tripContextManager.ts
-const tripContextBuffers = new Map<
-  string, // groupJid
-  { messages: GroupMsg[]; timer: NodeJS.Timeout }
->();
-const TRIP_CONTEXT_DEBOUNCE_MS = 30_000; // 30 seconds — longer than date extraction
+// In CalendarDetectionService
+async function onEventCreated(event: CreatedEvent): Promise<void> {
+  // Core: always try reminders
+  await reminderService.createEventReminder(event).catch(err => {
+    logger.error({ err, eventId: event.id }, 'Failed to schedule reminder');
+  });
 
-function addToTripContextDebounce(groupJid: string, msg: GroupMsg): void {
-  // identical structure to addToDebounce() in groupMessagePipeline.ts
-}
-```
-
-30 seconds is appropriate for trip context (lower urgency than date extraction's 10 seconds). It also batches more messages per Gemini call, reducing cost.
-
-### Pattern 3: In-Memory Map with Cap for Ephemeral Reply State
-
-Pending suggestions and rate limits do not need to survive restarts. Follow the existing `travelResultMessages` pattern with a size cap to prevent unbounded growth.
-
-```typescript
-const pendingSuggestions = new Map<string, PendingSuggestion>();
-const SUGGESTIONS_MAP_MAX = 200;
-
-function storeSuggestion(msgId: string, suggestion: PendingSuggestion): void {
-  if (pendingSuggestions.size >= SUGGESTIONS_MAP_MAX) {
-    const firstKey = pendingSuggestions.keys().next().value;
-    if (firstKey !== undefined) pendingSuggestions.delete(firstKey);
-  }
-  pendingSuggestions.set(msgId, suggestion);
-}
-```
-
-### Pattern 4: Zod Schema for All AI Structured Output
-
-Every Gemini call that returns structured data uses:
-1. A Zod schema definition (`z.object(...)`)
-2. `zodToJsonSchema()` to convert it for Gemini's `responseSchema` parameter
-3. `SchemaName.safeParse(raw)` on the response before trusting any field
-4. Return `null` on parse failure — never crash or throw from an AI-calling function
-
-### Pattern 5: DB Upsert for Single-Row-Per-Group State
-
-Trip context is one row per group, updated as context accumulates. Use Drizzle's `onConflictDoUpdate`:
-
-```typescript
-// src/db/queries/tripContexts.ts
-export function upsertTripContext(ctx: {
-  groupJid: string;
-  destination?: string | null;
-  dates?: string | null;
-  budget?: string | null;
-  preferences?: string | null;
-  partySize?: number | null;
-  confidence: string;
-}) {
-  return db.insert(tripContexts)
-    .values({ id: crypto.randomUUID(), ...ctx })
-    .onConflictDoUpdate({
-      target: tripContexts.groupJid,
-      set: {
-        // Only overwrite non-null values (merge strategy)
-        ...(ctx.destination != null && { destination: ctx.destination }),
-        ...(ctx.dates != null && { dates: ctx.dates }),
-        ...(ctx.budget != null && { budget: ctx.budget }),
-        ...(ctx.preferences != null && { preferences: ctx.preferences }),
-        ...(ctx.partySize != null && { partySize: ctx.partySize }),
-        confidence: ctx.confidence,
-        updatedAt: Date.now(),
-      },
+  // Optional: push to To Do only if connected
+  if (todoService.isConnected()) {
+    await todoService.createTask({
+      title: event.title,
+      dueDate: event.date,
+      body: `Detected from ${event.source}`,
+    }).catch(err => {
+      logger.error({ err, eventId: event.id }, 'Failed to create To Do task');
     });
+  }
 }
+```
+
+**Why:** The owner should never lose calendar events because Microsoft auth expired. Each `.catch()` isolates failures.
+
+### Pattern 2: Extend Existing Pipeline Callback (Never Register a Second)
+
+The group pipeline uses `setGroupMessageCallback` which has a **single slot**. Calling it again from a new module silently overwrites the existing registration and breaks travel, keywords, dates, and everything else -- with no error thrown.
+
+All new group processing goes inside the existing callback in `groupMessagePipeline.ts`.
+
+### Pattern 3: Reuse Existing Owner Command Pattern
+
+The "remind me" command follows the same pattern as the existing snooze/resume/draft-approval commands in `handleOwnerCommand()`:
+
+```typescript
+// Existing pattern in messageHandler.ts
+async function handleOwnerCommand(sock: WASocket, text: string): Promise<boolean> {
+  // ... existing snooze, resume, draft approval ...
+
+  // NEW: "remind me" command
+  if (trimmed.startsWith('remind me')) {
+    // Parse and create reminder
+    return true;  // consumed
+  }
+
+  return false;  // not a command
+}
+```
+
+### Pattern 4: Confirmation to Self-Chat (Not to Contact)
+
+For private message calendar detection, confirmations go to the owner's self-chat (`USER_JID`), not to the contact's chat. This avoids:
+1. Confusing the contact with bot messages
+2. Revealing that a bot is active
+3. Breaking the existing auto-reply flow
+
+```typescript
+// CalendarDetectionService for private messages
+await sock.sendMessage(config.USER_JID, {
+  text: `Added "${event.title}" on ${formatDate(event.date)} to your calendar`,
+});
 ```
 
 ---
 
 ## Anti-Patterns to Avoid
 
-### Anti-Pattern 1: Registering a Second Pipeline Callback
+### Anti-Pattern 1: Running AI on Every Private Message
 
-**What it looks like:** Creating a new file (e.g., `tripContextPipeline.ts`) that calls `setGroupMessageCallback()` to register its own callback.
-**Why it breaks things:** `messageHandler.ts` has a single-slot callback. The second `setGroupMessageCallback()` call silently replaces the first. The existing travel, keyword, date extraction, and delete handlers all stop working with no error thrown.
-**Correct approach:** Add new steps inside the existing registered callback in `groupMessagePipeline.ts`. One callback, all steps inside it.
+**What:** Calling CommitmentDetector on every incoming private message.
+**Why bad:** Most messages don't contain commitments. At 50+ private messages/day, Gemini costs add up.
+**Instead:** Pre-filter before AI:
+- Skip messages under 15 characters
+- Skip messages without temporal markers (numbers, "tomorrow", "next week", Hebrew time words)
+- Skip messages without action verbs ("send", "call", "bring", "check")
+Only messages passing all filters go to Gemini.
 
-### Anti-Pattern 2: Synchronous Gemini Calls on Every Message
+### Anti-Pattern 2: Polling Microsoft Graph API
 
-**What it looks like:** `await updateTripContext(groupJid, msg)` calling Gemini directly, without debouncing.
-**Why it breaks things:** The pipeline callback awaits this. At 500-2000ms per Gemini call, an active group with 10 messages/minute creates a 5-20 second backlog. The pipeline stalls. The bot stops responding.
-**Correct approach:** Debounce in a 30-second window. One Gemini call per batch per group.
+**What:** Cron job to poll To Do for task completion.
+**Why bad:** API rate limits, unnecessary complexity, stale data.
+**Instead:** One-way push in v1. Webhooks in v2 if bidirectional sync is needed.
 
-### Anti-Pattern 3: Trip Context in Memory Only
+### Anti-Pattern 3: Storing MSAL Tokens in .env or Config File
 
-**What it looks like:** `const tripContexts = new Map<string, TripContext>()` at module level.
-**Why it breaks things:** PM2 restarts the bot on crashes and deployments. Trip planning conversations span hours. Context accumulated from "let's go to Rome" at 10am is gone after the 2pm restart. The proactive suggestion fires again based on an empty context.
-**Correct approach:** Persist to `tripContexts` DB table. An in-memory Map is acceptable as a read cache for performance, but the DB is the source of truth.
+**What:** Writing refresh tokens to `.env` or a config JSON file.
+**Why bad:** Tokens rotate on refresh. File-based storage requires file writes on every token refresh, which is error-prone and not atomic.
+**Instead:** Use MSAL's `CachePlugin` interface with SQLite as the backing store. Atomic writes, survives restarts, works with the existing DB infrastructure.
 
-### Anti-Pattern 4: Proactive Messages Without Rate Limiting
+### Anti-Pattern 4: Separate Reminder Cron Per Event
 
-**What it looks like:** Sending a proactive suggestion every time context confidence crosses the threshold.
-**Why it breaks things:** In an active planning conversation, confidence oscillates around the threshold as new messages arrive. Without a cooldown, the bot sends a suggestion every 30 seconds during an active planning discussion.
-**Correct approach:** Per-group cooldown of at least 2 hours. Also: only send a new suggestion if the destination has changed since the last suggestion, not on every confidence update.
+**What:** Creating a `node-cron` schedule for every individual reminder.
+**Why bad:** 100+ reminders = 100+ cron jobs, each checking every minute. Wasteful.
+**Instead:** Use `setTimeout` for near-term reminders (< 24h) and a single hourly cron job that scans the DB for reminders entering the 24h window.
 
-### Anti-Pattern 5: Breaking the Existing DateExtractionSchema
+---
 
-**What it looks like:** Changing `confidence` from `z.enum(['high', 'medium', 'low'])` to `z.number()` (numeric score), or removing existing fields.
-**Why it breaks things:** `processGroupMessages()` filters on `d.confidence === 'high'`. The `ExtractedDate` interface is the return type of the public `extractDates()` function. Any breaking change to these contracts breaks the calendar pipeline.
-**Correct approach:** Add new fields as `.optional()`. Never change the type of existing fields. Run the full date extraction + calendar flow in a test group after any schema change.
+## DB Schema Additions
+
+```typescript
+// src/db/schema.ts -- NEW tables
+
+export const reminders = sqliteTable(
+  'reminders',
+  {
+    id: text('id').primaryKey(),                    // UUID
+    type: text('type').notNull(),                   // 'event' | 'commitment' | 'custom' | 'recurring'
+    sourceId: text('source_id'),                    // calendarEvent.id or null
+    targetJid: text('target_jid').notNull(),        // Where to send (group JID or USER_JID)
+    message: text('message').notNull(),             // Reminder text to send
+    triggerAt: integer('trigger_at').notNull(),      // Unix ms
+    status: text('status').notNull().default('pending'), // 'pending' | 'fired' | 'cancelled'
+    recurCron: text('recur_cron'),                  // Cron expression for recurring, null for one-shot
+    createdAt: integer('created_at').notNull().$defaultFn(() => Date.now()),
+  },
+  (table) => [
+    index('idx_reminders_trigger_status').on(table.triggerAt, table.status),
+    index('idx_reminders_source').on(table.sourceId),
+  ],
+);
+
+export const todoAuth = sqliteTable('todo_auth', {
+  id: text('id').primaryKey().default('default'),   // Single-row table
+  tokenCache: text('token_cache').notNull(),         // MSAL serialized cache (encrypted with JWT_SECRET)
+  defaultListId: text('default_list_id'),            // User's chosen default To Do list
+  updatedAt: integer('updated_at').notNull().$defaultFn(() => Date.now()),
+});
+
+export const todoMappings = sqliteTable(
+  'todo_mappings',
+  {
+    id: text('id').primaryKey(),                     // UUID
+    localType: text('local_type').notNull(),          // 'calendar_event' | 'commitment' | 'custom_reminder'
+    localId: text('local_id').notNull(),
+    todoTaskId: text('todo_task_id').notNull(),
+    todoListId: text('todo_list_id').notNull(),
+    createdAt: integer('created_at').notNull().$defaultFn(() => Date.now()),
+  },
+  (table) => [
+    index('idx_todo_mappings_local').on(table.localType, table.localId),
+  ],
+);
+```
 
 ---
 
 ## Build Order (Dependency-Driven)
 
-### Step 1: DB Schema Extensions
+```
+Phase 1: CalendarDetectionService (refactor only)
+  Goal: Extract reusable calendar detection logic from groupMessagePipeline.ts
+  Files: NEW src/calendar/calendarDetection.ts
+         MODIFY src/groups/groupMessagePipeline.ts (delegate, no behavior change)
+  Risk: LOW -- pure refactor, no new features
+  Test: All existing group calendar detection works identically
 
-New tables, new query files. No application logic yet — just the persistence layer. Everything else depends on this.
+Phase 2: Universal Calendar Detection (private messages)
+  Goal: Detect dates in private messages, create events on owner's personal calendar
+  Files: MODIFY src/pipeline/messageHandler.ts (add detection hook)
+         MODIFY src/config.ts (add OWNER_CALENDAR_ID)
+         NEW migration for any schema additions
+  Depends on: Phase 1
+  Risk: MEDIUM -- new Gemini calls on private messages, need pre-filter tuning
+  Test: Send date-containing private messages, verify calendar events created
 
-**Files:**
-- `src/db/schema.ts` — add `tripContexts` and `tripDecisions` table definitions
-- `drizzle/` — `drizzle-kit generate` then `drizzle-kit push` (or migration run at startup)
-- `src/db/queries/tripContexts.ts` — new: `upsertTripContext()`, `getTripContext()`, `clearTripContext()`
-- `src/db/queries/tripDecisions.ts` — new: `insertTripDecision()`, `getDecisionsByGroup()`
-- `src/db/queries/groupMessages.ts` — add `searchGroupMessages()` (independent, low risk)
+Phase 3: Smart Reminders (core)
+  Goal: Reminder table, service, scheduling, event-triggered reminders, "remind me" command
+  Files: NEW src/reminders/reminderService.ts
+         NEW src/db/queries/reminders.ts
+         MODIFY src/db/schema.ts (add reminders table)
+         MODIFY src/pipeline/messageHandler.ts (add "remind me" command)
+         MODIFY src/groups/reminderScheduler.ts (load reminders on startup)
+         MODIFY src/index.ts (init ReminderService)
+  Depends on: Phase 1 (hooks into event creation)
+  Risk: MEDIUM -- timer management, DB scan cron, need to handle restart recovery
+  Test: Create reminders via command, verify they fire at correct times
 
-**Why first:** All subsequent components read and write these tables. Cannot write the context manager without the query layer. Running migrations before any other code change is the safe order.
+Phase 4: Commitment Detection
+  Goal: AI-powered detection of commitments in private messages, auto-create follow-up reminders
+  Files: NEW src/ai/commitmentDetector.ts
+         MODIFY src/pipeline/messageHandler.ts (add commitment detection hook)
+  Depends on: Phase 3 (uses ReminderService to schedule follow-ups)
+  Risk: MEDIUM -- AI false positive tuning, pre-filter design
+  Test: Send commitment-containing messages, verify reminders created
 
-### Step 2: Enhanced Date Extraction
+Phase 5: Microsoft To Do Sync
+  Goal: OAuth flow, task creation, mapping persistence
+  Files: NEW src/todo/todoService.ts
+         NEW src/todo/authManager.ts
+         NEW src/api/routes/todo.ts
+         NEW src/db/queries/todoAuth.ts
+         NEW src/db/queries/todoMappings.ts
+         MODIFY src/db/schema.ts (add todoAuth, todoMappings tables)
+         MODIFY src/config.ts (add MS_CLIENT_ID, MS_CLIENT_SECRET, MS_REDIRECT_URI)
+         MODIFY src/api/server.ts (register routes)
+         MODIFY src/calendar/calendarDetection.ts (add TodoService hook)
+         MODIFY src/ai/commitmentDetector.ts (add TodoService hook)
+  Depends on: Phase 1-4 (plugs into existing hooks)
+  Risk: HIGH -- OAuth flow, external API, token persistence, Azure AD app registration
+  Test: OAuth flow end-to-end, task appears in Microsoft To Do app
+```
 
-Isolated modification. Can be shipped and validated independently before building the more complex trip context system.
-
-**Files:**
-- `src/groups/dateExtractor.ts` — extend `DateExtractionSchema` and `ExtractedDate` interface
-- `src/calendar/calendarService.ts` — add `location?` param to `createCalendarEvent()`
-- `src/groups/groupMessagePipeline.ts` — pass new fields in the `createCalendarEvent()` call
-
-**Why second:** Self-contained. Validates the pattern of safely extending the Zod schema before applying the same pattern to the more complex trip context schema. Low blast radius if it has a bug.
-
-### Step 3: Trip Context Manager (core)
-
-The foundation for proactive suggestions and the suggestion tracker. Build the accumulation and storage logic first, without the proactive send.
-
-**Files:**
-- `src/groups/tripContextManager.ts` — new: debounce buffer, Gemini call, DB upsert, decision detection
-- `src/groups/groupMessagePipeline.ts` — add `await updateTripContext(groupJid, msg)` at step [3.5]
-
-**Why third:** Proactive suggestions (Step 5) and the suggestion tracker (Step 5) both depend on the trip context being accumulated. Build and verify accumulation + storage before adding the send path.
-
-### Step 4: Chat History Search
-
-Independent of trip context. Builds on the DB query added in Step 1. Can be developed in parallel with Step 3.
-
-**Files:**
-- `src/groups/travelParser.ts` — add `'history_search'` to `queryType` enum
-- `src/groups/travelHandler.ts` — add dispatch path for `queryType === 'history_search'`
-- `src/groups/travelFormatter.ts` — add history result formatting
-
-**Why fourth:** Standalone feature addition. Shares no dependencies with Steps 3 or 5. Low risk — confined to the existing travel @mention flow.
-
-### Step 5: Suggestion Tracker + Proactive Trigger
-
-Most complex step. Depends on trip context (Step 3) being working and verified. Introduces cross-message state (pendingSuggestions) and the proactive send path.
-
-**Files:**
-- `src/groups/suggestionTracker.ts` — new: `pendingSuggestions` Map, `storeSuggestion()`, `checkAndClearSuggestion()`, expiry
-- `src/groups/travelHandler.ts` — add `pendingSuggestions.has(quotedMessageId)` check
-- `src/groups/tripContextManager.ts` — add proactive trigger at end of context flush
-- `src/groups/travelFormatter.ts` — add proactive suggestion message formatting
-
-**Why last:** Most moving parts. The confirm/deny detection in `travelHandler.ts` depends on `suggestionTracker.ts`. The proactive send depends on `tripContextManager.ts` having valid context. Building Steps 1-4 first means the proactive trigger has real context to work with during testing.
+**Phase ordering rationale:**
+- Phase 1 first: pure refactor, zero risk, enables all subsequent phases
+- Phase 2 before 3: calendar detection is the primary value -- reminders enhance it but aren't blocked
+- Phase 3 before 4: commitment detection needs the reminder service to schedule follow-ups
+- Phase 5 last: most external dependencies (Azure AD, Microsoft Graph), purely additive, graceful degradation if not configured
 
 ---
 
-## Scalability at Personal Bot Scale
+## Scalability Considerations
 
-This bot runs for one person's groups (estimated 3-20 groups, 5-50 messages/group/day).
+| Concern | At Current Scale (personal) | Notes |
+|---------|----------------------------|-------|
+| Gemini calls for private date extraction | ~20-30/day (after pre-filter) | Well within paid tier limits |
+| Gemini calls for commitment detection | ~10-20/day (after pre-filter) | Pre-filter eliminates most messages |
+| Microsoft Graph API calls | ~5-15/day | Way under 10,000/10min limit |
+| In-memory setTimeout reminders | ~20-50 active | Negligible memory |
+| SQLite reminder rows | ~500-2000 over months | Trivial for SQLite |
+| MSAL token refreshes | ~1/hour when active | MSAL handles this automatically |
 
-| Concern | At Current Scale | Notes |
-|---------|-----------------|-------|
-| Trip context DB writes | One upsert per 30s flush, per active group | WAL mode handles concurrent reads fine |
-| `pendingSuggestions` Map size | Cap at 200 entries | Trivial memory footprint |
-| History search latency | LIKE on `groupMessages` with existing `idx_group_messages_group_ts` index | Fast at 10,000 rows; add FTS5 only if proven slow |
-| Gemini calls for context | 1 per 30s debounce window per group | Not a bottleneck |
-| Proactive suggestion spam | 2-hour per-group cooldown | Sufficient guard |
-| `tripDecisions` table size | One row per decision event | Indefinitely sustainable |
+All well within limits for a personal bot.
 
 ---
 
 ## Sources
 
-- `src/groups/groupMessagePipeline.ts` — pipeline structure, step ordering, debounce pattern, `initGroupPipeline()` (direct inspection)
-- `src/pipeline/messageHandler.ts` — single-slot `groupMessageCallback`, callback registration pattern, `fromMe` guard (direct inspection)
-- `src/groups/travelHandler.ts` — `travelResultMessages` Map, reply-chain detection, `getState()` usage, `storeTravelResult()` cap pattern (direct inspection)
-- `src/groups/travelParser.ts` — `TravelIntentSchema` full Zod definition, `queryType` enum (direct inspection)
-- `src/groups/dateExtractor.ts` — `DateExtractionSchema`, `ExtractedDate` interface, `confidence === 'high'` filter (direct inspection)
-- `src/db/schema.ts` — all existing table definitions, index patterns, `onConflictDoNothing` usage (direct inspection)
-- `src/db/queries/groupMessages.ts` — `getGroupMessagesSince()` signature, Drizzle query builder pattern (direct inspection)
-- `src/calendar/calendarService.ts` — `createCalendarEvent()` parameter shape, Google Calendar API fields used (direct inspection)
-- `src/api/state.ts` — `getState()` pattern for cross-module `sock` access (direct inspection)
-- `src/db/client.ts` — WAL mode confirmed (`sqlite.pragma('journal_mode = WAL')`), Drizzle migration runner (direct inspection)
-- `src/groups/keywordHandler.ts` — non-terminal handler pattern (direct inspection)
+- Microsoft Graph To Do API: https://learn.microsoft.com/en-us/graph/todo-concept-overview
+- Microsoft Graph To Do REST API: https://learn.microsoft.com/en-us/graph/api/resources/todo-overview?view=graph-rest-1.0
+- Microsoft Graph Auth (delegated): https://learn.microsoft.com/en-us/graph/auth-v2-user
+- MSAL Node.js: https://www.npmjs.com/package/@azure/msal-node
+- Microsoft Graph TypeScript SDK: https://github.com/microsoftgraph/msgraph-sdk-typescript
+- Microsoft Graph Auth Concepts: https://learn.microsoft.com/en-us/graph/auth/auth-concepts
+- Direct codebase inspection: `src/pipeline/messageHandler.ts`, `src/groups/groupMessagePipeline.ts`, `src/calendar/calendarService.ts`, `src/groups/dateExtractor.ts`, `src/groups/suggestionTracker.ts`, `src/groups/reminderScheduler.ts`, `src/db/schema.ts`, `src/config.ts`, `src/ai/provider.ts`, `src/ai/gemini.ts`, `src/index.ts`
 
 ---
-*Architecture research for: Travel agent features integration — WhatsApp bot (subsequent milestone)*
-*Researched: 2026-03-02*
+*Architecture research for: Personal Assistant Features (v1.5) -- WhatsApp bot*
+*Researched: 2026-03-16*

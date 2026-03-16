@@ -1,345 +1,358 @@
 # Domain Pitfalls
 
-**Domain:** WhatsApp Group Bot — Travel Agent Milestone (Always-Listening AI, Trip Memory, Proactive Suggestions, Google Calendar Itinerary)
-**Researched:** 2026-03-02
-**Confidence:** MEDIUM-HIGH — Gemini pricing verified via multiple 2026 sources. Baileys ban risk confirmed via GitHub issues and community reports. SQLite WAL limits confirmed via official SQLite docs. Google Calendar timezone pitfalls confirmed via official API docs and GitHub issues. Context rot confirmed via published research. Some cost estimates are modeled projections rather than measured figures.
+**Domain:** WhatsApp Bot v1.5 -- Personal Assistant Features (Universal Calendar Detection, Smart Reminders, Microsoft To Do Sync)
+**Researched:** 2026-03-16
+**Confidence:** MEDIUM-HIGH -- Microsoft Graph To Do API verified via official docs. WhatsApp ban risk confirmed via Baileys GitHub issues and Meta 2026 policy. Scheduler crash recovery patterns confirmed via community experience. Gemini cost concerns carry over from v1.0 research with HIGH confidence. Some OAuth token lifetime specifics are based on general Microsoft identity platform docs rather than To Do-specific documentation.
 
 ---
 
-> **Scope note:** This document covers pitfalls specific to adding travel agent features (always-listening AI, trip memory, proactive suggestions, richer search, Google Calendar itinerary) to the existing bot. Pre-existing pitfalls from earlier milestones (PTT flag, waveform generation, ElevenLabs model selection, FFmpeg path, temp file cleanup, voice clone quality) remain valid and are not repeated here. This file extends that prior context.
+> **Scope note:** This document covers pitfalls specific to adding v1.5 personal assistant features: expanding calendar detection from groups to all chats, building a reminder/scheduler system, and integrating Microsoft Graph API for To Do sync. Pitfalls from prior milestones (auto-reply cost, ban risk from group proactive messaging, trip memory context rot, service account calendar ownership) remain valid and are not repeated here. This file extends that prior context.
 
 ---
 
 ## Critical Pitfalls
 
-Mistakes that cause cost blow-ups, permanent account bans, or mandatory architectural rewrites.
+Mistakes that cause account bans, data loss, or mandatory architectural rewrites.
 
 ---
 
-### Pitfall 1: Always-Listening Analysis Fires on Every Message — Gemini Costs Explode
+### Pitfall 1: Universal Calendar Detection on Every 1:1 Message Multiplies Gemini Costs by 10-50x
 
 **What goes wrong:**
-The always-listening pipeline calls Gemini to classify every group message as "travel-related or not." In an active travel planning group, the group sends 100–300 messages per day (casual chat, jokes, logistics, yes/no replies). Each classification call consumes tokens even for "ignore this" outcomes. At Gemini 2.5 Flash pricing ($0.30/M input, $2.50/M output), a naive always-on implementation with a 500-token system prompt + message costs approximately $0.50–$2.50/month at moderate traffic — but that is assuming only classification. If the classification result is positive and triggers a full AI search + response, costs spike further.
+The existing date extraction runs only for tracked groups (gated by `group.travelBotActive` in `messageHandler.ts`). Expanding to "all chats" means every incoming 1:1 message -- from friends, family, delivery notifications, OTP codes, spam -- now flows through the event detection pipeline. The bot currently processes messages from contacts in `off`, `draft`, and `auto` modes. If the event detector runs before the mode check (or runs regardless of mode), it fires on every single incoming message.
 
-The hidden multiplier: if thinking mode is accidentally enabled on the classifier (the default in some Gemini 2.5 Flash configurations), thinking tokens cost $3.50/M — 11.7x the standard output rate. A misfire with thinking-mode on a 50-message/day group can cost $5–$15/month just for message triage.
+A typical personal WhatsApp account receives 50-200 messages/day across all 1:1 chats. Without pre-filtering, that is 1,500-6,000 Gemini classifier calls/month -- compared to the current group-only scope of maybe 100-300/month from a few active groups. At Gemini 2.5 Flash pricing ($0.30/M input), the raw cost increase is modest ($0.50-$2.00/month), but the real danger is rate limit exhaustion: the free tier's 250 RPD limit is blown by noon on a busy day.
+
+The deeper trap: 1:1 messages have no group context. The classifier cannot batch them the way group messages are batched in the 10-second debounce window. Each message from a different contact is an independent classification call.
 
 **Why it happens:**
-Developers wire the `messages.upsert` Baileys event directly into a Gemini call, forgetting that every message — including bot-generated ones, reactions, status updates, and edit events — triggers the event. The system prompt and recent context get re-sent with every message, multiplying token cost.
+Developers copy the group pipeline pattern (debounce + classify batch) into the 1:1 path without noticing that 1:1 messages arrive from dozens of different contacts spread across the day, making batching ineffective. The existing `processMessage` function processes messages serially per contact -- there is no natural batching point.
 
 **Consequences:**
-- Uncapped Gemini costs; a busy group during trip planning season (50+ messages/hour) could generate $10–$30/month from classification alone
-- Free tier (10 RPM, 250 RPD for Gemini 2.5 Flash) exhausted within hours of group activity
-- Rate limit errors cascade into dropped messages with no user-visible error
+- Free-tier rate limits exhausted daily; paid tier costs 5-10x the group-only baseline
+- Every OTP, delivery notification, and spam message wastes a Gemini call
+- No latency benefit from batching since 1:1 messages are contact-isolated
 
 **Prevention:**
-1. **Two-tier classification**: Use a fast, cheap pre-filter in JavaScript before calling Gemini — keyword matching (city names, hotel, flight, dates, "נסיעה", "טיסה", "מלון") with a blocklist of trivial patterns (emoji-only, < 10 characters, reactions). Only pass candidates to Gemini.
-2. **Disable thinking mode on the classifier call**: Explicitly set `thinkingConfig: { thinkingBudget: 0 }` on every classification call. Reserve thinking mode for response generation only.
-3. **Reuse the existing 10-second debounce**: The existing date-extraction debounce already batches rapid messages. Use the same debounce for travel activity detection — classify the batch, not each message individually.
-4. **Respect implicit caching**: Keep the system prompt identical across calls. As of May 2025, Gemini 2.5 models apply automatic context caching at 90% discount for repeated prefixes. A fixed system prompt cached across 100 calls costs 10% of what 100 independent calls cost.
-5. **Cap daily Gemini spend** via Google AI Studio budget alerts before deploying.
-
-**Cost estimate for correctly-implemented always-listener:**
-- Pre-filter eliminates ~70% of messages
-- 30 candidate messages/day × 700 tokens avg (prompt + message) = 21,000 input tokens/day
-- 21,000 × 30 days = 630,000 input tokens/month → $0.19/month input
-- 30 positive classifications × 200 token output = 6,000 tokens/month → $0.015/month output
-- With context caching 90% discount on repeated system prompt: effectively $0.02–$0.05/month for classification
-- Full response generation (search + calendar + reply) for 10 actions/day: ~$0.50–$1.50/month additional
+1. **JavaScript pre-filter before any Gemini call**: Check message text against fast heuristics -- date/time patterns (`\d{1,2}[/.]\d{1,2}`, time words like "tomorrow", "next week", Hebrew equivalents), event-signal keywords ("meeting", "appointment", "dinner", "flight"). Only pass candidates to Gemini. This eliminates 80-90% of messages at zero API cost.
+2. **Minimum message length**: Skip messages under 15 characters -- "ok", "thanks", "lol" never contain actionable calendar events.
+3. **Skip known non-human senders**: Maintain a blocklist of JIDs for delivery bots, OTP services, and business notification accounts. These never produce personal calendar events.
+4. **Per-contact opt-in, not global on**: Add a `calendarDetectionEnabled` boolean to the contacts table (default `false`). Only run detection for contacts where the user has explicitly enabled it. This reduces the blast radius from "all chats" to "chats I care about."
+5. **Respect the existing mode check**: Only run calendar detection for contacts not in `off` mode. The current pipeline skips `off`-mode contacts at line 344 -- event detection should respect this same gate.
 
 **Warning signs:**
-- Gemini spend dashboard shows > $1/week on a personal bot
-- API logs show `gemini.generateContent` called for messages under 10 characters
-- Thinking tokens appear in usage logs on classifier calls
+- Gemini API usage dashboard shows > 200 calls/day after v1.5 deployment
+- Event detection fires on OTP messages or delivery notifications
+- Logs show classification calls for messages with < 10 characters
 
-**Phase to address:** Always-listening foundation phase — cost architecture must be decided before any Gemini classifier is wired to Baileys events.
+**Phase to address:** Universal calendar detection phase -- pre-filter architecture must be decided before wiring the detector to the 1:1 message path.
 
-**Confidence:** HIGH — pricing verified via official Gemini API pricing page and multiple 2026 cost guides. Thinking mode pricing ($3.50/M) confirmed via pricepertoken.com and aifreeapi.com.
+**Confidence:** HIGH -- directly implied by the current `messageHandler.ts` architecture where all 1:1 messages flow through `processMessage`. Cost model based on verified Gemini 2.5 Flash pricing.
 
 ---
 
-### Pitfall 2: Proactive Bot Messages in a Group Trigger WhatsApp's Spam Detection
+### Pitfall 2: Reminder Scheduler Loses All Pending Reminders on Process Restart
 
 **What goes wrong:**
-The bot detects travel planning activity and unprompted sends suggestions to the group: "I noticed you're planning a trip to Rome — want me to find hotels?" If this fires multiple times in a row, or fires for ambiguous messages, the group sees the bot as noisy. More critically, if the bot sends multiple unsolicited messages within a short window, WhatsApp's spam detection flags the number. The result is a temporary ban (24–72 hours) or a permanent ban if repeated. The project already uses an account that has been running for two milestones — a ban resets two milestones of setup.
+The bot runs 24/7 on a home server via PM2 (`ecosystem.config.cjs` exists in the project). Node.js schedulers like `node-cron` or `setTimeout` chains store their schedule in memory. When PM2 restarts the process (crash, update, server reboot, OOM kill), all pending reminders vanish. A user sets a reminder for "tomorrow at 9am," the server reboots at 3am, and the reminder never fires. There is no recovery mechanism.
+
+This is particularly insidious because the failure is silent. The user has no way to know the reminder was lost until the time passes. Unlike a missed auto-reply (which the user might notice from the conversation context), a missed reminder has no backup signal.
 
 **Why it happens:**
-WhatsApp's spam detection evaluates messaging behavior patterns, not just volume. Sending automated messages to a group where members haven't explicitly triggered the bot looks indistinguishable from spam to WhatsApp's ML system. In 2025, WhatsApp banned 6.8 million accounts using pattern-based detection, and Baileys accounts have been banned even at low message volumes as Meta tightened unofficial API detection.
+The simplest reminder implementation is `setTimeout(sendReminder, msUntilReminder)`. This works in a never-restarting process. But PM2 restarts processes on crash, memory limits, and file changes. Home servers experience power fluctuations, kernel updates, and OOM kills. The existing codebase already uses in-memory Maps (`lastAutoReplyTime`, `autoCountWindowStart`) that reset on restart -- the pattern encourages more of the same.
 
 **Consequences:**
-- Account ban (temporary or permanent) — all bot state survives in SQLite, but re-registration requires a new phone number
-- Users mute or remove the bot from the group before a ban occurs
-- Trust degradation: users stop using the bot entirely after one irrelevant suggestion
+- Users lose trust in the reminder feature after the first missed reminder
+- No audit trail of what was scheduled vs. what was delivered
+- Difficult to debug because there is no evidence of the lost reminder after restart
 
 **Prevention:**
-1. **Require explicit trigger**: Do not send unsolicited messages. Instead, react with an emoji (e.g., a luggage emoji) to signal detection without generating a full bot message. The user can then explicitly ask the bot to proceed.
-2. **Per-group suggestion cooldown**: Never send more than 1 proactive suggestion to the same group within a 2-hour window, regardless of how many travel signals were detected.
-3. **Confidence threshold**: Only fire a proactive suggestion when the classifier confidence exceeds 90%. At 75–89%, log the detection and wait for a stronger signal.
-4. **Suggestion cap per day**: Hard cap of 3 unsolicited suggestions per group per calendar day. After the cap, switch to emoji-reaction-only mode.
-5. **Human-like message timing**: Use the existing `sendWithDelay` pattern (already in `whatsapp/sender.ts`). Add 3–8 second randomized delay before any proactive message. Never send within 30 seconds of the triggering message.
-6. **Message deduplication**: Track sent suggestion IDs to prevent resending the same suggestion if the debouncer fires the classifier twice on the same message cluster.
+1. **Persist all reminders in SQLite**: Create a `reminders` table with columns: `id`, `contactJid`, `reminderText`, `triggerAt` (Unix ms), `status` ('pending' | 'sent' | 'failed' | 'cancelled'), `calendarEventId` (nullable), `todoTaskId` (nullable), `createdAt`. Every reminder is a database row, not a timer.
+2. **Poll-based scheduler, not timer-based**: On startup and every 30-60 seconds, query `SELECT * FROM reminders WHERE status = 'pending' AND triggerAt <= ?` with current timestamp. Send any due reminders. This pattern survives restarts -- the query finds all overdue reminders after a reboot.
+3. **Catch-up on startup**: When the process starts, immediately run the poll query. Any reminders that were due during downtime are sent with a note: "Reminder (delayed -- was due at [original time]): [text]". This makes the recovery visible to the user.
+4. **Mark sent atomically**: Update reminder status to `sent` in the same transaction as logging the send. If the WhatsApp send fails, mark as `failed` with a retry count. Retry failed reminders up to 3 times with exponential backoff.
+5. **Do not use node-cron for individual reminders**: `node-cron` is appropriate for recurring system tasks (daily cleanup, weekly report). It is not appropriate for user-created one-off reminders because it stores schedules in memory and has no persistence.
 
 **Warning signs:**
-- Bot sends 3+ unprompted messages within 10 minutes in a single group
-- Group members ignore bot messages consistently (UX sign, not ban risk, but leading indicator)
-- WhatsApp app on the registered phone shows "account at risk" warning (confirmed real via whatsmeow issue #810)
+- Any use of `setTimeout` or `node-cron` for user-created reminders
+- No `reminders` table in the schema after the feature is built
+- Reminders "work in development but not in production" (because dev rarely restarts)
 
-**Phase to address:** Proactive suggestions phase — must design the "trigger → signal → threshold → cooldown → send" chain before wiring any classifier output to `sendMessage`.
+**Phase to address:** Reminder system phase -- persistence-first design before any scheduler code is written.
 
-**Confidence:** HIGH — ban risk for proactive messaging confirmed via Baileys GitHub issues #1869, #1925, multiple community ban reports, and WhatsApp's own 2025 anti-spam announcement. Spam detection behavior confirmed via The Next Web analysis of WhatsApp's anti-spam systems.
+**Confidence:** HIGH -- PM2 restart behavior is well-documented. The existing codebase pattern of in-memory Maps confirms the risk of following the same pattern for reminders.
 
 ---
 
-### Pitfall 3: Trip Memory Accumulates Indefinitely — Context Rot Degrades AI Quality
+### Pitfall 3: Microsoft Graph OAuth Token Expires Silently -- To Do Sync Breaks After 90 Days
 
 **What goes wrong:**
-The bot accumulates all conversation history for a trip: every message, every search result, every calendar event, every bot response. After 3–4 days of planning, the trip context reaches 50,000–200,000 tokens. Two effects occur simultaneously:
-1. **Token cost**: Every Gemini call includes the full trip context, causing cost to grow quadratically with conversation length
-2. **Context rot**: LLM performance degrades significantly as context grows. Research published by Chroma (2025) shows that recall accuracy drops substantially as the number of tokens in the context window increases. Old decisions ("we rejected that hotel") get confused with current state ("we liked that hotel"). The AI gives worse answers with more context than with less.
+Microsoft Graph API requires delegated authentication (user-level OAuth) to access To Do tasks -- app-only (client credentials) authentication cannot access the `/me/todo` endpoint. The OAuth flow produces an access token (1-hour lifetime) and a refresh token (90-day lifetime). The bot uses the refresh token to silently obtain new access tokens. After 90 days of inactivity (no token refresh), the refresh token expires. The bot cannot reach Microsoft To Do. All sync operations fail silently -- tasks created via WhatsApp are not synced, and the user does not know until they check To Do manually.
+
+The subtler failure: if the user changes their Microsoft account password or enables MFA, the refresh token is immediately invalidated. The bot does not detect this because the failure only surfaces on the next token refresh attempt, which might be hours later. Between the password change and the next refresh, the bot continues operating with a cached access token that will expire within the hour.
 
 **Why it happens:**
-The simplest trip memory implementation is an append-only log. Developers store every message and pass all of it to Gemini on each request. This works for the first 20 messages. After 200 messages over a multi-day trip, it breaks.
+Developers implement the initial OAuth flow (browser redirect, consent screen, token exchange) but treat token management as "done" after the first refresh token is stored. Microsoft's refresh tokens for personal accounts have a 90-day sliding window -- they extend their lifetime when used, but expire if unused for 90 days. A bot that syncs daily will never hit this limit. But a user who stops using To Do sync for 3 months (vacation, different workflow) will return to a broken integration with no clear error.
 
 **Consequences:**
-- Gemini calls for a mature trip cost 10–50x more than for a fresh trip
-- AI suggestions contradict previous decisions because the model loses track of distant context
-- SQLite `group_messages` table grows without bound; no partition or expiry strategy
+- To Do sync fails silently after 90 days of inactivity
+- Password changes or MFA enrollment break sync within 1 hour with no notification
+- User discovers broken sync only when they check To Do and find missing tasks
+- Re-authentication requires the user to go through the browser OAuth flow again
 
 **Prevention:**
-1. **Trip-scoped context, not full history**: Only include messages within the active trip window (defined by trip start/end dates or a "trip active" flag). Past trips are archived and not sent to Gemini.
-2. **Summarize-and-compress**: After each planning session (detected by a 2+ hour gap in group activity), generate and store a 200-word trip summary using Gemini. Future calls receive the summary, not the raw messages. The Mem0 pattern (2025) reduces token usage 80–90% vs. raw history while improving response quality.
-3. **Structured trip state**: Instead of raw message history, maintain a structured JSON record: `{ destination, dates, confirmed_hotels, confirmed_flights, preferences, open_questions }`. Pass the structured state to Gemini, not the raw chat. Update the struct after each decision.
-4. **Context window budget**: Hard cap the context passed to any single Gemini call at 50,000 tokens (well within the 1M window, but prevents cost explosion). Truncate oldest raw messages first, keep the trip summary always.
-5. **Trip archival**: When a trip's end date passes, archive its SQLite rows and remove them from active context construction.
+1. **Store refresh token in SQLite with expiry metadata**: Create a `tokens` table (or add columns to `settings`): `provider` ('microsoft'), `accessToken`, `refreshToken`, `accessTokenExpiresAt`, `refreshTokenExpiresAt`, `lastRefreshedAt`, `status` ('active' | 'expired' | 'revoked').
+2. **Proactive token refresh**: Refresh the access token when it has < 5 minutes remaining, not when it has already expired. Check token health on every To Do API call.
+3. **Monitor refresh token age**: If `lastRefreshedAt` is older than 60 days, send a WhatsApp notification to the bot owner: "Microsoft To Do connection will expire in ~30 days. Send 'reauth microsoft' to refresh." This gives the user a month of warning.
+4. **Handle `invalid_grant` gracefully**: When a refresh fails with `invalid_grant`, immediately notify the user via WhatsApp: "Microsoft To Do disconnected -- password change or token expired. Send 'reauth microsoft' to reconnect." Do not retry indefinitely.
+5. **Use MSAL (Microsoft Authentication Library)**: MSAL handles token caching, silent refresh, and error classification automatically. Using raw HTTP for the OAuth flow is error-prone. The `@azure/msal-node` package is the official Node.js implementation.
+6. **Request `offline_access` scope**: Without `offline_access` in the initial authorization request, Microsoft does not issue a refresh token at all. This is the single most common mistake. MSAL requests it by default, but raw implementations often omit it.
 
 **Warning signs:**
-- Gemini call logs show token counts growing trip-over-trip for the same number of interactions
-- Bot gives contradictory suggestions ("I see you liked Hotel X" when Hotel X was previously rejected)
-- SQLite `group_messages` table row count grows unboundedly month-over-month
+- No `offline_access` in the OAuth scope list
+- Refresh token stored without an expiry timestamp
+- No WhatsApp notification when token refresh fails
+- Raw `fetch`/`axios` calls to Microsoft token endpoint instead of MSAL
 
-**Phase to address:** Trip memory phase — the summarize-and-compress pattern must be in place before any trip context is passed to Gemini. Retrofitting this onto an existing append-only store requires a migration.
+**Phase to address:** Microsoft To Do sync phase -- OAuth architecture must be designed before any Graph API call is made. The token management strategy is a prerequisite, not an afterthought.
 
-**Confidence:** HIGH — context rot confirmed by Chroma Research (2025) and Anthropic context engineering guide. Summarization effectiveness confirmed by Mem0 published benchmarks (80-90% token reduction, 26% quality improvement). SQLite unbounded growth is a standard operational concern.
+**Confidence:** MEDIUM-HIGH -- Refresh token 90-day lifetime confirmed via Microsoft identity platform documentation. `invalid_grant` on password change confirmed via Microsoft Learn Q&A. `offline_access` requirement confirmed via official Graph API auth docs. MSAL recommendation from official Microsoft Graph documentation.
 
 ---
 
-### Pitfall 4: Google Calendar Service Account Owns All Calendars — Users Can't Edit Events
+### Pitfall 4: Reminder Messages Sent Proactively Trigger WhatsApp Ban Detection
 
 **What goes wrong:**
-The bot authenticates to Google Calendar using a service account (the simplest OAuth flow for a server-side app). The service account creates a new trip calendar and adds events. Users receive the calendar invite and can view events — but they cannot edit or delete them, because the service account is the data owner and has the highest privilege. The intent was for the whole group to collaboratively manage the itinerary. Instead, only the bot can modify it.
+Reminders are bot-initiated messages -- the bot sends a message to a contact without the contact having sent anything first. This is the most dangerous pattern for Baileys-based bots. WhatsApp's anti-spam system specifically targets accounts that send unsolicited messages to contacts who haven't recently messaged back. A user sets 5 reminders across different contacts for different times. The bot sends 5 unprompted messages throughout the day. To WhatsApp's detection system, this looks like a spammer drip-feeding messages across contacts.
+
+The risk is amplified by the suggest-then-confirm pattern: the reminder triggers a WhatsApp message, and if the user also gets a calendar event suggestion in the same hour, that is 2 bot-initiated messages to the owner's JID within a short window. The bot's own JID (`config.USER_JID`) receives the most messages from the bot (drafts, notifications, reminders) -- making it the highest-risk conversation for pattern detection.
 
 **Why it happens:**
-Google Calendar API documentation explicitly warns against using a service account as the calendar data owner for user-facing calendars. Service accounts own calendars with the highest privilege, and that privilege cannot be downgraded. Developers default to service accounts because they are easier to set up than OAuth with user delegation — no browser flow, no refresh token rotation, no user consent screen.
+The existing bot architecture sends messages reactively (in response to incoming messages). Reminders are the first purely proactive feature. The `sendWithDelay` function in `sender.ts` adds a 1.5-4s typing delay, which helps for reactive messages but does not address the proactive sending pattern that WhatsApp flags.
+
+Additionally, Meta's January 2026 policy update explicitly prohibits general-purpose AI chatbots on WhatsApp Business API. While this targets the Business API and not personal accounts via Baileys, it signals increased enforcement against automated messaging patterns. Baileys GitHub issues #1869 and #1983 report bans increasing in late 2025.
 
 **Consequences:**
-- Users cannot update event times, add notes, or delete events from the trip calendar — bot is the only editor
-- If the bot deletes an event erroneously, users cannot restore it
-- Sharing the calendar to group members is possible but they receive read-only access
-- Requires architectural rework: either switch to user-delegated OAuth or accept read-only user access
+- Temporary ban (24-72 hours) means all bot features are offline, not just reminders
+- Permanent ban means losing the phone number and all bot configuration tied to it
+- Two milestones of work become useless if the account is banned
 
 **Prevention:**
-Two valid architectures — choose one before writing any Calendar API code:
-
-Option A (recommended for personal use): **User-delegated OAuth** — authenticate as the bot owner's Google account using offline OAuth2 with a refresh token stored in the DB. The owner's account creates the calendar and is data owner. Group members are invited as editors via the Calendar sharing API. Events can be edited by anyone in the group who accepts the invite.
-
-Option B (acceptable tradeoff): **Service account + write-back bot** — use service account ownership but build a "edit event" command in the WhatsApp bot itself. Users request changes through the bot (e.g., "!move hotel to Tuesday") and the bot makes the edit. Avoids the OAuth complexity at the cost of all edits going through the bot.
-
-Do not pursue a hybrid where you start with a service account and try to transfer ownership later — Google Calendar does not support calendar ownership transfer.
+1. **Send reminders only to self (USER_JID)**: Instead of the bot messaging the contact directly, send the reminder to the bot owner's own chat: "Reminder: Call dentist at 3pm. Reply 'send' to forward to [contact]." This keeps all proactive messages in a single conversation (self-chat), which WhatsApp does not flag as spam.
+2. **Global daily message cap**: Hard limit of 10 bot-initiated (proactive) messages per calendar day. Reminders + calendar suggestions + draft notifications all count toward this cap. Beyond the cap, queue messages for the next day.
+3. **Rate limit proactive messages**: Never send 2 proactive messages within 5 minutes. Queue them with a minimum 5-minute gap. The baileys-antiban library recommends max 8 messages/minute, but for proactive messages, be much more conservative.
+4. **Track proactive vs. reactive ratio**: If the bot sends more proactive messages than reactive messages in a day, something is wrong. Alert the owner.
+5. **Batch reminders**: If multiple reminders are due within a 15-minute window, combine them into a single message: "Upcoming reminders:\n- 3:00pm: Call dentist\n- 3:15pm: Pick up groceries"
 
 **Warning signs:**
-- Users report they cannot edit events in the trip calendar
-- Service account email appears as the event organizer (visible in Calendar UI)
-- Google Calendar API returns 403 when a group member attempts to edit via a 3rd-party calendar app
+- Bot sends > 3 proactive messages within 1 hour
+- Proactive messages outnumber reactive messages on any given day
+- WhatsApp app on the registered phone shows account warnings
+- Messages start failing with connection errors after a burst of proactive sends
 
-**Phase to address:** Google Calendar integration phase — authentication architecture must be chosen before the first `calendar.events.insert` call. Switching later requires recreating all calendars under the new owner account.
+**Phase to address:** Reminder system phase -- the proactive message strategy must be designed alongside the scheduler, not after.
 
-**Confidence:** HIGH — service account ownership limitation explicitly documented in official Google Calendar API concepts page ("calendars have a single data owner with highest privileges; the data owner's access level cannot be downgraded"). OAuth vs. service account recommendation confirmed via official Google developer documentation.
+**Confidence:** HIGH -- ban risk for proactive messaging confirmed via Baileys GitHub issues #1869, #1925, #1983. Rate limit recommendations from baileys-antiban library. Meta's 2026 policy direction confirmed via TechCrunch and respond.io.
 
 ---
 
 ## Moderate Pitfalls
 
-Mistakes that cause user-visible degradation, non-trivial debugging time, or significant cost increases, but don't force rewrites.
+Mistakes that cause user-visible bugs, non-trivial debugging time, or degraded experience, but do not force rewrites.
 
 ---
 
-### Pitfall 5: Always-Listener Fires on the Bot's Own Messages — Infinite Loop
+### Pitfall 5: Expanding Date Detection to 1:1 Chats Creates False Positives from Conversational Dates
 
 **What goes wrong:**
-The bot sends a proactive suggestion to the group. Baileys emits a `messages.upsert` event for this outgoing message (type `notify`, `fromMe: true`). The always-listener pipeline receives this event and, if not filtered, passes the bot's own message through the travel-activity classifier. The classifier detects "travel content" (because the bot's suggestion is about travel). The pipeline schedules another suggestion. The loop fires repeatedly until rate limits kick in.
+Group messages about trips are contextually rich: "Let's fly to Rome on March 15th." 1:1 messages are conversationally ambiguous: "I had a great time last Tuesday," "How about next week sometime?", "my birthday is on the 5th." The existing date extraction logic (tuned for group travel planning) will treat all of these as calendar event candidates. The bot suggests creating a calendar event for "great time last Tuesday" -- a past date, clearly not an event.
+
+The ambiguity is worse in Hebrew, where informal date references are common: "maybe after Pesach," "in two weeks or so," "sometime in the summer." These are vague time references, not concrete event dates.
 
 **Why it happens:**
-The existing `messageHandler.ts` already filters `fromMe: true` for 1:1 contacts, but the new group pipeline is a separate code path. Developers wire the new group activity classifier without porting the `fromMe` check from the existing handler.
+The date extraction model was trained/prompted for group travel planning context where date mentions almost always correspond to planned events. In 1:1 chats, date mentions serve many purposes: reminiscing, vague planning, scheduling, complaining about deadlines, forwarding articles with dates.
 
 **Consequences:**
-- Rapid-fire bot messages in the group (3–10 messages in seconds) before the cooldown kicks in
-- Rate-limit-induced ban risk (see Pitfall 2)
-- Inflated Gemini costs for self-generated classification
+- Users receive irrelevant calendar event suggestions for casual date mentions
+- Trust erosion: after 3-4 false positives, users ignore all suggestions (including correct ones)
+- Wasted Gemini tokens on classification of non-actionable dates
 
 **Prevention:**
-- Filter `msg.fromMe === true` as the first check in the group message pipeline, before any classification
-- Add a message ID deduplication cache (Map of `messageId → timestamp`) with a 60-second TTL; drop any message whose ID has already been processed
-- Log a warning if the classifier is called with a message whose `senderJid` matches the bot's own JID
+1. **Separate classifier prompt for 1:1 vs. group context**: The group classifier assumes travel planning intent. The 1:1 classifier must be prompted differently: "Is this message describing a concrete future event that the user would want on their calendar? Exclude: past events, vague time references, forward-looking expressions without a specific date."
+2. **Require both a date AND an activity**: "March 15th" alone is not enough. Require the message to contain both a temporal reference and an activity/event noun ("meeting", "dinner", "flight", "appointment"). This dramatically reduces false positives.
+3. **Reject past dates**: Any extracted date that resolves to before today should be dropped immediately, before the suggest-then-confirm flow.
+4. **Confidence threshold**: Only suggest calendar events when the classifier confidence exceeds 80%. For 1:1 chats, require higher confidence than for groups (where context is richer and the prior probability of a real event is higher).
+5. **Track false positive rate**: Log every suggestion and its outcome (confirmed/rejected). If the rejection rate exceeds 50% for a contact, lower the suggestion frequency or disable detection for that contact.
 
 **Warning signs:**
-- Bot sends identical or near-identical messages multiple times within seconds
-- Gemini call logs show the bot's own reply text being classified
-- Group message count spikes after a bot action
+- Suggestion rejection rate > 40% across all 1:1 contacts
+- Bot suggests events for messages like "remember when..." or "I think sometime next month"
+- User explicitly says "stop suggesting events"
 
-**Phase to address:** Always-listening foundation phase — add `fromMe` check before wiring the first classifier call.
+**Phase to address:** Universal calendar detection phase -- classifier prompt redesign for 1:1 context.
 
-**Confidence:** HIGH — `fromMe` filtering is a standard Baileys pattern; the risk of omitting it in a parallel code path is well-established in Baileys community discussions.
+**Confidence:** MEDIUM-HIGH -- inferred from the existing group-focused classifier design and general NLP challenges with ambiguous temporal expressions. False positive rates are estimated, not measured.
 
 ---
 
-### Pitfall 6: Google Calendar Timezone Handling Creates Wrong Event Times
+### Pitfall 6: Timezone Bugs in Reminder Scheduling -- Server Time vs. User's Intended Time
 
 **What goes wrong:**
-The bot extracts dates from WhatsApp messages like "let's fly on March 15 at 6pm." The date/time is stored and passed to Google Calendar API without explicit timezone specification. Google Calendar defaults to the calendar's timezone (which was set when the calendar was created — likely the server's local timezone, UTC, or Israel Standard Time). The event is created at the wrong absolute time, meaning it appears at the correct local time on the creator's device but at the wrong time for group members in a different timezone, or appears at the wrong time after daylight saving time changes.
+User says "remind me at 9am tomorrow." The bot extracts "9am tomorrow" and schedules the reminder. But 9am in which timezone? The server runs in IST (Asia/Jerusalem, UTC+2/+3 depending on DST). If the Gemini classifier returns a naive datetime (no timezone info), the bot assumes server timezone. This works for the single-user case (bot owner is in Israel) -- until the user travels, or until Israel DST changes shift the offset.
+
+Israel's DST transition (last Friday of March, last Sunday of October) creates a specific failure mode: a reminder set for "tomorrow at 2:30am" during the spring-forward transition will either fire twice or not at all, depending on how the scheduler handles the missing/repeated hour.
 
 **Why it happens:**
-Google Calendar API's timezone handling is non-obvious. For timed events (not all-day events), the API accepts `dateTime` in ISO 8601 format. If no timezone offset is specified and the `timeZone` field is omitted, the API uses the calendar's configured timezone. Developers often format dates as `2025-03-15T18:00:00` (no offset), assuming it means local time — but "local" is undefined from the API's perspective. A confirmed bug in the PHP client (googleapis/google-api-php-client issue #2468) shows that even when specifying `timeZone: 'Etc/UTC'`, some API paths return events in the calendar's default timezone instead.
+`Date.now()` and `new Date()` in Node.js use the server's system timezone. If the server timezone is set to UTC (common in containers/cloud) but the user means IST, all reminders are off by 2-3 hours. Even if the server is correctly set to IST, DST transitions create edge cases.
 
 **Consequences:**
-- Events appear at wrong times in some group members' calendars
-- After Israel DST change (last Friday of October / last Friday of March), recurring events shift by 1 hour
-- No error is thrown — the event is created "successfully" at the wrong time
+- Reminders fire at wrong times (2-3 hours early/late)
+- During DST transitions, reminders in the 2:00-3:00am window are unreliable
+- Difficult to debug because the error depends on the time of year
 
 **Prevention:**
-1. Always include the explicit IANA timezone in every event creation: `timeZone: 'Asia/Jerusalem'` for Israel trips, the destination timezone for international destinations
-2. Format all `dateTime` fields with the explicit UTC offset: `2025-03-15T18:00:00+02:00` rather than `2025-03-15T18:00:00`
-3. Store extracted dates as UTC timestamps in SQLite and convert to the target timezone at Calendar API call time
-4. Never use `Etc/UTC` as a timezone string for events — use the actual IANA timezone name
-5. After creating an event, immediately read it back via `calendar.events.get` and verify the `dateTime` matches the intended time
+1. **Store all reminder times as UTC timestamps in SQLite**: Convert user-intended time to UTC at creation time, store as Unix ms. The scheduler compares `Date.now()` (always UTC) to the stored UTC timestamp.
+2. **Hardcode user timezone in config**: Add `USER_TIMEZONE: 'Asia/Jerusalem'` to the env schema. All natural language time parsing uses this timezone for conversion. This is a personal bot with one user -- no need for per-contact timezone support.
+3. **Use a timezone-aware date library**: `Temporal` (if available) or `luxon` for all date arithmetic. Never use raw `Date` for timezone-sensitive operations. Specifically, use the library's "next occurrence of 9am in Asia/Jerusalem" rather than manual hour arithmetic.
+4. **Avoid scheduling reminders during DST transition hours**: If a reminder resolves to the 2:00-3:00am window on a DST transition date, shift it to 3:05am and log a warning.
+5. **Include the resolved time in the confirmation**: When the user sets a reminder, confirm: "Reminder set for tomorrow, Monday March 17 at 9:00 AM IST." This makes the interpretation visible and catchable.
 
 **Warning signs:**
-- Events appear 1–2 hours off from the intended time
-- Events shift after daylight saving changes
-- Group members in different timezones see different event times in their Calendar app
+- Reminder fires 1 hour early/late after DST change
+- Tests pass in CI (UTC) but fail locally (IST) or vice versa
+- User says "remind me at 9am" and gets reminded at 7am or 11am
 
-**Phase to address:** Google Calendar integration phase — timezone strategy must be established before writing event creation code.
+**Phase to address:** Reminder system phase -- timezone handling must be decided before any time parsing code is written.
 
-**Confidence:** HIGH — confirmed via Google Calendar API official documentation on event timezones, known bug in googleapis/google-api-php-client issue #2468, and Google Calendar community thread on all-day event timezone handling.
+**Confidence:** HIGH -- Israel DST edge cases well-documented. Node.js `Date` timezone behavior is a known source of bugs. Server timezone mismatch is a standard operational concern.
 
 ---
 
-### Pitfall 7: Richer Search Results Grounded in Google Search — Cached Pages, Not Live Prices
+### Pitfall 7: Microsoft To Do Sync Creates Duplicate Tasks on Retry or Reconnection
 
 **What goes wrong:**
-Gemini with Google Search grounding is used to fetch hotel prices, flight availability, and attraction hours for the trip. The bot presents these as current facts: "Hotel X costs ₪450/night." The user books based on this, only to find the actual price is ₪680/night. Google Search grounding reduces hallucinations but returns Google Search results, which may be cached, seasonal, or from aggregator sites that don't reflect real-time inventory.
+The bot creates a task in Microsoft To Do via Graph API. The HTTP request succeeds (task is created), but the response is lost due to a network timeout or the bot process crashes before processing the response. On retry (or on startup catch-up), the bot does not know the task was already created. It creates the task again. The user sees duplicate tasks in To Do.
+
+This is worse with the reminder-to-task sync flow: a reminder fires, the bot creates a To Do task AND sends a WhatsApp reminder. If the task creation succeeds but the WhatsApp send fails, the bot retries the entire flow -- creating another To Do task.
 
 **Why it happens:**
-Google's documentation acknowledges that "for real-time information such as stock prices, the results are mixed, with Google Search possibly returning cached content." Travel prices are similarly dynamic — hotel and flight prices fluctuate by hour. Gemini's grounding retrieves what Google Search currently indexes, not what the booking engine quotes at reservation time.
+The Microsoft Graph To Do API does not have idempotency keys. Creating a task with the same title and body always creates a new task -- there is no "upsert" or "create if not exists." Developers implement retry logic for resilience without accounting for the non-idempotent nature of the API.
 
 **Consequences:**
-- Users get incorrect pricing expectations, leading to frustration
-- Users blame the bot for "lying" when prices differ
-- Legal/trust issue if the bot presents grounded prices as booking-ready quotes
+- Duplicate tasks in To Do (annoying but not critical)
+- If duplicates accumulate, user loses trust in the sync feature
+- Difficult to detect programmatically since To Do tasks have no unique external ID
 
 **Prevention:**
-1. Always qualify grounded price results with an explicit disclaimer: "Based on web search — prices change frequently. Verify before booking."
-2. Do not present prices as facts; present them as reference ranges: "Hotels in this area typically range from $X to $Y per night based on current search results."
-3. For flight availability specifically, note that Google Search grounding cannot provide seat-level availability — only price ranges from aggregators
-4. Structure the bot's response template to always include a booking link rather than a price figure: "Search current prices: [link]"
-5. Do not store grounded prices in the trip memory as confirmed data — store them as "estimated at time of search" with a timestamp
+1. **Store the To Do task ID locally before confirming**: The flow should be: (a) create task in To Do, (b) store the returned task ID in the `reminders` table `todoTaskId` column, (c) mark the reminder as synced. If step (b) succeeds, the sync is recorded. If the process crashes between (a) and (b), the startup catch-up can check for reminders with `todoTaskId IS NULL` and query To Do for recent tasks matching the title to deduplicate.
+2. **Separate the To Do sync from the WhatsApp send**: These are independent operations. Do not bundle them in a single retry loop. Create the task first, record its ID, then send the WhatsApp message. Each step retries independently.
+3. **Title-based dedup check before creation**: Before creating a task, query `GET /me/todo/lists/{listId}/tasks?$filter=title eq '{title}'` to check if a task with the same title already exists within the last hour. This is imperfect (different tasks can have the same title) but catches the most common duplication case.
+4. **Idempotency token in task body**: Embed a unique ID (the reminder's UUID) in the task's body or a linked resource. Before creating, search for tasks containing that UUID. This is more robust than title matching.
 
 **Warning signs:**
-- Users report price discrepancies between bot-stated prices and booking sites
-- Bot presents prices without a qualifying phrase like "approximately" or "based on current search"
-- Trip memory stores grounded prices as confirmed budget figures
+- Users report duplicate tasks in To Do
+- `reminders` table has rows with `todoTaskId IS NULL` after a known crash/restart
+- Multiple To Do tasks created within seconds with the same title
 
-**Phase to address:** Richer search results phase — response template must include the disclaimer before any grounded search result is presented to users.
+**Phase to address:** Microsoft To Do sync phase -- deduplication strategy must be built into the sync logic from day one.
 
-**Confidence:** MEDIUM-HIGH — Google Search grounding for Gemini confirmed via official Gemini API docs and developer blog. Cached content limitation acknowledged in official documentation. Real-time travel pricing limitation inferred from how Google Search indexes travel sites (LOW confidence on the specific failure rate; MEDIUM on the underlying cause).
+**Confidence:** MEDIUM -- Microsoft Graph To Do API lacks idempotency keys based on API documentation review. Deduplication via title or body search is a workaround, not an official pattern.
 
 ---
 
-### Pitfall 8: Suggest-Then-Confirm Flow Breaks Under Message Ordering Ambiguity
+### Pitfall 8: Suggest-Then-Confirm for 1:1 Calendar Events Overloads the Owner's Self-Chat
 
 **What goes wrong:**
-The bot asks "Should I add Hotel X to the itinerary? Reply ✅ or ❌." Two group members reply in quick succession: one replies ✅, another replies with an unrelated message at nearly the same time. The bot's reply parser sees two incoming messages close together and ambiguously associates both with the pending confirmation. Alternatively, the bot sends a follow-up suggestion before the first confirmation is resolved, creating two simultaneous pending confirmations. The confirmation state machine breaks.
+The existing suggest-then-confirm pattern sends suggestions to `config.USER_JID` (the bot owner's self-chat). With group-only detection, this produces a manageable number of suggestions. Expanding to all 1:1 chats means every detected event across every conversation produces a notification in the owner's self-chat. On a busy day (10+ active contacts, each mentioning dates), the owner receives 5-15 confirmation requests interspersed with draft approvals, snooze notifications, and reminder confirmations. The self-chat becomes an unreadable wall of bot notifications.
+
+The existing draft system uses `lastNotifiedJid` (a single module-scoped variable) to track context. If 3 calendar suggestions arrive from 3 different contacts, `lastNotifiedJid` points to the last one only. The owner's "snooze" or approval actions apply to the wrong contact.
 
 **Why it happens:**
-The existing draft system (`drafts` table + `markDraftSent`/`markDraftRejected`) was designed for 1:1 private chats where only one person confirms. In a group, multiple people can respond. The "pending confirmation" concept does not map cleanly to a multi-participant group without explicit state scoping.
+The self-chat was designed as a control channel for a low-volume feature (draft approvals for active contacts). Adding calendar suggestions, reminders, and To Do sync confirmations multiplies the volume beyond what a single-threaded approval queue can handle.
 
 **Consequences:**
-- Bot takes the wrong action (adds a hotel that was rejected, or vice versa)
-- Two pending confirmations confuse the state machine, causing the second to never resolve
-- User confusion: "I said ✅ and it still didn't add it"
+- Owner misses or ignores suggestions due to notification fatigue
+- `lastNotifiedJid` mismatch causes approvals/rejections applied to wrong contacts
+- No way to distinguish between "pending draft," "pending calendar suggestion," and "pending reminder" in the self-chat
 
 **Prevention:**
-1. **Scope confirmations to a specific quoted message**: When the bot asks for confirmation, the user must reply by quoting the bot's question message (Baileys `quotedMessageId`). Only a reply that quotes the specific bot message counts as a confirmation. Unquoted ✅/❌ messages are ignored for confirmation purposes.
-2. **One pending confirmation per group at a time**: Before sending a new confirmation request, check if a previous one is still pending. If yes, either wait or explicitly cancel the old one.
-3. **Confirmation timeout**: Pending group confirmations expire after 30 minutes. If unresolved, the bot logs the expiry and takes no action.
-4. **Only the group admin (trip organizer) can confirm**: Optionally, scope confirmation authority to the group admin JID stored in the groups table.
-5. **Do not use the existing private-chat draft table for group confirmations** — create a separate `group_confirmations` table scoped to `(group_jid, message_id)`.
+1. **Typed notification system**: Each notification in the self-chat should be prefixed with a type tag: `[DRAFT]`, `[EVENT]`, `[REMINDER]`, `[TODO]`. The bot's command parser recognizes which type is being approved.
+2. **Replace `lastNotifiedJid` with a proper pending queue**: Instead of a single variable, maintain a `pending_actions` table in SQLite with `(id, type, contactJid, details, status, createdAt)`. Each approval command references the latest pending action of a specific type, or the user can approve by replying to the specific notification message (quoted message ID).
+3. **Auto-expire low-confidence suggestions**: Calendar event suggestions from 1:1 chats with classifier confidence < 90% could auto-expire after 10 minutes with no action, reducing clutter.
+4. **Batch notifications**: If 3 event suggestions are detected within 5 minutes, send a single summary: "Detected 3 potential events:\n1. Dinner with Mom - March 18\n2. Dentist - March 19\n3. Team meeting - March 20\nReply 1/2/3 to add, or 'all' to add all."
+5. **Daily digest mode**: For low-urgency calendar events, accumulate detections and send a daily summary at a fixed time: "Today's detected events: ..."
 
 **Warning signs:**
-- Bot adds or removes items from the itinerary without the owner confirming
-- "Pending confirmation" state persists in DB after group resolution
-- Multiple ✅ replies in a short window cause duplicate calendar events
+- Owner's self-chat receives > 10 bot messages per day
+- Owner stops responding to suggestions (approval rate drops)
+- Wrong contact gets approved/rejected due to `lastNotifiedJid` race
 
-**Phase to address:** Suggest-then-confirm phase — design the confirmation state machine for group semantics before writing any confirmation-resolution code.
+**Phase to address:** Universal calendar detection phase -- notification architecture must be redesigned before expanding detection scope.
 
-**Confidence:** MEDIUM-HIGH — inferred from the existing draft system design (private-chat scoped) and known WhatsApp group message ordering behavior. Quoted-message scoping is a well-established pattern for disambiguation in Baileys-based bots.
+**Confidence:** HIGH -- directly observable from the current `messageHandler.ts` code where `lastNotifiedJid` is a single module-scoped variable (line 52). The scaling problem is a direct consequence of expanding to all chats.
 
 ---
 
-### Pitfall 9: Gemini Free Tier Rate Limits Are Exhausted Within Hours by Always-On Bot
+### Pitfall 9: Microsoft Graph App Registration Requires Specific Tenant Configuration for Personal Accounts
 
 **What goes wrong:**
-Gemini 2.5 Flash free tier allows 10 RPM and 250 RPD as of March 2026 (reduced from higher limits in December 2025). An always-listening bot that classifies messages without batching will exhaust the 250 RPD limit before noon on an active planning day. Classification calls for 30 messages/hour × 12 hours = 360 calls/day, exceeding the 250 RPD limit by 44%. Once the limit is hit, all Gemini calls fail with 429 errors — the bot goes silent with no user-visible error.
+To use Microsoft Graph API with a personal Microsoft account (not a work/school account), the Azure AD app registration must be configured with "Accounts in any organizational directory and personal Microsoft accounts" as the supported account type. If the developer selects "Single tenant" or "Multi-tenant (organizational only)" during app registration, the OAuth flow will fail for personal accounts with an unhelpful error like `AADSTS50020: User account does not exist in tenant`.
+
+Additionally, the `/me/todo/lists` endpoint requires `Tasks.ReadWrite` delegated permission. This permission must be explicitly granted in the app registration AND the user must consent to it during the first OAuth flow. If the permission is missing, API calls return 403 with no indication of which permission is missing.
 
 **Why it happens:**
-Developers test on the free tier during development and assume volume is low enough. But even a quiet group generates hundreds of messages per day during active trip planning (dates, links, questions, memes). The December 2025 Google quota reductions cut free tier limits by 50–80%, making the problem worse.
-
-**Prevention:**
-1. **Enable billing before deploying the always-listener**: Tier 1 (paid) raises limits to 300 RPM and 1,000 RPD — enough for any personal bot. At the cost estimates above (~$0.50–$2.00/month), billing is affordable.
-2. **Aggressive batching**: The 10-second debounce already batches messages. Extend to 30 seconds for the travel classifier specifically, collapsing a burst of 10 messages into one classifier call.
-3. **Add a local RPM circuit breaker**: Track Gemini calls per minute in memory. If approaching 8/minute (80% of free tier limit), queue subsequent calls rather than dropping them.
-4. **Handle 429 gracefully**: Catch `RESOURCE_EXHAUSTED` errors from the Gemini API. Do not crash the message handler. Log the error, drop the classification silently, and resume when the window resets.
-
-**Warning signs:**
-- Gemini API returns `RESOURCE_EXHAUSTED` or 429 errors after noon on active days
-- Bot stops responding to group messages during busy planning sessions
-- Logs show Gemini call counts approaching 250/day
-
-**Phase to address:** Always-listening foundation phase — add billing and the circuit breaker before deploying to any active group.
-
-**Confidence:** HIGH — rate limits verified via official Gemini API rate limits documentation and multiple 2026 rate limit guides confirming the December 2025 reductions.
-
----
-
-### Pitfall 10: Message Pipeline Ordering Breaks When Always-Listener Runs Alongside Existing Handlers
-
-**What goes wrong:**
-The existing `messageHandler.ts` already handles group messages via `groupMessageCallback`. The new always-listener registers its own event handler on the same `messages.upsert` event. Both handlers fire for every message, potentially in parallel. The new handler reads and writes `group_messages` rows; the existing handler also reads group context. SQLite WAL mode allows only one simultaneous writer — if both handlers attempt concurrent writes, one gets `SQLITE_BUSY`. With the default `busy_timeout`, the second write fails silently or throws an unhandled exception.
-
-**Why it happens:**
-Two independent `sock.ev.on('messages.upsert', ...)` listeners on the same Baileys socket both fire on the same event. Node.js executes them in registration order but does not serialize their async operations. Both can be in-flight simultaneously, racing to write to the same SQLite table.
+The Azure portal defaults to "Single tenant" for new app registrations. Developers who follow generic Microsoft Graph tutorials often skip the account type selection, ending up with an app that only works for accounts in their specific Azure AD tenant. Personal Microsoft accounts (outlook.com, hotmail.com, live.com) require the "personal accounts" option to be explicitly selected.
 
 **Consequences:**
-- Intermittent `SQLITE_BUSY` errors on group message writes
-- Message dropped from `group_messages` — trip context is incomplete
-- Hard to reproduce (race condition, depends on message timing)
+- OAuth flow fails for personal Microsoft accounts with cryptic errors
+- Requires deleting and recreating the app registration (the account type cannot be changed after creation in some cases)
+- Time wasted debugging authentication errors that look like token issues but are actually app registration issues
 
 **Prevention:**
-1. **Single entry point for all group message processing**: Do not register a second `messages.upsert` listener. Extend the existing `groupMessageCallback` pipeline to include the always-listener step. Message processing is sequential within a single async function.
-2. **Pipeline stage ordering**: Within the single handler, enforce this order:
-   1. Insert to `group_messages` (write — must complete before any reads)
-   2. Run keyword pre-filter (pure JS, no DB)
-   3. If pre-filter passes: call Gemini classifier (async, non-DB)
-   4. If classifier positive: trigger proactive suggestion flow
-3. **SQLite `busy_timeout`**: Already set to WAL mode. Verify `PRAGMA busy_timeout = 5000` is set on startup. This allows 5 seconds of retry before failing, which covers most transient write contention.
-4. **Serialize writes with a queue**: If parallel writes are unavoidable, use a lightweight async queue (e.g., `p-queue` with concurrency 1) for all SQLite writes in the message pipeline.
+1. **Select "Accounts in any organizational directory and personal Microsoft accounts (Multitenant)" during app registration**: This is the only option that works for personal accounts. Document this choice prominently in setup instructions.
+2. **Add `Tasks.ReadWrite` to API permissions before first OAuth attempt**: In the Azure portal, go to API Permissions > Add a permission > Microsoft Graph > Delegated > Tasks.ReadWrite. Without this, the consent screen may succeed but the API will reject calls.
+3. **Set the redirect URI correctly**: For a CLI/bot flow, use `http://localhost:PORT/callback` as the redirect URI. Mobile/SPA redirect URIs will not work for a server-side bot.
+4. **Test the OAuth flow with MSAL's interactive login sample first**: Before integrating into the bot, verify the app registration works by running MSAL's standalone auth code flow sample. This isolates app registration issues from bot code issues.
+5. **Store the app registration details (client ID, tenant ID, redirect URI) in the bot's `.env` file**: Use the Zod schema to validate they are present at startup, just like the existing Gemini API key validation.
 
 **Warning signs:**
-- `SQLITE_BUSY` errors appearing in logs during group activity bursts
-- `group_messages` table is missing rows that should have been inserted
-- Two Gemini classification calls appearing in logs for the same `messageId`
+- `AADSTS50020` or `AADSTS700016` errors during OAuth flow
+- OAuth consent screen does not show `Tasks.ReadWrite` permission
+- Authentication works with work account but fails with personal account
 
-**Phase to address:** Always-listening foundation phase — pipeline integration design before any new event listener is registered.
+**Phase to address:** Microsoft To Do sync phase -- app registration is the first step, before any code is written.
 
-**Confidence:** HIGH — SQLite single-writer limitation confirmed via official SQLite WAL documentation. The specific risk of parallel Baileys event handlers is directly implied by the existing `messageHandler.ts` architecture (single `groupMessageCallback` hook pattern already guards against this; extending it correctly is the prevention).
+**Confidence:** MEDIUM-HIGH -- app registration account type behavior confirmed via Microsoft Learn documentation. Permission requirements confirmed via Graph API permissions reference. The "cannot change account type after creation" limitation may have been relaxed in recent Azure portal updates -- verify at implementation time.
+
+---
+
+### Pitfall 10: Calendar Event and Reminder Confirmation Patterns Conflict with Existing Draft Approval
+
+**What goes wrong:**
+The existing bot uses a simple approval protocol: the owner replies with a checkmark or X emoji to approve/reject the latest pending draft. v1.5 adds two more confirmation types: calendar event suggestions ("Add 'Dinner with Mom' on March 18?") and reminder confirmations ("Set reminder for 3pm?"). All three use the owner's self-chat. If a draft and a calendar suggestion are both pending, what does a checkmark approve? The existing `getLatestPendingDraft()` function only looks at drafts -- it does not know about pending calendar suggestions or reminders.
+
+**Why it happens:**
+The draft approval system was designed as the only confirmation type. It uses a dedicated `drafts` table and a linear "most recent pending" lookup. Adding new confirmation types without unifying the approval mechanism creates ambiguity.
+
+**Consequences:**
+- Checkmark approves a draft when the user intended to approve a calendar event (or vice versa)
+- If both a draft and a calendar event are pending, one is invisible to the approval parser
+- Adding each new confirmation type requires modifying the `handleOwnerCommand` function, creating a growing if/else chain
+
+**Prevention:**
+1. **Unified pending action system**: Create a single `pending_actions` table: `(id, type, targetJid, details JSON, status, createdAt, expiresAt)`. Types: 'draft', 'calendar_event', 'reminder', 'todo_task'. The checkmark approves the most recent pending action regardless of type.
+2. **Quoted-message disambiguation**: Require the user to approve by quoting the specific notification message. The bot matches the quoted message ID to the pending action. Unquoted checkmarks approve the most recent action of any type.
+3. **Type-specific emoji shortcuts**: Checkmark for drafts (existing), calendar emoji for calendar events, bell emoji for reminders. This is more intuitive than a single checkmark for everything.
+4. **Numbered approval**: When multiple actions are pending, list them with numbers: "Pending:\n1. [DRAFT] Reply to Mom\n2. [EVENT] Dinner March 18\nReply 1 or 2 to approve."
+
+**Warning signs:**
+- User approves a checkmark and the wrong action fires
+- `handleOwnerCommand` grows beyond 100 lines of type-checking conditionals
+- Pending actions from different types "shadow" each other
+
+**Phase to address:** Must be addressed in the first phase that adds a new confirmation type (likely calendar detection). Retrofitting is expensive because it requires migrating the existing draft system.
+
+**Confidence:** HIGH -- directly observable from the current code: `handleOwnerCommand` at line 125 only handles drafts and snooze. Adding more types without a unification layer is a guaranteed conflict.
 
 ---
 
@@ -349,54 +362,55 @@ Issues that are annoying but recoverable without significant rework.
 
 ---
 
-### Pitfall 11: Trip Memory Contains Privacy-Sensitive Personal Travel Data
+### Pitfall 11: Microsoft To Do Task Lists Are User-Specific -- Cannot Share Tasks
 
 **What goes wrong:**
-The trip memory accumulates everything discussed in the group: passport details if mentioned, accommodation addresses, flight numbers, who is traveling with whom. This data lives in plaintext SQLite and is passed wholesale to Gemini (Google's servers). For a personal family bot this is an accepted tradeoff, but if a group member objects to their travel plans being processed by Google's AI, there is no mechanism to delete their specific messages.
+The developer assumes Microsoft To Do tasks can be shared between users (like a shared Google Calendar). To Do tasks are personal -- they belong to a single Microsoft account and cannot be shared. If the bot creates tasks in the owner's To Do, no one else can see them. This is fine for a personal assistant bot, but if the feature is later extended to "create To Do tasks for group trip action items," it will not work.
 
 **Prevention:**
-- Document the data flow clearly in a comment in the codebase: "Group messages are stored in SQLite and sent to Google Gemini for classification. All group members implicitly accept this by remaining in the group."
-- Implement a `!forget` command that deletes all messages from a specific sender's JID from the trip memory
-- Do not send group member phone numbers or JIDs to Gemini — strip PII from the message context before classification
-- Set a retention policy for `group_messages`: delete rows older than 90 days automatically (a SQLite cleanup job on startup)
+- Design the To Do sync as a personal feature from the start: the bot creates tasks in the owner's To Do list only
+- For shared task management, use Microsoft Planner (different API, different permissions) or stay with the existing Google Calendar which supports sharing
+- Document this limitation in the feature spec: "To Do sync is owner-only; shared task management is out of scope"
 
-**Phase to address:** Trip memory phase — retention and PII stripping built in from the start.
+**Phase to address:** Microsoft To Do sync phase -- feature scoping.
 
-**Confidence:** MEDIUM — GDPR chatbot compliance sources confirm the principle; specific WhatsApp/Gemini data processing details are inferred rather than from a direct official source.
+**Confidence:** HIGH -- Microsoft To Do's personal-only nature confirmed via official API documentation.
 
 ---
 
-### Pitfall 12: Google Calendar Event Spam When Dates Are Extracted from Casual Mentions
+### Pitfall 12: Reminder Natural Language Parsing Fails on Hebrew and Mixed-Language Input
 
 **What goes wrong:**
-A group member says "remember when we went to Eilat last March?" The date extractor (10-second debounce, currently used for date extraction) extracts "last March" and the bot creates a calendar event for a past date, or creates an event for an ambiguous future date. The group's itinerary calendar fills with spurious events from casual historical references.
+User sends "remind me to call the dentist machaar (tomorrow in Hebrew: machar) at 3." The NLP parser (Gemini) receives mixed Hebrew-English input. Gemini handles this well in general, but edge cases arise: Hebrew date formats ("5 be'april"), informal Hebrew time references ("achrei hatzaharayim" = afternoon, no specific hour), and Hebrew-specific relative dates ("yom shlishi haba" = next Tuesday, but which Tuesday if today is Tuesday?).
 
 **Prevention:**
-- Gate calendar event creation on an explicit confirmation flow (Pitfall 8's suggest-then-confirm). Never auto-create a calendar event without user approval.
-- Add a date relevance filter: dates more than 7 days in the past are not candidates for itinerary events
-- Distinguish date mentions by context: the classifier prompt should include "is this date being planned for the future trip, or is it a historical reference?" as a classification dimension
-- Allow `!remove last event` command as a quick recovery path for spurious events
+1. **Prompt Gemini with explicit locale context**: Include in the system prompt: "The user communicates in Hebrew and English. Parse dates relative to timezone Asia/Jerusalem. 'machar' means tomorrow. 'hayom' means today. When a time is ambiguous (e.g., 'afternoon'), default to 2:00 PM."
+2. **Always confirm the parsed time back to the user**: "Reminder set for Tuesday, March 18, 3:00 PM IST -- reply X to cancel." This catches parsing errors before they become missed reminders.
+3. **Reject ambiguous time references**: If the parsed time has no specific hour (e.g., "sometime next week"), ask the user: "What time should I remind you?" rather than guessing.
+4. **Test with a corpus of real Hebrew date expressions**: Collect 20-30 real examples from the bot owner's chat history and validate Gemini's parsing accuracy before deploying.
 
-**Phase to address:** Google Calendar integration phase.
+**Phase to address:** Reminder system phase -- prompt engineering for multilingual date parsing.
 
-**Confidence:** MEDIUM — inferred from the existing 10-second debounce and date extraction pattern in the codebase. Specific false-positive rate not measured.
+**Confidence:** MEDIUM -- Gemini's Hebrew NLP capabilities are generally strong but edge cases with mixed-language input are not well-documented. Specific failure modes are inferred from general multilingual NLP challenges.
 
 ---
 
-### Pitfall 13: Stale In-Memory Trip State After Server Restart
+### Pitfall 13: Gemini API Pre-Filter Rejects Legitimate Events Due to Overly Aggressive Keyword Matching
 
 **What goes wrong:**
-Trip context, pending confirmations, and classifier debounce state live in `Map` objects (following the existing ephemeral state pattern in `messageHandler.ts`). After a server restart, all in-memory state is lost. A pending confirmation that was waiting for ✅/❌ is now invisible to the bot. The next ✅ from a user is treated as an orphaned message. A trip that was "active" in memory is gone — the bot has no awareness of the current planning session.
+The JavaScript pre-filter (designed to reduce Gemini costs) uses keyword matching to decide which messages reach the classifier. The keyword list misses legitimate event signals: "let's grab coffee" (no date keyword), "pick you up at 7" (no event keyword), "reservation confirmed" (forwarded message, not conversational). Messages that contain real events but use indirect language bypass the pre-filter and never reach Gemini.
+
+Conversely, messages like "I have a date tonight" (the word "date" triggers the filter) or "time to eat" (the word "time" triggers it) produce false positives that waste Gemini calls.
 
 **Prevention:**
-- Persist pending group confirmations in a `group_confirmations` SQLite table (not in memory)
-- Persist the "active trip" flag and current trip summary in the `groups` table or a new `trips` table
-- On startup, reload active trip state from SQLite into memory before processing any messages
-- For the classifier debounce specifically, lost state on restart is acceptable — the worst case is one missed classification after a restart
+1. **Use a two-word co-occurrence filter, not single keywords**: Require at least one time-word AND one activity-word. "Coffee at 3" passes (activity + time). "I have a date" alone does not.
+2. **Log pre-filter pass/reject with message text (in development)**: Review the filter's decisions on real messages over 1-2 weeks. Tune the keyword list based on actual pass/reject patterns.
+3. **Fail open, not closed**: If the pre-filter is uncertain, let the message through to Gemini. The cost of one extra Gemini call ($0.0002) is far less than the cost of a missed event.
+4. **Allow a configurable "filter sensitivity" setting**: Start with a low threshold (let more through to Gemini) and tighten over time as the keyword list is refined.
 
-**Phase to address:** Trip memory phase.
+**Phase to address:** Universal calendar detection phase -- pre-filter tuning during the rollout period.
 
-**Confidence:** HIGH — directly implied by the existing architecture (`lastAutoReplyTime` Map resets on restart, per existing code comment).
+**Confidence:** MEDIUM -- pre-filter accuracy is difficult to estimate without real message data. The risk of over-filtering is a general NLP engineering concern.
 
 ---
 
@@ -404,63 +418,42 @@ Trip context, pending confirmations, and classifier debounce state live in `Map`
 
 | Phase Topic | Likely Pitfall | Mitigation |
 |-------------|---------------|------------|
-| Always-listening foundation | Gemini cost explosion on every message | Two-tier pre-filter + debounce batching + disable thinking mode on classifier |
-| Always-listening foundation | Self-message reflection loop | First-line `fromMe` filter before any classification |
-| Always-listening foundation | Free-tier rate limit exhaustion | Enable billing; add circuit breaker; handle 429 gracefully |
-| Always-listening foundation | Pipeline concurrency / SQLite busy | Extend single `groupMessageCallback`; do not add a second `messages.upsert` listener |
-| Proactive suggestions | Ban risk from unsolicited group messages | Emoji-reaction signal first; explicit trigger before full message; per-group 2-hour cooldown |
-| Proactive suggestions | User annoyance / trust erosion | Confidence threshold > 90%; daily cap of 3; human-like send delay |
-| Trip memory | Context rot + cost blowup | Summarize-and-compress after each session; 50K token hard cap; structured trip state |
-| Trip memory | Privacy / PII in Gemini context | Strip JIDs/phone numbers; 90-day retention; `!forget` command |
-| Trip memory | Stale state after restart | Persist active trip flag and pending confirmations in SQLite |
-| Suggest-then-confirm | Multi-user confirmation ambiguity | Quoted-message scoping; single pending confirmation per group; 30-min timeout |
-| Richer search | Stale prices presented as facts | Always include disclaimer; present as ranges; include booking link |
-| Google Calendar integration | Service account ownership lock-in | Choose auth architecture (user OAuth vs. bot-only) before first API call |
-| Google Calendar integration | Wrong event timezone | Explicit IANA timezone on every event; store UTC; read-back verification |
-| Google Calendar integration | Event spam from casual date mentions | Require confirmation before any `events.insert`; reject past dates |
-
----
-
-## Cost Modeling: Gemini 2.5 Flash — Always-Listening Pattern
-
-**Assumptions:** Active trip planning group, 100 messages/day, 30-day trip planning period. Gemini 2.5 Flash at $0.30/M input, $2.50/M output (March 2026). Context caching active at 90% discount on system prompt.
-
-| Scenario | Monthly Gemini Cost | Notes |
-|----------|---------------------|-------|
-| Naive: every message classified, no pre-filter, thinking mode on | ~$15–$40/month | Thinking tokens ($3.50/M) are the budget killer |
-| Naive: every message classified, no pre-filter, thinking mode off | ~$1.50–$4.00/month | Much better; still suboptimal |
-| Optimized: pre-filter eliminates 70%, 30-second debounce, caching | ~$0.20–$0.80/month | Target range for personal bot |
-| Optimized + full responses (searches, calendar, replies) at 10/day | ~$0.70–$2.50/month | Total realistic monthly cost |
-
-**Bottom line:** A correctly implemented always-listener on Gemini 2.5 Flash costs $1–$3/month for a personal travel group. An incorrectly implemented one (no pre-filter, thinking mode on) costs $15–$40/month.
+| Universal calendar detection | Gemini cost blow-up from processing every 1:1 message | JS pre-filter with date+activity co-occurrence; per-contact opt-in; respect contact mode |
+| Universal calendar detection | High false positive rate from conversational date mentions in 1:1 | Separate classifier prompt for 1:1 context; require date+activity; reject past dates |
+| Universal calendar detection | Self-chat notification overload from expanded detection scope | Typed notifications; replace `lastNotifiedJid` with pending action queue; batch notifications |
+| Universal calendar detection | Pre-filter too aggressive, misses real events | Two-word co-occurrence; fail open; log and tune |
+| Reminder system | Lost reminders on process restart | Persist in SQLite; poll-based scheduler; startup catch-up |
+| Reminder system | Ban risk from proactive reminder messages | Send to self-chat first; daily cap of 10 proactive messages; batch nearby reminders |
+| Reminder system | Timezone bugs (DST, server vs. user timezone) | Store UTC; hardcode user TZ in config; use luxon/Temporal; confirm parsed time to user |
+| Reminder system | Hebrew/mixed-language date parsing failures | Locale-aware Gemini prompt; always confirm parsed time; reject ambiguous references |
+| Microsoft To Do sync | OAuth token expires silently after 90 days | Proactive token health monitoring; WhatsApp notification on expiry; use MSAL |
+| Microsoft To Do sync | Azure app registration wrong for personal accounts | Select "personal accounts" account type; add Tasks.ReadWrite permission; test before integrating |
+| Microsoft To Do sync | Duplicate tasks on retry/reconnection | Store task ID before confirming; separate sync from send; idempotency via UUID in body |
+| Microsoft To Do sync | Assumes shared tasks are possible | Design as owner-only from start; document limitation |
+| Confirmation system (cross-cutting) | New confirmation types conflict with existing draft approval | Unified pending_actions table; quoted-message disambiguation; type-specific emoji shortcuts |
 
 ---
 
 ## Sources
 
-- [Baileys GitHub Issue #1869 — High Number of Bans](https://github.com/WhiskeySockets/Baileys/issues/1869) — HIGH confidence — ban patterns documented by community; accounts banned after group posting
-- [kobie3717/baileys-antiban — Anti-Ban Middleware](https://github.com/kobie3717/baileys-antiban) — MEDIUM confidence — rate limit recommendations (8 msg/min, 200/hr, 1500/day) from community-maintained anti-ban library
-- [whatsmeow Issue #810 — "Account at risk" Warning](https://github.com/tulir/whatsmeow/issues/810) — MEDIUM confidence — "account may be at risk" warning affecting both WhatsMeow and Baileys accounts
-- [Gemini Developer API Pricing](https://ai.google.dev/gemini-api/docs/pricing) — HIGH confidence — $0.30/M input, $2.50/M output for Gemini 2.5 Flash; $3.50/M for thinking tokens
-- [Gemini API Rate Limits](https://ai.google.dev/gemini-api/docs/rate-limits) — HIGH confidence — 10 RPM, 250 RPD for Gemini 2.5 Flash free tier
-- [Gemini API Rate Limits 2026 — LaoZhang](https://blog.laozhang.ai/en/posts/gemini-api-rate-limits-guide) — MEDIUM confidence — December 2025 quota reduction details
-- [Gemini API Context Caching](https://ai.google.dev/gemini-api/docs/caching) — HIGH confidence — 90% discount on cached tokens for Gemini 2.5 models; implicit caching enabled by default since May 2025
-- [Gemini API Pricing 2026 — aifreeapi.com](https://www.aifreeapi.com/en/posts/gemini-api-pricing-2026) — MEDIUM confidence — pricing breakdown including thinking mode
-- [Context Rot — Chroma Research](https://research.trychroma.com/context-rot) — HIGH confidence — empirical evidence of LLM performance degradation with context growth
-- [Active Context Compression — arxiv.org](https://arxiv.org/html/2601.07190) — MEDIUM confidence — 22.7% token savings with frequent small compressions
-- [Mem0 LLM Chat History Summarization Guide](https://mem0.ai/blog/llm-chat-history-summarization-guide-2025) — MEDIUM confidence — 80-90% token reduction, 26% quality improvement with smart memory vs. raw history
-- [Effective Context Engineering — Anthropic](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents) — HIGH confidence — context management best practices for AI agents
-- [Google Calendar API — Calendars and Events Concepts](https://developers.google.com/workspace/calendar/api/concepts/events-calendars) — HIGH confidence — service account ownership limitation: "data owner's access level cannot be downgraded"
-- [Google Calendar API — Create Events](https://developers.google.com/workspace/calendar/api/guides/create-events) — HIGH confidence — timezone specification requirements for timed events
-- [Google Calendar API — googleapis/google-api-php-client Issue #2468](https://github.com/googleapis/google-api-php-client/issues/2468) — MEDIUM confidence — timezone inconsistency bug when retrieving events
-- [SQLite WAL Mode — Official Documentation](https://sqlite.org/wal.html) — HIGH confidence — "only one writer at a time" limitation in WAL mode
-- [SQLite Concurrent Writes — tenthousandmeters.com](https://tenthousandmeters.com/blog/sqlite-concurrent-writes-and-database-is-locked-errors/) — MEDIUM confidence — SQLITE_BUSY behavior under concurrent writers
-- [Grounding with Google Search — Gemini API Docs](https://ai.google.dev/gemini-api/docs/google-search) — HIGH confidence — grounding capabilities and real-time information limitations
-- [WhatsApp Anti-Spam 2025 — About.fb.com](https://about.fb.com/news/2025/08/new-whatsapp-tools-tips-beat-messaging-scams/) — HIGH confidence — 6.8M accounts banned in H1 2025; pattern-based detection
-- [Phone Number Age and Ban Risk — GREEN-API](https://green-api.com/en/blog/reduce-the-risk-of-WA-blocking/) — MEDIUM confidence — account age significantly affects ban resistance; 25–30 day safe window
-- [GDPR Chatbot Compliance — moinAI](https://www.moin.ai/en/chatbot-wiki/chatbots-data-protection-gdpr) — MEDIUM confidence — data retention, PII minimization, and right-to-deletion requirements for chatbots
+- [Baileys GitHub Issue #1869 -- High Number of Bans](https://github.com/WhiskeySockets/Baileys/issues/1869) -- HIGH confidence -- ban patterns documented by community
+- [Baileys GitHub Issue #1983 -- WhatsApp Number Banning](https://github.com/WhiskeySockets/Baileys/issues/1983) -- HIGH confidence -- recent ban reports
+- [kobie3717/baileys-antiban -- Anti-Ban Middleware](https://github.com/kobie3717/baileys-antiban) -- MEDIUM confidence -- rate limit recommendations (8 msg/min, 200/hr, 1500/day)
+- [Meta WhatsApp AI Chatbot Policy 2026 -- respond.io](https://respond.io/blog/whatsapp-general-purpose-chatbots-ban) -- HIGH confidence -- policy targeting Business API, not personal accounts
+- [WhatsApp Chatbot Ban -- TechCrunch](https://techcrunch.com/2025/10/18/whatssapp-changes-its-terms-to-bar-general-purpose-chatbots-from-its-platform/) -- HIGH confidence -- Meta policy changes
+- [Microsoft Graph To Do API Overview](https://learn.microsoft.com/en-us/graph/todo-concept-overview) -- HIGH confidence -- official API documentation
+- [Microsoft Graph Delegated Auth](https://learn.microsoft.com/en-us/graph/auth-v2-user) -- HIGH confidence -- OAuth flow, refresh tokens, offline_access
+- [Microsoft Graph Permissions Reference](https://learn.microsoft.com/en-us/graph/permissions-reference) -- HIGH confidence -- Tasks.ReadWrite scope, personal account support
+- [Microsoft Refresh Token Lifetime](https://learn.microsoft.com/en-us/entra/identity-platform/refresh-tokens) -- HIGH confidence -- 90-day sliding window for personal accounts
+- [Graph API OAuth2 Refresh Tokens Expiring -- Microsoft Q&A](https://learn.microsoft.com/en-us/answers/questions/1402711/graph-api-oauth2-refresh-tokens-expiring) -- MEDIUM confidence -- community-confirmed token expiry behavior
+- [Tasks.ReadWrite Permission Details -- graphpermissions.merill.net](https://graphpermissions.merill.net/permission/Tasks.ReadWrite) -- MEDIUM confidence -- permission scope details
+- [Gemini Developer API Pricing](https://ai.google.dev/gemini-api/docs/pricing) -- HIGH confidence -- $0.30/M input for Gemini 2.5 Flash
+- [Gemini API Rate Limits](https://ai.google.dev/gemini-api/docs/rate-limits) -- HIGH confidence -- 250 RPD free tier for Gemini 2.5 Flash
+- [Gemini API Cost Guide 2026 -- CloudZero](https://www.cloudzero.com/blog/gemini-cost-per-api-call/) -- MEDIUM confidence -- cost optimization strategies
+- [node-cron Timezone Support -- LogRocket](https://blog.logrocket.com/task-scheduling-or-cron-jobs-in-node-using-node-cron/) -- MEDIUM confidence -- timezone parameter usage
+- [Cron Timezone Issues -- webhosting.de](https://webhosting.de/en/cron-time-zone-issues-cron-jobs-scheduling-errors/) -- MEDIUM confidence -- DST transition edge cases
 
 ---
 
-*Pitfalls research for: WhatsApp Bot — Travel Agent Milestone*
-*Researched: 2026-03-02*
+*Pitfalls research for: WhatsApp Bot v1.5 -- Personal Assistant Features*
+*Researched: 2026-03-16*
