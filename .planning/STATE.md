@@ -10,22 +10,22 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 ## Current Position
 
 Phase: 22 of 26 (Calendar Detection Refactor)
-Plan: —
-Status: Ready to plan
-Last activity: 2026-03-16 — Phase 22 context gathered
+Plan: 2 of 2 (complete)
+Status: Phase 22 complete
+Last activity: 2026-03-16 — Plan 22-01 executed (CalendarDetectionService extraction and tests)
 
-Progress: [░░░░░░░░░░] 0% (v1.5)
+Progress: [██░░░░░░░░] 20% (v1.5)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 45 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 9, v1.4: 12)
+- Total plans completed: 47 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 9, v1.4: 12, v1.5: 2)
 - v1.4 shipped in 1 day (12 plans, 5 phases)
 - v1.3 shipped in 1 day (9 plans, 5 phases)
 
 **Cumulative (all milestones):**
 - 5 milestones shipped (v1.0, v1.1, v1.2, v1.3, v1.4)
-- 21 phases complete, 45 plans complete
+- 21 phases complete, 47 plans complete
 
 ## Accumulated Context
 
@@ -41,6 +41,9 @@ Recent decisions affecting current work:
 - [v1.5/P22]: All groups monitored for personal events, not just travel-active groups
 - [v1.5/P22]: Both calendars get events when travel + personal overlap
 - [v1.5/P22]: No TTL on pending events — stay until approved/rejected
+- [v1.5/P22]: OAuth refresh token stored in settings table (same pattern as other config)
+- [v1.5/P22]: Auth callback route unauthenticated (Google redirect, not dashboard)
+- [v1.5/P22]: vitest for unit testing (native ESM TypeScript, no config overhead)
 
 ### Pending Todos
 
@@ -57,5 +60,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-03-16
-Stopped at: Phase 22 context gathered
-Resume with: `/gsd:plan-phase 22`
+Stopped at: Completed 22-01-PLAN.md (phase 22 fully complete)
+Resume with: `/gsd:plan-phase 23`

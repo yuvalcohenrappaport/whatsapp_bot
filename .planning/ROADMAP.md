@@ -64,7 +64,7 @@
 
 **Milestone Goal:** Turn the bot into a daily personal assistant that detects events, reminders, and tasks from all chats and manages them automatically.
 
-- [ ] **Phase 22: Calendar Detection Refactor** - Extract shared CalendarDetectionService from group pipeline
+- [x] **Phase 22: Calendar Detection Refactor** - Extract shared CalendarDetectionService from group pipeline
 - [ ] **Phase 23: Universal Calendar Detection** - Detect and create calendar events from all chats
 - [ ] **Phase 24: Smart Reminders** - Reminder scheduling via commands, WhatsApp messages, and calendar events
 - [ ] **Phase 25: Commitment Detection** - AI-powered extraction of commitments from private chats
@@ -81,8 +81,8 @@
   2. Group chat date extraction still works identically after the refactor (no behavior change)
   3. The shared service can be called from any message handler with a message text and source context
 **Plans:** 2 plans
-- [ ] 22-01-PLAN.md -- Extract CalendarDetectionService and break circular dependencies
-- [ ] 22-02-PLAN.md -- Personal calendar OAuth2 infrastructure
+- [x] 22-01-PLAN.md -- Extract CalendarDetectionService and break circular dependencies
+- [x] 22-02-PLAN.md -- Personal calendar OAuth2 infrastructure
 
 ### Phase 23: Universal Calendar Detection
 **Goal**: Users get calendar event proposals from messages in any chat -- private or group -- with suggest-then-confirm flow
@@ -156,7 +156,7 @@ Phases execute in numeric order: 22 -> 23 -> 24 -> 25 -> 26
 | 19. Itinerary Builder | v1.4 | 3/3 | Complete | 2026-03-02 |
 | 20. Enriched Search | v1.4 | 2/2 | Complete | 2026-03-02 |
 | 21. Travel Intelligence | v1.4 | 2/2 | Complete | 2026-03-02 |
-| 22. Calendar Detection Refactor | v1.5 | 0/2 | Planning complete | - |
+| 22. Calendar Detection Refactor | v1.5 | 2/2 | Complete | 2026-03-16 |
 | 23. Universal Calendar Detection | v1.5 | 0/TBD | Not started | - |
 | 24. Smart Reminders | v1.5 | 0/TBD | Not started | - |
 | 25. Commitment Detection | v1.5 | 0/TBD | Not started | - |
