@@ -10,16 +10,16 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 ## Current Position
 
 Phase: 24 of 26 (Smart Reminders)
-Plan: 3 of 3 (in progress)
-Status: Executing Phase 24
-Last activity: 2026-03-16 — Plan 24-03 executed (dashboard API routes, Reminders page, overview stat card)
+Plan: 3 of 3 (complete)
+Status: Phase 24 Complete
+Last activity: 2026-03-16 — Plan 24-02 executed (smart routing, restart recovery, cancel/edit commands)
 
 Progress: [██████░░░░] 65% (v1.5)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 52 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 9, v1.4: 12, v1.5: 7)
+- Total plans completed: 53 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 9, v1.4: 12, v1.5: 8)
 - v1.4 shipped in 1 day (12 plans, 5 phases)
 - v1.3 shipped in 1 day (9 plans, 5 phases)
 
@@ -56,6 +56,10 @@ Recent decisions affecting current work:
 - [v1.5/P24]: Smart routing: <24h WhatsApp, 24-72h calendar, >72h both
 - [v1.5/P24]: Reminder handler after calendar approval, before snooze in handleOwnerCommand
 - [v1.5/P24]: Keyword pre-filter (REMINDER_KEYWORDS_RE) before Gemini parsing
+- [v1.5/P24]: initReminderSystem moved to onOpen callback (needs sock for recovery messages)
+- [v1.5/P24]: Single-reminder optimization: skip Gemini call when only one pending
+- [v1.5/P24]: Calendar events not deleted on cancel (v1 simplification, user deletes manually)
+- [v1.5/P24]: Disambiguation uses module-level Map state, cleared on non-digit input
 
 ### Pending Todos
 
@@ -72,5 +76,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-03-16
-Stopped at: Completed 24-03-PLAN.md
-Resume with: Plan 24-02-PLAN.md still pending (restart recovery, cancel/edit commands)
+Stopped at: Completed 24-02-PLAN.md
+Resume with: Phase 24 complete (all 3 plans done). Next: Phase 25 (Commitment Detection)
