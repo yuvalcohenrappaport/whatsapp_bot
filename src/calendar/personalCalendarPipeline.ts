@@ -8,7 +8,10 @@ import {
   findPendingEventByContentHash,
   findSimilarPendingEvents,
   updatePendingEventDetails,
+  getPersonalPendingEvent,
 } from '../db/queries/personalPendingEvents.js';
+import { sendEventNotification, type PendingEvent } from './calendarApproval.js';
+import { getState } from '../api/state.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
 
@@ -106,6 +109,15 @@ export async function processPrivateMessage(params: {
           isAllDay: extracted.isAllDay ?? false,
         });
         logger.info({ existingId: match.id, title: extracted.title }, 'Updated existing pending event with new details');
+
+        // Re-send notification with updated details
+        const sock = getState().sock;
+        if (sock) {
+          const updated = getPersonalPendingEvent(match.id);
+          if (updated) {
+            sendEventNotification(sock, match.id, updated as PendingEvent).catch(() => {});
+          }
+        }
       } else {
         // Insert new pending event
         const id = randomUUID();
@@ -126,6 +138,15 @@ export async function processPrivateMessage(params: {
           isAllDay: extracted.isAllDay ?? false,
         });
         logger.info({ id, title: extracted.title, contactJid }, 'Created personal pending event from private message');
+
+        // Send notification to self-chat
+        const sock = getState().sock;
+        if (sock) {
+          const inserted = getPersonalPendingEvent(id);
+          if (inserted) {
+            sendEventNotification(sock, id, inserted as PendingEvent).catch(() => {});
+          }
+        }
       }
     }
   } catch (err) {
@@ -191,6 +212,15 @@ export async function processGroupMessage(params: {
           isAllDay: extracted.isAllDay ?? false,
         });
         logger.info({ existingId: match.id, title: extracted.title }, 'Updated existing pending event with new details');
+
+        // Re-send notification with updated details
+        const sock = getState().sock;
+        if (sock) {
+          const updated = getPersonalPendingEvent(match.id);
+          if (updated) {
+            sendEventNotification(sock, match.id, updated as PendingEvent).catch(() => {});
+          }
+        }
       } else {
         const id = randomUUID();
         insertPersonalPendingEvent({
@@ -210,6 +240,15 @@ export async function processGroupMessage(params: {
           isAllDay: extracted.isAllDay ?? false,
         });
         logger.info({ id, title: extracted.title, groupJid }, 'Created personal pending event from group message');
+
+        // Send notification to self-chat
+        const sock = getState().sock;
+        if (sock) {
+          const inserted = getPersonalPendingEvent(id);
+          if (inserted) {
+            sendEventNotification(sock, id, inserted as PendingEvent).catch(() => {});
+          }
+        }
       }
     }
   } catch (err) {

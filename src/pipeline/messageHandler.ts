@@ -26,6 +26,8 @@ import { getGroup } from '../db/queries/groups.js';
 import { insertGroupMessage } from '../db/queries/groupMessages.js';
 import { processPrivateMessage } from '../calendar/personalCalendarPipeline.js';
 import { isForwardedMessage } from '../calendar/calendarDedup.js';
+import { getPersonalPendingEventByNotificationMsgId } from '../db/queries/personalPendingEvents.js';
+import { handleCalendarApproval } from '../calendar/calendarApproval.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
 
@@ -126,9 +128,19 @@ function isCoolingDown(jid: string): boolean {
  */
 async function handleOwnerCommand(
   sock: WASocket,
-  text: string,
+  msg: WAMessage,
 ): Promise<boolean> {
+  const text = getMessageText(msg) ?? '';
   const trimmed = text.trim().toLowerCase();
+
+  // --- Calendar approval (reply to event notification) ---
+  const stanzaId = msg.message?.extendedTextMessage?.contextInfo?.stanzaId ?? null;
+  if (stanzaId) {
+    const pendingEvent = getPersonalPendingEventByNotificationMsgId(stanzaId);
+    if (pendingEvent) {
+      return handleCalendarApproval(sock, pendingEvent, text);
+    }
+  }
 
   // --- Snooze command ---
   const snoozeMs = parseSnoozeCommand(trimmed);
@@ -301,7 +313,7 @@ async function processMessage(sock: WASocket, msg: WAMessage): Promise<void> {
 
   // Self-message to own chat: route to owner command handler (draft approval, snooze, etc.)
   if (fromMe && contactJid === config.USER_JID) {
-    await handleOwnerCommand(sock, text);
+    await handleOwnerCommand(sock, msg);
     return;
   }
 
