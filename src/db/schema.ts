@@ -215,6 +215,8 @@ export const personalPendingEvents = sqliteTable(
     url: text('url'),
     status: text('status').notNull().default('pending'), // 'pending' | 'approved' | 'rejected'
     notificationMsgId: text('notification_msg_id'), // self-chat msg ID for reply matching
+    contentHash: text('content_hash'), // SHA-256 prefix for forwarded message dedup
+    isAllDay: integer('is_all_day', { mode: 'boolean' }).notNull().default(false),
     createdAt: integer('created_at')
       .notNull()
       .$defaultFn(() => Date.now()),
@@ -222,5 +224,6 @@ export const personalPendingEvents = sqliteTable(
   (table) => [
     index('idx_personal_pending_status').on(table.status),
     index('idx_personal_pending_notification').on(table.notificationMsgId),
+    index('idx_personal_pending_content_hash').on(table.contentHash),
   ],
 );
