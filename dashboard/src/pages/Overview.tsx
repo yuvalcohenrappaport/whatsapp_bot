@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
-import { MessageSquare, Users, UsersRound } from 'lucide-react';
+import { MessageSquare, Users, UsersRound, Calendar } from 'lucide-react';
 import { apiFetch } from '@/api/client';
+import { usePersonalEventsCount } from '@/hooks/usePersonalEvents';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -43,6 +44,17 @@ const statConfig = [
     bgClass: 'bg-emerald-subtle',
   },
   {
+    key: 'events',
+    title: 'Pending Events',
+    description: 'Calendar events awaiting approval',
+    icon: Calendar,
+    color: 'violet',
+    glowClass: 'glow-violet',
+    borderClass: 'border-glow-violet',
+    textClass: 'text-violet-accent',
+    bgClass: 'bg-violet-subtle',
+  },
+  {
     key: 'groups',
     title: 'Tracked Groups',
     description: 'WhatsApp groups being monitored',
@@ -68,20 +80,22 @@ export default function Overview() {
     queryKey: ['groups'],
     queryFn: () => apiFetch<Group[]>('/api/groups'),
   });
+  const pendingEventsCount = usePersonalEventsCount();
 
   const values: Record<string, number> = {
     drafts: drafts?.length ?? 0,
     contacts: contacts?.filter((c) => c.mode !== 'off').length ?? 0,
+    events: pendingEventsCount,
     groups: groups?.filter((g) => g.travelBotActive || g.keywordRulesActive).length ?? 0,
   };
 
   return (
     <div>
       <h1 className="text-2xl font-semibold mb-6" style={{ fontFamily: 'var(--font-heading)' }}>Overview</h1>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {statConfig.map((stat) => {
           const value = values[stat.key];
-          const highlight = stat.key === 'drafts' && value > 0;
+          const highlight = (stat.key === 'drafts' || stat.key === 'events') && value > 0;
           return (
             <Card
               key={stat.key}

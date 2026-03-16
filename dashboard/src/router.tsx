@@ -6,6 +6,7 @@ import Overview from '@/pages/Overview';
 import Contacts from '@/pages/Contacts';
 import Drafts from '@/pages/Drafts';
 import Groups from '@/pages/Groups';
+import Events from '@/pages/Events';
 
 export const router = createBrowserRouter([
   { path: '/login', element: <Login /> },
@@ -19,6 +20,7 @@ export const router = createBrowserRouter([
           { index: true, element: <Overview /> },
           { path: 'contacts', element: <Contacts /> },
           { path: 'drafts', element: <Drafts /> },
+          { path: 'events', element: <Events /> },
           { path: 'groups', element: <Groups /> },
         ],
       },
