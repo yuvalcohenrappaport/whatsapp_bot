@@ -28,8 +28,8 @@ Requirements for Personal Assistant milestone. Each maps to roadmap phases.
 ### Microsoft To Do
 
 - [x] **TODO-01**: OAuth2 authorization code flow for Microsoft Graph API via dashboard
-- [ ] **TODO-02**: Bot auto-detects actionable tasks in private chat messages with pre-filter
-- [ ] **TODO-03**: Detected tasks proposed via self-chat with suggest-then-confirm flow
+- [x] **TODO-02**: Bot auto-detects actionable tasks in private chat messages with pre-filter
+- [x] **TODO-03**: Detected tasks proposed via self-chat with suggest-then-confirm flow
 - [x] **TODO-04**: Confirmed tasks created in Microsoft To Do via Graph API
 - [x] **TODO-05**: Refresh token persisted and auto-renewed with expiry monitoring
 
@@ -77,8 +77,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | REM-05 | Phase 24 | Complete |
 | REM-06 | Phase 24 | Complete |
 | TODO-01 | Phase 26 | Complete |
-| TODO-02 | Phase 26 | Pending |
-| TODO-03 | Phase 26 | Pending |
+| TODO-02 | Phase 26 | Complete |
+| TODO-03 | Phase 26 | Complete |
 | TODO-04 | Phase 26 | Complete |
 | TODO-05 | Phase 26 | Complete |
 

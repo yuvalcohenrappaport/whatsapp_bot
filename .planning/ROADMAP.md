@@ -68,7 +68,7 @@
 - [x] **Phase 23: Universal Calendar Detection** - Detect and create calendar events from all chats
 - [x] **Phase 24: Smart Reminders** - Reminder scheduling via commands, WhatsApp messages, and calendar events (completed 2026-03-16)
 - [x] **Phase 25: Commitment Detection** - AI-powered extraction of commitments from private chats (completed 2026-03-16)
-- [ ] **Phase 26: Microsoft To Do Sync** - OAuth flow and task creation via Graph API
+- [x] **Phase 26: Microsoft To Do Sync** - OAuth flow and task creation via Graph API (completed 2026-03-16)
 
 ## Phase Details
 
@@ -136,7 +136,7 @@
   3. Confirming a detected task creates it in Microsoft To Do via Graph API
   4. The OAuth refresh token is persisted and auto-renewed so the user does not need to re-authorize
   5. If Microsoft auth is not configured, the bot operates normally without To Do features (graceful degradation)
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 - [x] 26-01-PLAN.md -- MSAL auth service, Graph API service, DB schema, API routes
 - [ ] 26-02-PLAN.md -- Extend Gemini schema for task classification, To Do pipeline, cancel handler
 - [x] 26-03-PLAN.md -- Dashboard Integrations and Tasks pages
@@ -171,4 +171,4 @@ Phases execute in numeric order: 22 -> 23 -> 24 -> 25 -> 26
 | 23. Universal Calendar Detection | v1.5 | Complete    | 2026-03-16 | 2026-03-16 |
 | 24. Smart Reminders | 3/3 | Complete    | 2026-03-16 | - |
 | 25. Commitment Detection | 2/2 | Complete    | 2026-03-16 | - |
-| 26. Microsoft To Do Sync | v1.5 | 2/3 | In progress | - |
+| 26. Microsoft To Do Sync | 3/3 | Complete   | 2026-03-16 | - |
