@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-03-16)
 
 **Core value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
-**Current focus:** Phase 25 - Commitment Detection
+**Current focus:** Phase 26 - Microsoft To Do Sync
 
 ## Current Position
 
-Phase: 25 of 26 (Commitment Detection)
-Plan: 2 of 2 (complete)
-Status: Executing Phase 25
-Last activity: 2026-03-16 — Plan 25-02 executed (commitment pipeline integration with auto-set reminders and notifications)
+Phase: 26 of 26 (Microsoft To Do Sync)
+Plan: 2 of 3
+Status: Executing Phase 26
+Last activity: 2026-03-16 — Plan 26-01 executed (MSAL auth service, Graph API service, DB schema, API routes)
 
-Progress: [██████░░░░] 65% (v1.5)
+Progress: [███████░░░] 73% (v1.5)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 55 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 9, v1.4: 12, v1.5: 10)
+- Total plans completed: 56 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 9, v1.4: 12, v1.5: 11)
 - v1.4 shipped in 1 day (12 plans, 5 phases)
 - v1.3 shipped in 1 day (9 plans, 5 phases)
 
@@ -64,6 +64,10 @@ Recent decisions affecting current work:
 - [v1.5/P25]: Medium + high confidence included for commitments (calendar is high-only)
 - [v1.5/P25]: Exported fireReminder from reminderService.ts for reuse (minimal change, avoids duplication)
 - [v1.5/P25]: Cooldown set BEFORE async Gemini call to prevent race conditions
+- [v1.5/P26]: MSAL token cache persisted to SQLite settings table via ICachePlugin (not file-based)
+- [v1.5/P26]: Graph API called via native fetch (not @microsoft/microsoft-graph-client SDK)
+- [v1.5/P26]: MSAL client conditionally initialized only when all 3 MS env vars are set
+- [v1.5/P26]: isMicrosoftConnected is async (MSAL cache access requires async)
 
 ### Pending Todos
 
@@ -74,11 +78,10 @@ Recent decisions affecting current work:
 - Baileys v7.0.0-rc.9 is a release candidate — monitor stability
 - Platform.MACOS patch required via patch-package
 - CommitmentDetector prompt needs tuning for mixed Hebrew/English (Phase 25)
-- Microsoft To Do requires Azure AD app registration and personal account authority URL verification (Phase 26)
-- Token cache strategy for MSAL (file vs SQLite) to be decided during Phase 26
+- Microsoft To Do requires Azure AD app registration (user setup required before OAuth flow works)
 
 ## Session Continuity
 
 Last session: 2026-03-16
-Stopped at: Completed 25-02-PLAN.md
-Resume with: Phase 25 complete — all plans executed
+Stopped at: Completed 26-01-PLAN.md
+Resume with: Continue Phase 26 — Plan 26-02 next (Gemini schema extension, To Do pipeline, cancel handler)
