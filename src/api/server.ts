@@ -10,6 +10,7 @@ import keywordRuleRoutes from './routes/keywordRules.js';
 import settingsRoutes from './routes/settings.js';
 import statusRoutes from './routes/status.js';
 import personalCalendarRoutes from './routes/personalCalendar.js';
+import reminderRoutes from './routes/reminders.js';
 
 export async function createServer() {
   const fastify = Fastify({
@@ -39,6 +40,7 @@ export async function createServer() {
   await fastify.register(settingsRoutes);
   await fastify.register(statusRoutes);
   await fastify.register(personalCalendarRoutes);
+  await fastify.register(reminderRoutes);
 
   // 5. Static file serving (last — catch-all for SPA)
   await fastify.register(staticPlugin);
