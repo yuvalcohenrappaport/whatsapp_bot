@@ -111,8 +111,8 @@
   5. Near-term reminders (<24h) use precise setTimeout; distant reminders are picked up by periodic DB scan
 **Plans:** 3/3 plans complete
 - [x] 24-01-PLAN.md -- Core backend: DB schema, Gemini parser, two-tier scheduler, handleOwnerCommand wiring
-- [ ] 24-02-PLAN.md -- Smart delivery routing, restart recovery, cancel/edit commands
-- [ ] 24-03-PLAN.md -- Dashboard API routes and Reminders page with tabs
+- [x] 24-02-PLAN.md -- Smart delivery routing, restart recovery, cancel/edit commands
+- [x] 24-03-PLAN.md -- Dashboard API routes and Reminders page with tabs
 
 ### Phase 25: Commitment Detection
 **Goal**: The bot detects commitments in private conversations and proactively suggests follow-up reminders
@@ -122,7 +122,9 @@
   1. When the owner says "I'll send it tomorrow" in a private chat, the bot suggests a follow-up reminder in self-chat
   2. Commitment detection uses a JS pre-filter (message length, temporal markers, action verbs) to avoid unnecessary Gemini calls
   3. Detected commitments propose reminders through the existing reminder service from Phase 24
-**Plans**: TBD
+**Plans:** 2 plans
+- [ ] 25-01-PLAN.md -- DB migration, CommitmentDetectionService with pre-filter and Gemini extraction
+- [ ] 25-02-PLAN.md -- Pipeline integration, auto-set reminders, self-chat notifications
 
 ### Phase 26: Microsoft To Do Sync
 **Goal**: Actionable tasks detected in private chats are synced to Microsoft To Do for cross-device access
@@ -165,5 +167,5 @@ Phases execute in numeric order: 22 -> 23 -> 24 -> 25 -> 26
 | 22. Calendar Detection Refactor | v1.5 | Complete    | 2026-03-16 | 2026-03-16 |
 | 23. Universal Calendar Detection | v1.5 | Complete    | 2026-03-16 | 2026-03-16 |
 | 24. Smart Reminders | 3/3 | Complete    | 2026-03-16 | - |
-| 25. Commitment Detection | v1.5 | 0/TBD | Not started | - |
+| 25. Commitment Detection | v1.5 | 0/2 | Planning complete | - |
 | 26. Microsoft To Do Sync | v1.5 | 0/TBD | Not started | - |
