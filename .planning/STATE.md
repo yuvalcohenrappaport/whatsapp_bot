@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 Phase: 22 of 26 (Calendar Detection Refactor)
 Plan: —
 Status: Ready to plan
-Last activity: 2026-03-16 — v1.5 roadmap created (5 phases, 17 requirements)
+Last activity: 2026-03-16 — Phase 22 context gathered
 
 Progress: [░░░░░░░░░░] 0% (v1.5)
 
@@ -37,6 +37,10 @@ Recent decisions affecting current work:
 - [v1.5]: CalendarDetectionService refactor before new features (enables code reuse)
 - [v1.5]: Private chat events proposed via self-chat, not in-conversation (avoids confusing contacts)
 - [v1.5]: Microsoft To Do last (external OAuth, purely additive, graceful degradation)
+- [v1.5/P22]: Personal calendar uses separate Google account with OAuth2 (not GCP service account)
+- [v1.5/P22]: All groups monitored for personal events, not just travel-active groups
+- [v1.5/P22]: Both calendars get events when travel + personal overlap
+- [v1.5/P22]: No TTL on pending events — stay until approved/rejected
 
 ### Pending Todos
 
@@ -53,5 +57,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-03-16
-Stopped at: v1.5 roadmap created
+Stopped at: Phase 22 context gathered
 Resume with: `/gsd:plan-phase 22`
