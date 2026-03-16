@@ -2,18 +2,17 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-02)
+See: .planning/PROJECT.md (updated 2026-03-16)
 
 **Core value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
-**Current focus:** Planning next milestone
+**Current focus:** v1.5 Personal Assistant
 
 ## Current Position
 
-Phase: All phases complete through v1.4
-Status: v1.4 Travel Agent milestone shipped
-Last activity: 2026-03-02 — Milestone v1.4 archived
-
-Progress: [██████████] 100% (v1.4)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-16 — Milestone v1.5 started
 
 ## Performance Metrics
 
@@ -45,9 +44,10 @@ Full decision log in PROJECT.md Key Decisions table.
 - Phase 21 proactive trigger has highest WhatsApp ban risk — validate confidence calibration
 - Proactive rate-limit state in-memory only — resets on restart (accepted)
 - resolvedQuestions matching uses 30-char prefix — may need fuzzy upgrade if false negatives observed
+- Microsoft To Do integration requires Microsoft Graph API setup (new dependency for v1.5)
 
 ## Session Continuity
 
-Last session: 2026-03-02
-Stopped at: v1.4 milestone archived
-Resume with: /gsd:new-milestone for v1.5 planning
+Last session: 2026-03-16
+Stopped at: v1.5 milestone definition
+Resume with: Continue requirements definition and roadmap creation

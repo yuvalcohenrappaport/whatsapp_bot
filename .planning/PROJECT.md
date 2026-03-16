@@ -8,6 +8,15 @@ An AI-powered WhatsApp bot that impersonates the user in private conversations a
 
 The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
 
+## Current Milestone: v1.5 Personal Assistant
+
+**Goal:** Turn the bot into a daily personal assistant that detects events, reminders, and tasks from all chats and manages them automatically.
+
+**Target features:**
+- Universal calendar detection (private + group chats) with suggest-then-confirm flow
+- Smart reminders via WhatsApp messages and calendar events
+- Microsoft To Do sync with auto-detected tasks from chats
+
 ## Current State
 
 **Shipped:** v1.0 Foundation + v1.1 Dashboard & Groups + v1.2 Group Auto-Response + v1.3 Voice Responses + v1.4 Travel Agent
@@ -52,7 +61,10 @@ The bot replies to WhatsApp messages in the user's authentic voice, so contacts 
 
 ### Active
 
-(No active requirements — next milestone not yet defined)
+- [ ] Universal calendar event detection from all chats (private + group)
+- [ ] Suggest-then-confirm flow for detected events
+- [ ] Smart reminders — WhatsApp messages for quick, calendar events for time-specific
+- [ ] Microsoft To Do sync via Graph API with auto-detected tasks from chats
 
 ### Out of Scope
 
@@ -121,4 +133,4 @@ The bot replies to WhatsApp messages in the user's authentic voice, so contacts 
 | Hand-written migrations after 0010 | FTS5 virtual tables incompatible with drizzle-kit | ✓ Good — never run db:generate after 0010 |
 
 ---
-*Last updated: 2026-03-02 after v1.4 Travel Agent milestone*
+*Last updated: 2026-03-16 after v1.5 Personal Assistant milestone started*
