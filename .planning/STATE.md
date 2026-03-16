@@ -5,27 +5,27 @@
 See: .planning/PROJECT.md (updated 2026-03-16)
 
 **Core value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
-**Current focus:** Phase 23 - Universal Calendar Detection
+**Current focus:** Phase 24 - Smart Reminders
 
 ## Current Position
 
-Phase: 23 of 26 (Universal Calendar Detection)
-Plan: 3 of 3 (complete)
-Status: Phase 23 complete
-Last activity: 2026-03-16 — Plan 23-03 executed (dashboard events page, EventCard, nav/overview updates)
+Phase: 24 of 26 (Smart Reminders)
+Plan: 1 of 3 (in progress)
+Status: Executing Phase 24
+Last activity: 2026-03-16 — Plan 24-01 executed (DB schema, Gemini parser, two-tier scheduler, service wiring)
 
-Progress: [██████░░░░] 60% (v1.5)
+Progress: [██████░░░░] 65% (v1.5)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 50 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 9, v1.4: 12, v1.5: 5)
+- Total plans completed: 51 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 9, v1.4: 12, v1.5: 6)
 - v1.4 shipped in 1 day (12 plans, 5 phases)
 - v1.3 shipped in 1 day (9 plans, 5 phases)
 
 **Cumulative (all milestones):**
 - 5 milestones shipped (v1.0, v1.1, v1.2, v1.3, v1.4)
-- 22 phases complete, 50 plans complete
+- 23 phases complete, 51 plans complete
 
 ## Accumulated Context
 
@@ -50,6 +50,10 @@ Recent decisions affecting current work:
 - [v1.5/P23]: Unrecognized replies to calendar notifications show help text
 - [v1.5/P23]: Dedup updates re-send notification so user sees latest event details
 - [v1.5/P23]: Overview grid expanded to 4 columns for events stat card (violet theme)
+- [v1.5/P24]: Lazy sock access in fireReminder (getState().sock at fire time, not schedule time)
+- [v1.5/P24]: Smart routing: <24h WhatsApp, 24-72h calendar, >72h both
+- [v1.5/P24]: Reminder handler after calendar approval, before snooze in handleOwnerCommand
+- [v1.5/P24]: Keyword pre-filter (REMINDER_KEYWORDS_RE) before Gemini parsing
 
 ### Pending Todos
 
@@ -66,5 +70,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-03-16
-Stopped at: Completed 23-03-PLAN.md (Phase 23 complete)
-Resume with: Next phase in roadmap
+Stopped at: Completed 24-01-PLAN.md
+Resume with: Next plan 24-02-PLAN.md (restart recovery, cancel/edit commands)

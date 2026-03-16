@@ -18,12 +18,12 @@ Requirements for Personal Assistant milestone. Each maps to roadmap phases.
 
 ### Smart Reminders
 
-- [ ] **REM-01**: User can request reminders via WhatsApp command ("remind me to X at Y")
+- [x] **REM-01**: User can request reminders via WhatsApp command ("remind me to X at Y")
 - [ ] **REM-02**: Bot detects commitments in private chats ("I'll send it tomorrow") and suggests follow-up reminders
 - [ ] **REM-03**: Quick reminders delivered as WhatsApp messages to owner's self-chat
 - [ ] **REM-04**: Time-specific reminders created as Google Calendar events with notifications
-- [ ] **REM-05**: Reminders persisted in SQLite with restart recovery and startup catch-up
-- [ ] **REM-06**: Reminder scheduling uses setTimeout for <24h and periodic DB scan for distant reminders
+- [x] **REM-05**: Reminders persisted in SQLite with restart recovery and startup catch-up
+- [x] **REM-06**: Reminder scheduling uses setTimeout for <24h and periodic DB scan for distant reminders
 
 ### Microsoft To Do
 
@@ -70,12 +70,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CAL-04 | Phase 23 | Complete |
 | CAL-05 | Phase 22 | Complete |
 | CAL-06 | Phase 23 | Complete |
-| REM-01 | Phase 24 | Pending |
+| REM-01 | Phase 24 | Complete |
 | REM-02 | Phase 25 | Pending |
 | REM-03 | Phase 24 | Pending |
 | REM-04 | Phase 24 | Pending |
-| REM-05 | Phase 24 | Pending |
-| REM-06 | Phase 24 | Pending |
+| REM-05 | Phase 24 | Complete |
+| REM-06 | Phase 24 | Complete |
 | TODO-01 | Phase 26 | Pending |
 | TODO-02 | Phase 26 | Pending |
 | TODO-03 | Phase 26 | Pending |
