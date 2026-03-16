@@ -10,16 +10,16 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 ## Current Position
 
 Phase: 26 of 26 (Microsoft To Do Sync)
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Executing Phase 26
-Last activity: 2026-03-16 — Plan 26-01 executed (MSAL auth service, Graph API service, DB schema, API routes)
+Last activity: 2026-03-16 — Plan 26-02 executed (Gemini schema extension, todoPipeline, cancel handler)
 
 Progress: [███████░░░] 73% (v1.5)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 56 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 9, v1.4: 12, v1.5: 11)
+- Total plans completed: 57 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 9, v1.4: 12, v1.5: 12)
 - v1.4 shipped in 1 day (12 plans, 5 phases)
 - v1.3 shipped in 1 day (9 plans, 5 phases)
 
@@ -68,6 +68,12 @@ Recent decisions affecting current work:
 - [v1.5/P26]: Graph API called via native fetch (not @microsoft/microsoft-graph-client SDK)
 - [v1.5/P26]: MSAL client conditionally initialized only when all 3 MS env vars are set
 - [v1.5/P26]: isMicrosoftConnected is async (MSAL cache access requires async)
+- [v1.5/P26]: Single Gemini call classifies both commitments and tasks (no extra API cost)
+- [v1.5/P26]: Tasks fire-and-forget in commitmentPipeline (non-blocking)
+- [v1.5/P26]: Task cancel handler placed after reminder handler in handleOwnerCommand chain
+- [v1.5/P26]: One-time auth failure notification via module-level boolean flag
+- [v1.5/P26]: Overview grid expanded to 6 columns for tasks stat card (blue theme)
+- [v1.5/P26]: AlertDialog for disconnect confirmation only when pending tasks > 0
 
 ### Pending Todos
 
@@ -83,5 +89,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-03-16
-Stopped at: Completed 26-01-PLAN.md
-Resume with: Continue Phase 26 — Plan 26-02 next (Gemini schema extension, To Do pipeline, cancel handler)
+Stopped at: Completed 26-03-PLAN.md
+Resume with: Phase 26 plans 01 and 03 complete. Plan 26-02 remaining (Gemini schema extension, To Do pipeline, cancel handler)
