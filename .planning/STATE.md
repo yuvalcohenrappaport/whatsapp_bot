@@ -10,16 +10,16 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 ## Current Position
 
 Phase: 24 of 26 (Smart Reminders)
-Plan: 1 of 3 (in progress)
+Plan: 3 of 3 (in progress)
 Status: Executing Phase 24
-Last activity: 2026-03-16 — Plan 24-01 executed (DB schema, Gemini parser, two-tier scheduler, service wiring)
+Last activity: 2026-03-16 — Plan 24-03 executed (dashboard API routes, Reminders page, overview stat card)
 
 Progress: [██████░░░░] 65% (v1.5)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 51 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 9, v1.4: 12, v1.5: 6)
+- Total plans completed: 52 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 9, v1.4: 12, v1.5: 7)
 - v1.4 shipped in 1 day (12 plans, 5 phases)
 - v1.3 shipped in 1 day (9 plans, 5 phases)
 
@@ -50,6 +50,8 @@ Recent decisions affecting current work:
 - [v1.5/P23]: Unrecognized replies to calendar notifications show help text
 - [v1.5/P23]: Dedup updates re-send notification so user sees latest event details
 - [v1.5/P23]: Overview grid expanded to 4 columns for events stat card (violet theme)
+- [v1.5/P24]: Overview grid expanded to 5 columns for reminders stat card (amber theme)
+- [v1.5/P24]: Dashboard cancel triggers both cancelScheduledReminder and updateReminderStatus
 - [v1.5/P24]: Lazy sock access in fireReminder (getState().sock at fire time, not schedule time)
 - [v1.5/P24]: Smart routing: <24h WhatsApp, 24-72h calendar, >72h both
 - [v1.5/P24]: Reminder handler after calendar approval, before snooze in handleOwnerCommand
@@ -70,5 +72,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-03-16
-Stopped at: Completed 24-01-PLAN.md
-Resume with: Next plan 24-02-PLAN.md (restart recovery, cancel/edit commands)
+Stopped at: Completed 24-03-PLAN.md
+Resume with: Plan 24-02-PLAN.md still pending (restart recovery, cancel/edit commands)

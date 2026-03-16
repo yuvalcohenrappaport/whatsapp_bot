@@ -109,7 +109,7 @@
   3. Time-specific reminders create Google Calendar events with notifications
   4. Reminders survive a bot restart and fire at the correct time after recovery
   5. Near-term reminders (<24h) use precise setTimeout; distant reminders are picked up by periodic DB scan
-**Plans:** 1/3 plans complete
+**Plans:** 2/3 plans executed
 - [x] 24-01-PLAN.md -- Core backend: DB schema, Gemini parser, two-tier scheduler, handleOwnerCommand wiring
 - [ ] 24-02-PLAN.md -- Smart delivery routing, restart recovery, cancel/edit commands
 - [ ] 24-03-PLAN.md -- Dashboard API routes and Reminders page with tabs
@@ -164,6 +164,6 @@ Phases execute in numeric order: 22 -> 23 -> 24 -> 25 -> 26
 | 21. Travel Intelligence | v1.4 | 2/2 | Complete | 2026-03-02 |
 | 22. Calendar Detection Refactor | v1.5 | Complete    | 2026-03-16 | 2026-03-16 |
 | 23. Universal Calendar Detection | v1.5 | Complete    | 2026-03-16 | 2026-03-16 |
-| 24. Smart Reminders | v1.5 | 1/3 | In progress | - |
+| 24. Smart Reminders | 2/3 | In Progress|  | - |
 | 25. Commitment Detection | v1.5 | 0/TBD | Not started | - |
 | 26. Microsoft To Do Sync | v1.5 | 0/TBD | Not started | - |
