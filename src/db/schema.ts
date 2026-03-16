@@ -198,6 +198,26 @@ export const pendingSuggestions = sqliteTable(
   ],
 );
 
+export const reminders = sqliteTable(
+  'reminders',
+  {
+    id: text('id').primaryKey(), // UUID
+    task: text('task').notNull(), // reminder description
+    fireAt: integer('fire_at').notNull(), // Unix ms when reminder should fire
+    status: text('status').notNull().default('pending'), // 'pending' | 'fired' | 'cancelled' | 'skipped'
+    calendarEventId: text('calendar_event_id'), // Google Calendar event ID if created
+    createdAt: integer('created_at')
+      .notNull()
+      .$defaultFn(() => Date.now()),
+    updatedAt: integer('updated_at')
+      .notNull()
+      .$defaultFn(() => Date.now()),
+  },
+  (table) => [
+    index('idx_reminders_status_fire').on(table.status, table.fireAt),
+  ],
+);
+
 export const personalPendingEvents = sqliteTable(
   'personal_pending_events',
   {
