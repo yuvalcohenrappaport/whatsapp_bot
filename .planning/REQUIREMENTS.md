@@ -1,81 +1,62 @@
 # Requirements: WhatsApp Bot
 
-**Defined:** 2026-03-02
+**Defined:** 2026-03-16
 **Core Value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
-
-## v1.4 Requirements
-
-Requirements for Travel Agent milestone. Each maps to roadmap phases.
-
-### Audit
-
-- [x] **AUDIT-01**: Travel search returns correct results with working URLs and follow-up reply chains
-- [x] **AUDIT-02**: Calendar date extraction correctly identifies dates, creates events, and handles reply-to-delete
-
-### Trip Memory
-
-- [x] **MEM-01**: Bot stores confirmed trip decisions (destination, accommodation, activities, transport) in structured DB records
-- [x] **MEM-02**: User can ask "@bot what did we decide about X?" and bot answers from stored decisions + chat history
-- [x] **MEM-03**: Bot detects unanswered questions/commitments in chat and tracks them as open items
-- [x] **MEM-04**: Open items are surfaced in weekly digest until resolved or manually dismissed
-
-### Itinerary
-
-- [x] **ITIN-01**: Date extraction suggests adding to calendar before auto-adding (suggest-then-confirm via reply)
-- [x] **ITIN-02**: Calendar events include location, description, and relevant links (not just title + date)
-- [x] **ITIN-03**: User can confirm (✅) or reject (❌) a suggestion by replying to the bot's message
-
-### Search
-
-- [x] **SRCH-01**: Travel search uses Gemini Maps Grounding to return ratings, reviews, hours, and addresses
-- [x] **SRCH-02**: Search returns 5-6 results for accommodation/activity queries (3 for quick queries)
-- [x] **SRCH-03**: Results from booking sites (booking.com, airbnb, etc.) are labeled with a "Book:" prefix
-
-### Intelligence
-
-- [x] **INTL-01**: Bot proactively suggests activities/tips when a destination is confirmed (rate-limited, max once per destination)
-- [x] **INTL-02**: Weekly digest includes trip status section: confirmed decisions, open questions, upcoming activities
-- [x] **INTL-03**: Proactive suggestions are relevant and not spammy (cooldown, only on new confirmations)
 
 ## v1.5 Requirements
 
-Deferred to future release. Tracked but not in current roadmap.
+Requirements for Personal Assistant milestone. Each maps to roadmap phases.
 
-### Passive Detection
+### Calendar Detection
 
-- **PASS-01**: Bot passively detects activities/plans mentioned in every group message (not just dates)
-- **PASS-02**: Passive detection uses pre-filter to minimize Gemini API calls on irrelevant messages
+- [ ] **CAL-01**: Bot detects date/event mentions in private chat messages using Gemini with JS pre-filter
+- [ ] **CAL-02**: Bot detects date/event mentions in group chat messages (extends existing extraction to all groups)
+- [ ] **CAL-03**: Detected events are proposed via self-chat with suggest-then-confirm flow
+- [ ] **CAL-04**: Confirmed events are created in Google Calendar with title, date/time, and source context
+- [ ] **CAL-05**: CalendarDetectionService extracted as shared module for both private and group pipelines
+- [ ] **CAL-06**: Duplicate event detection prevents double-creation from forwarded messages
 
-### Search Enhancements
+### Smart Reminders
 
-- **SRCH-04**: Trip context (dates, destination, group size) auto-injected into search queries
-- **SRCH-05**: Multi-result comparison format with numbered voting prompt
+- [ ] **REM-01**: User can request reminders via WhatsApp command ("remind me to X at Y")
+- [ ] **REM-02**: Bot detects commitments in private chats ("I'll send it tomorrow") and suggests follow-up reminders
+- [ ] **REM-03**: Quick reminders delivered as WhatsApp messages to owner's self-chat
+- [ ] **REM-04**: Time-specific reminders created as Google Calendar events with notifications
+- [ ] **REM-05**: Reminders persisted in SQLite with restart recovery and startup catch-up
+- [ ] **REM-06**: Reminder scheduling uses setTimeout for <24h and periodic DB scan for distant reminders
 
-### Memory Enhancements
+### Microsoft To Do
 
-- **MEM-05**: Conversation recall from raw chat history without requiring structured decisions
+- [ ] **TODO-01**: OAuth2 authorization code flow for Microsoft Graph API via dashboard
+- [ ] **TODO-02**: Bot auto-detects actionable tasks in private chat messages with pre-filter
+- [ ] **TODO-03**: Detected tasks proposed via self-chat with suggest-then-confirm flow
+- [ ] **TODO-04**: Confirmed tasks created in Microsoft To Do via Graph API
+- [ ] **TODO-05**: Refresh token persisted and auto-renewed with expiry monitoring
 
-### Voice Enhancements
+## Future Requirements
 
-- **VFUT-01**: Voice reply latency optimization (streaming TTS)
-- **VFUT-02**: Voice message support in groups
-- **VFUT-03**: Voice style learning from user's voice messages
+### Dashboard Integration
+
+- **DASH-01**: Dashboard page for viewing and managing upcoming reminders
+- **DASH-02**: Dashboard page for Microsoft To Do connection status and task history
+- **DASH-03**: Dashboard controls for calendar detection sensitivity per contact/group
+
+### Advanced Detection
+
+- **ADV-01**: Two-way To Do sync (changes in To Do reflected in bot)
+- **ADV-02**: Recurring reminder patterns ("remind me every Monday")
+- **ADV-03**: Multi-language commitment detection tuning (Hebrew/English/mixed)
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Full booking integration (reservations) | Requires OAuth, payment handling, API partnerships — bot surfaces links, humans book |
-| Expense splitting / budget tracking | Splitwise does this well; WhatsApp text is clunky for financial tracking |
-| Flight/hotel price monitoring alerts | Requires continuous polling of external APIs; high infrastructure complexity |
-| WhatsApp reaction-based voting | Reaction events unreliable in Baileys; use numbered reply voting instead |
-| Group member preference profiles | High onboarding friction; pass recent messages as context instead |
-| "Plan the whole trip" wizard flows | Group chats are non-linear; wizard state machines break with multiple participants |
-| Rich media maps/photo galleries | WhatsApp text-only; extract text fields and link to Google Maps |
-| Automatic cross-calendar deduplication | Requires reading personal calendars; high privacy surface |
-| Keyword rules audit | Not being extended in v1.4 |
-| Voice replies in groups | Groups are utility-only; voice is for private impersonation |
-| Real-time voice calls | Far beyond current Baileys capabilities |
+| Full booking integration | Requires OAuth, payment handling, API partnerships |
+| Two-way To Do sync | v1.5 is one-way push only; polling adds complexity |
+| Voice reminders | Voice is for private impersonation, not utility messages |
+| Cross-calendar deduplication | Requires reading personal calendars beyond bot-created events |
+| Recurring reminders | Single-fire reminders first; recurring adds scheduling complexity |
+| Group chat task detection | Tasks are personal; groups are utility-only |
 
 ## Traceability
 
@@ -83,27 +64,29 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUDIT-01 | Phase 17 | Complete |
-| AUDIT-02 | Phase 17 | Complete |
-| MEM-01 | Phase 18 | Complete (DB layer, 18-01) |
-| MEM-02 | Phase 18 | Complete (history_search handler, 18-03) |
-| MEM-03 | Phase 18 | Complete (classifier + open_question, 18-02) |
-| MEM-04 | Phase 21 | Complete (digest section + auto-resolution, 21-01) |
-| ITIN-01 | Phase 19 | Complete |
-| ITIN-02 | Phase 19 | Complete |
-| ITIN-03 | Phase 19 | Complete |
-| SRCH-01 | Phase 20 | Complete (Maps Grounding primary path, 20-01) |
-| SRCH-02 | Phase 20 | Complete (queryType-based resultCount, 20-01) |
-| SRCH-03 | Phase 20 | Complete (booking domain labels + compact formatter, 20-02) |
-| INTL-01 | Phase 21 | Complete |
-| INTL-02 | Phase 21 | Complete (Hebrew trip status in weekly digest, 21-01) |
-| INTL-03 | Phase 21 | Complete |
+| CAL-01 | — | Pending |
+| CAL-02 | — | Pending |
+| CAL-03 | — | Pending |
+| CAL-04 | — | Pending |
+| CAL-05 | — | Pending |
+| CAL-06 | — | Pending |
+| REM-01 | — | Pending |
+| REM-02 | — | Pending |
+| REM-03 | — | Pending |
+| REM-04 | — | Pending |
+| REM-05 | — | Pending |
+| REM-06 | — | Pending |
+| TODO-01 | — | Pending |
+| TODO-02 | — | Pending |
+| TODO-03 | — | Pending |
+| TODO-04 | — | Pending |
+| TODO-05 | — | Pending |
 
 **Coverage:**
-- v1.4 requirements: 15 total
-- Mapped to phases: 15
-- Unmapped: 0
+- v1.5 requirements: 17 total
+- Mapped to phases: 0
+- Unmapped: 17 ⚠️
 
 ---
-*Requirements defined: 2026-03-02*
-*Last updated: 2026-03-02 after Phase 21-01 — MEM-04/INTL-02 complete; open item lifecycle shipped*
+*Requirements defined: 2026-03-16*
+*Last updated: 2026-03-16 after initial definition*
