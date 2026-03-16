@@ -23,6 +23,7 @@
     "node": ">=20"
   },
   "dependencies": {
+    "@azure/msal-node": "^5.1.0",
     "@elevenlabs/elevenlabs-js": "^2.37.0",
     "@fastify/cors": "^11.2.0",
     "@fastify/jwt": "^10.0.0",

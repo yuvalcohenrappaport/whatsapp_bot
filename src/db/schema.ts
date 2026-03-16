@@ -220,6 +220,30 @@ export const reminders = sqliteTable(
   ],
 );
 
+export const todoTasks = sqliteTable(
+  'todo_tasks',
+  {
+    id: text('id').primaryKey(), // UUID
+    task: text('task').notNull(), // detected task description
+    contactJid: text('contact_jid').notNull(),
+    contactName: text('contact_name'),
+    originalText: text('original_text'), // message snippet
+    todoTaskId: text('todo_task_id'), // Microsoft To Do task ID (null if not synced)
+    todoListId: text('todo_list_id'), // Microsoft To Do list ID
+    status: text('status').notNull().default('pending'), // 'pending' | 'synced' | 'cancelled' | 'failed'
+    notificationMsgId: text('notification_msg_id'), // self-chat msg ID for cancel matching
+    confidence: text('confidence').notNull().default('medium'), // 'high' | 'medium'
+    createdAt: integer('created_at')
+      .notNull()
+      .$defaultFn(() => Date.now()),
+    syncedAt: integer('synced_at'), // when pushed to To Do
+  },
+  (table) => [
+    index('idx_todo_tasks_status').on(table.status),
+    index('idx_todo_tasks_notification').on(table.notificationMsgId),
+  ],
+);
+
 export const personalPendingEvents = sqliteTable(
   'personal_pending_events',
   {
