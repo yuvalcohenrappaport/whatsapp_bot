@@ -9,12 +9,12 @@ Requirements for Personal Assistant milestone. Each maps to roadmap phases.
 
 ### Calendar Detection
 
-- [ ] **CAL-01**: Bot detects date/event mentions in private chat messages using Gemini with JS pre-filter
-- [ ] **CAL-02**: Bot detects date/event mentions in group chat messages (extends existing extraction to all groups)
+- [x] **CAL-01**: Bot detects date/event mentions in private chat messages using Gemini with JS pre-filter
+- [x] **CAL-02**: Bot detects date/event mentions in group chat messages (extends existing extraction to all groups)
 - [ ] **CAL-03**: Detected events are proposed via self-chat with suggest-then-confirm flow
 - [ ] **CAL-04**: Confirmed events are created in Google Calendar with title, date/time, and source context
 - [x] **CAL-05**: CalendarDetectionService extracted as shared module for both private and group pipelines
-- [ ] **CAL-06**: Duplicate event detection prevents double-creation from forwarded messages
+- [x] **CAL-06**: Duplicate event detection prevents double-creation from forwarded messages
 
 ### Smart Reminders
 
@@ -64,12 +64,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CAL-01 | Phase 23 | Pending |
-| CAL-02 | Phase 23 | Pending |
+| CAL-01 | Phase 23 | Complete |
+| CAL-02 | Phase 23 | Complete |
 | CAL-03 | Phase 23 | Pending |
 | CAL-04 | Phase 23 | Pending |
 | CAL-05 | Phase 22 | Complete |
-| CAL-06 | Phase 23 | Pending |
+| CAL-06 | Phase 23 | Complete |
 | REM-01 | Phase 24 | Pending |
 | REM-02 | Phase 25 | Pending |
 | REM-03 | Phase 24 | Pending |

@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-03-16)
 
 **Core value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
-**Current focus:** Phase 22 - Calendar Detection Refactor
+**Current focus:** Phase 23 - Universal Calendar Detection
 
 ## Current Position
 
-Phase: 22 of 26 (Calendar Detection Refactor)
-Plan: 2 of 2 (complete)
-Status: Phase 22 complete
-Last activity: 2026-03-16 — Plan 22-01 executed (CalendarDetectionService extraction and tests)
+Phase: 23 of 26 (Universal Calendar Detection)
+Plan: 1 of 3 (in progress)
+Status: Plan 23-01 complete
+Last activity: 2026-03-16 — Plan 23-01 executed (detection pipeline, dedup, schema, all-day events)
 
-Progress: [██░░░░░░░░] 20% (v1.5)
+Progress: [███░░░░░░░] 30% (v1.5)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 47 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 9, v1.4: 12, v1.5: 2)
+- Total plans completed: 48 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 9, v1.4: 12, v1.5: 3)
 - v1.4 shipped in 1 day (12 plans, 5 phases)
 - v1.3 shipped in 1 day (9 plans, 5 phases)
 
@@ -44,6 +44,8 @@ Recent decisions affecting current work:
 - [v1.5/P22]: OAuth refresh token stored in settings table (same pattern as other config)
 - [v1.5/P22]: Auth callback route unauthenticated (Google redirect, not dashboard)
 - [v1.5/P22]: vitest for unit testing (native ESM TypeScript, no config overhead)
+- [v1.5/P23]: Enhanced pre-filter combines digit check AND date keyword regex to minimize false Gemini calls
+- [v1.5/P23]: Group personal calendar detection fires before travelBotActive guard for universal coverage
 
 ### Pending Todos
 
@@ -60,5 +62,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-03-16
-Stopped at: Completed 22-01-PLAN.md (phase 22 fully complete)
-Resume with: `/gsd:plan-phase 23`
+Stopped at: Completed 23-01-PLAN.md
+Resume with: `/gsd:execute-phase 23` (plan 02 next)
