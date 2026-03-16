@@ -10,16 +10,16 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 ## Current Position
 
 Phase: 23 of 26 (Universal Calendar Detection)
-Plan: 1 of 3 (in progress)
-Status: Plan 23-01 complete
-Last activity: 2026-03-16 — Plan 23-01 executed (detection pipeline, dedup, schema, all-day events)
+Plan: 2 of 3 (in progress)
+Status: Plan 23-02 complete
+Last activity: 2026-03-16 — Plan 23-02 executed (self-chat approval flow, notifications, edit parsing)
 
-Progress: [███░░░░░░░] 30% (v1.5)
+Progress: [██████░░░░] 60% (v1.5)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 48 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 9, v1.4: 12, v1.5: 3)
+- Total plans completed: 49 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 9, v1.4: 12, v1.5: 4)
 - v1.4 shipped in 1 day (12 plans, 5 phases)
 - v1.3 shipped in 1 day (9 plans, 5 phases)
 
@@ -46,6 +46,9 @@ Recent decisions affecting current work:
 - [v1.5/P22]: vitest for unit testing (native ESM TypeScript, no config overhead)
 - [v1.5/P23]: Enhanced pre-filter combines digit check AND date keyword regex to minimize false Gemini calls
 - [v1.5/P23]: Group personal calendar detection fires before travelBotActive guard for universal coverage
+- [v1.5/P23]: Calendar approval check runs FIRST in handleOwnerCommand (before snooze/resume/draft)
+- [v1.5/P23]: Unrecognized replies to calendar notifications show help text
+- [v1.5/P23]: Dedup updates re-send notification so user sees latest event details
 
 ### Pending Todos
 
@@ -62,5 +65,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-03-16
-Stopped at: Completed 23-01-PLAN.md
-Resume with: `/gsd:execute-phase 23` (plan 02 next)
+Stopped at: Completed 23-02-PLAN.md
+Resume with: `/gsd:execute-phase 23` (plan 03 next)

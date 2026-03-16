@@ -94,7 +94,7 @@
   3. Confirming a proposed event creates a Google Calendar entry with title, date/time, and source context
   4. Forwarding the same message to multiple chats does not create duplicate calendar events
   5. Messages without date/event content are filtered cheaply in JS before any Gemini API call
-**Plans:** 1/3 plans complete
+**Plans:** 2/3 plans executed
 - [x] 23-01-PLAN.md -- Detection pipeline, dedup, schema, all-day events
 - [ ] 23-02-PLAN.md -- Self-chat approval flow (notifications + reply-based approve/reject/edit)
 - [ ] 23-03-PLAN.md -- Dashboard events UI with tabs and overview integration
@@ -160,7 +160,7 @@ Phases execute in numeric order: 22 -> 23 -> 24 -> 25 -> 26
 | 20. Enriched Search | v1.4 | 2/2 | Complete | 2026-03-02 |
 | 21. Travel Intelligence | v1.4 | 2/2 | Complete | 2026-03-02 |
 | 22. Calendar Detection Refactor | v1.5 | Complete    | 2026-03-16 | 2026-03-16 |
-| 23. Universal Calendar Detection | v1.5 | 1/3 | In progress | - |
+| 23. Universal Calendar Detection | 2/3 | In Progress|  | - |
 | 24. Smart Reminders | v1.5 | 0/TBD | Not started | - |
 | 25. Commitment Detection | v1.5 | 0/TBD | Not started | - |
 | 26. Microsoft To Do Sync | v1.5 | 0/TBD | Not started | - |
