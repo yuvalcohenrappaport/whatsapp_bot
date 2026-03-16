@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import { MessageSquare, Users, UsersRound, Calendar } from 'lucide-react';
+import { MessageSquare, Users, UsersRound, Calendar, Bell } from 'lucide-react';
 import { apiFetch } from '@/api/client';
 import { usePersonalEventsCount } from '@/hooks/usePersonalEvents';
+import { useReminderStats } from '@/hooks/useReminders';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -55,6 +56,17 @@ const statConfig = [
     bgClass: 'bg-violet-subtle',
   },
   {
+    key: 'reminders',
+    title: 'Pending Reminders',
+    description: 'Reminders waiting to fire',
+    icon: Bell,
+    color: 'amber',
+    glowClass: 'glow-amber',
+    borderClass: 'border-glow-amber',
+    textClass: 'text-amber-accent',
+    bgClass: 'bg-amber-subtle',
+  },
+  {
     key: 'groups',
     title: 'Tracked Groups',
     description: 'WhatsApp groups being monitored',
@@ -81,21 +93,23 @@ export default function Overview() {
     queryFn: () => apiFetch<Group[]>('/api/groups'),
   });
   const pendingEventsCount = usePersonalEventsCount();
+  const { data: reminderStats } = useReminderStats();
 
   const values: Record<string, number> = {
     drafts: drafts?.length ?? 0,
     contacts: contacts?.filter((c) => c.mode !== 'off').length ?? 0,
     events: pendingEventsCount,
+    reminders: reminderStats?.pending ?? 0,
     groups: groups?.filter((g) => g.travelBotActive || g.keywordRulesActive).length ?? 0,
   };
 
   return (
     <div>
       <h1 className="text-2xl font-semibold mb-6" style={{ fontFamily: 'var(--font-heading)' }}>Overview</h1>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         {statConfig.map((stat) => {
           const value = values[stat.key];
-          const highlight = (stat.key === 'drafts' || stat.key === 'events') && value > 0;
+          const highlight = (stat.key === 'drafts' || stat.key === 'events' || stat.key === 'reminders') && value > 0;
           return (
             <Card
               key={stat.key}
