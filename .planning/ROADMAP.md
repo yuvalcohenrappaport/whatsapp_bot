@@ -80,7 +80,7 @@
   1. CalendarDetectionService exists as a standalone module separate from groupMessagePipeline.ts
   2. Group chat date extraction still works identically after the refactor (no behavior change)
   3. The shared service can be called from any message handler with a message text and source context
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 - [x] 22-01-PLAN.md -- Extract CalendarDetectionService and break circular dependencies
 - [x] 22-02-PLAN.md -- Personal calendar OAuth2 infrastructure
 
@@ -156,7 +156,7 @@ Phases execute in numeric order: 22 -> 23 -> 24 -> 25 -> 26
 | 19. Itinerary Builder | v1.4 | 3/3 | Complete | 2026-03-02 |
 | 20. Enriched Search | v1.4 | 2/2 | Complete | 2026-03-02 |
 | 21. Travel Intelligence | v1.4 | 2/2 | Complete | 2026-03-02 |
-| 22. Calendar Detection Refactor | v1.5 | 2/2 | Complete | 2026-03-16 |
+| 22. Calendar Detection Refactor | v1.5 | Complete    | 2026-03-16 | 2026-03-16 |
 | 23. Universal Calendar Detection | v1.5 | 0/TBD | Not started | - |
 | 24. Smart Reminders | v1.5 | 0/TBD | Not started | - |
 | 25. Commitment Detection | v1.5 | 0/TBD | Not started | - |
