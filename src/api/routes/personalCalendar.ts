@@ -13,6 +13,7 @@ import { getSetting, setSetting } from '../../db/queries/settings.js';
 import {
   getPendingPersonalEvents,
   getPersonalPendingEvent,
+  getPersonalEventsByStatus,
   updatePersonalPendingEventStatus,
 } from '../../db/queries/personalPendingEvents.js';
 
@@ -92,7 +93,21 @@ export default async function personalCalendarRoutes(fastify: FastifyInstance) {
     },
   );
 
-  // 6. GET /api/personal-calendar/pending — list pending events
+  // 6. GET /api/personal-calendar/events — list events by status (for dashboard)
+  fastify.get<{ Querystring: { status?: string } }>(
+    '/api/personal-calendar/events',
+    { onRequest: [fastify.authenticate] },
+    async (request) => {
+      const status = (request.query.status ?? 'pending') as 'pending' | 'approved' | 'rejected';
+      if (!['pending', 'approved', 'rejected'].includes(status)) {
+        return { events: [] };
+      }
+      const events = getPersonalEventsByStatus(status);
+      return { events };
+    },
+  );
+
+  // 7. GET /api/personal-calendar/pending — list pending events (backward compat)
   fastify.get(
     '/api/personal-calendar/pending',
     { onRequest: [fastify.authenticate] },
@@ -102,7 +117,7 @@ export default async function personalCalendarRoutes(fastify: FastifyInstance) {
     },
   );
 
-  // 7. POST /api/personal-calendar/pending/:id/approve — approve and create calendar event
+  // 8. POST /api/personal-calendar/pending/:id/approve — approve and create calendar event
   fastify.post<{ Params: { id: string } }>(
     '/api/personal-calendar/pending/:id/approve',
     { onRequest: [fastify.authenticate] },
@@ -135,7 +150,7 @@ export default async function personalCalendarRoutes(fastify: FastifyInstance) {
     },
   );
 
-  // 8. POST /api/personal-calendar/pending/:id/reject — reject pending event
+  // 9. POST /api/personal-calendar/pending/:id/reject — reject pending event
   fastify.post<{ Params: { id: string } }>(
     '/api/personal-calendar/pending/:id/reject',
     { onRequest: [fastify.authenticate] },
