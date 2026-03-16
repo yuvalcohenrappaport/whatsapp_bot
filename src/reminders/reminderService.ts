@@ -91,7 +91,7 @@ let pendingEditParams: { editNewTime?: string; editNewTask?: string } | null = n
  * Fire a reminder: mark as fired in DB and send WhatsApp message.
  * Gets sock lazily from state at fire time (sock may not exist at schedule time).
  */
-async function fireReminder(id: string): Promise<void> {
+export async function fireReminder(id: string): Promise<void> {
   try {
     const reminder = getReminderById(id);
     if (!reminder) {
