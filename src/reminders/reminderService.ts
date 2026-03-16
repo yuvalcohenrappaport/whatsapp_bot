@@ -12,6 +12,7 @@ import {
 import {
   insertReminder,
   getReminderById,
+  getPendingOverdue,
   updateReminderStatus,
   updateReminderCalendarEventId,
 } from '../db/queries/reminders.js';
@@ -54,6 +55,17 @@ function tomorrowNineAm(): number {
   return istNow.getTime() + offset;
 }
 
+/**
+ * Format a relative time difference for human readability (e.g., "3h ago", "2d ago").
+ */
+function formatRelativeTime(diffMs: number): string {
+  const absMs = Math.abs(diffMs);
+  if (absMs < 60_000) return 'just now';
+  if (absMs < 3_600_000) return `${Math.round(absMs / 60_000)}m ago`;
+  if (absMs < 86_400_000) return `${Math.round(absMs / 3_600_000)}h ago`;
+  return `${Math.round(absMs / 86_400_000)}d ago`;
+}
+
 // ─── Fire handler ────────────────────────────────────────────────────────────
 
 /**
@@ -88,6 +100,63 @@ async function fireReminder(id: string): Promise<void> {
   } catch (err) {
     logger.error({ err, id }, 'Error firing reminder');
   }
+}
+
+// ─── Restart recovery ────────────────────────────────────────────────────────
+
+/**
+ * Recover reminders missed during bot downtime.
+ * - Missed by < 1 hour: fire immediately
+ * - Missed by > 1 hour: mark as 'skipped' and send summary
+ */
+export async function recoverReminders(): Promise<void> {
+  const now = Date.now();
+  const overdue = getPendingOverdue(now);
+
+  if (overdue.length === 0) {
+    logger.info('No overdue reminders to recover');
+    return;
+  }
+
+  const oneHourAgo = now - 3_600_000;
+  const toFire: typeof overdue = [];
+  const toSkip: typeof overdue = [];
+
+  for (const r of overdue) {
+    if (r.fireAt >= oneHourAgo) {
+      toFire.push(r);
+    } else {
+      toSkip.push(r);
+    }
+  }
+
+  // Fire recent missed reminders
+  for (const r of toFire) {
+    await fireReminder(r.id);
+  }
+
+  // Skip old missed reminders
+  for (const r of toSkip) {
+    updateReminderStatus(r.id, 'skipped');
+  }
+
+  // Send summary of skipped reminders to self-chat
+  if (toSkip.length > 0) {
+    const sock = getState().sock;
+    if (sock) {
+      const lines = toSkip.map(
+        (r) => `- ${r.task} (was due ${formatRelativeTime(now - r.fireAt)})`,
+      );
+      await sock.sendMessage(config.USER_JID, {
+        text: `\u23ED\uFE0F Missed ${toSkip.length} reminder(s) while offline:\n${lines.join('\n')}`,
+      });
+    }
+  }
+
+  logger.info(
+    { fired: toFire.length, skipped: toSkip.length },
+    'Reminder recovery complete',
+  );
 }
 
 // ─── Command handler ─────────────────────────────────────────────────────────
@@ -133,28 +202,38 @@ export async function tryHandleReminder(
       });
     }
 
-    // Calendar event for distant reminders
+    // Calendar event for distant reminders (>24h)
     if (hoursUntil > 24) {
       const calendarId = getSelectedCalendarId();
       if (calendarId) {
-        const eventId = await createPersonalCalendarEvent({
-          calendarId,
-          title: `Reminder: ${task}`,
-          date: new Date(fireAt),
-          description: `WhatsApp reminder: ${task}`,
-        });
-        if (eventId) {
-          updateReminderCalendarEventId(id, eventId);
+        try {
+          const eventId = await createPersonalCalendarEvent({
+            calendarId,
+            title: `Reminder: ${task}`,
+            date: new Date(fireAt),
+            description: `WhatsApp reminder: ${task}`,
+          });
+          if (eventId) {
+            updateReminderCalendarEventId(id, eventId);
+          }
+        } catch (err) {
+          logger.warn({ err, id }, 'Failed to create calendar event for reminder — WhatsApp delivery will still work');
         }
+      } else {
+        logger.debug({ id }, 'No calendar configured — skipping calendar event for distant reminder');
       }
     }
 
-    // For reminders > 72h, also schedule for WhatsApp delivery at fire time
-    // (hourly scan will pick it up when it enters the 24h window)
-
-    // Format confirmation
+    // Format confirmation with delivery method indication
     const formattedTime = timeFormatter.format(new Date(fireAt));
-    const confirmation = `\u23F0 ${task} \u2014 ${formattedTime}`;
+    let confirmation: string;
+    if (hoursUntil <= 24) {
+      confirmation = `\u23F0 ${task} \u2014 ${formattedTime}`;
+    } else if (hoursUntil <= 72) {
+      confirmation = `\u23F0 ${task} \u2014 ${formattedTime} (calendar event created)`;
+    } else {
+      confirmation = `\u23F0 ${task} \u2014 ${formattedTime} (calendar event created, WhatsApp reminder at fire time)`;
+    }
 
     await sock.sendMessage(config.USER_JID, { text: confirmation });
 
@@ -163,7 +242,7 @@ export async function tryHandleReminder(
   }
 
   if (parsed.intent === 'cancel' || parsed.intent === 'edit') {
-    // Stub — Plan 02 implements full cancel/edit logic
+    // Stub — Task 2 implements full cancel/edit logic with Gemini matching
     await sock.sendMessage(config.USER_JID, {
       text: 'Cancel/edit support coming soon.',
     });
@@ -176,10 +255,14 @@ export async function tryHandleReminder(
 // ─── Initialization ──────────────────────────────────────────────────────────
 
 /**
- * Initialize the reminder system: start hourly scan and schedule upcoming reminders.
- * Call from main() after DB is initialized. Sock is fetched lazily at fire time.
+ * Initialize the reminder system: recover missed reminders, start hourly scan,
+ * and schedule upcoming reminders.
+ * Call after WhatsApp connection is established (sock must be available for recovery messages).
  */
-export function initReminderSystem(): void {
+export async function initReminderSystem(): Promise<void> {
+  // Recovery first — fires recent missed reminders and summarizes old ones
+  await recoverReminders();
+
   startHourlyScan((id) => {
     fireReminder(id);
   });
@@ -188,5 +271,5 @@ export function initReminderSystem(): void {
     fireReminder(id);
   });
 
-  logger.info('Reminder system initialized');
+  logger.info('Reminder system initialized (with recovery)');
 }

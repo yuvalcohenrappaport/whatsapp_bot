@@ -52,8 +52,7 @@ async function main(): Promise<void> {
   initReminderScheduler();
   logger.info('Reminder scheduler initialized');
 
-  initReminderSystem();
-  logger.info('Personal reminder system initialized');
+  // Note: initReminderSystem() is called in onOpen callback (needs sock for recovery messages)
 
   await startSocket();
 }
@@ -89,6 +88,11 @@ async function startSocket(): Promise<void> {
       const botJid = sock.user?.id ?? null;
       const botDisplayName = sock.user?.notify ?? sock.user?.name ?? null;
       updateState({ connection: 'connected', qr: null, sock, botJid, botDisplayName });
+
+      // Initialize reminder system after connection (needs sock for recovery messages)
+      initReminderSystem().catch((err) => {
+        logger.error(err, 'Failed to initialize reminder system');
+      });
     },
 
     onReconnect(delayMs: number, statusCode?: number, reason?: string) {
