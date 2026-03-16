@@ -25,6 +25,9 @@ const envSchema = z.object({
   LMS_MODEL: z.string().default('qwen2.5-coder-7b-instruct'),
   ELEVENLABS_API_KEY: z.string(),
   ELEVENLABS_DEFAULT_VOICE_ID: z.string(),
+  GOOGLE_OAUTH_CLIENT_ID: z.string().optional(),
+  GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_OAUTH_REDIRECT_URI: z.string().optional(),
 });
 
 export type Config = z.infer<typeof envSchema>;

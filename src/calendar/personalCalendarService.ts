@@ -1,0 +1,200 @@
+import { OAuth2Client } from 'google-auth-library';
+import { google, type calendar_v3 } from 'googleapis';
+import { config } from '../config.js';
+import { getSetting, setSetting } from '../db/queries/settings.js';
+import pino from 'pino';
+
+const logger = pino({
+  level: config.LOG_LEVEL,
+  transport:
+    config.NODE_ENV === 'development'
+      ? { target: 'pino-pretty', options: { colorize: true } }
+      : undefined,
+});
+
+let oauth2Client: OAuth2Client | null = null;
+let calendarClient: calendar_v3.Calendar | null = null;
+
+// Settings keys
+const REFRESH_TOKEN_KEY = 'google_oauth_refresh_token';
+const SELECTED_CALENDAR_KEY = 'google_oauth_calendar_id';
+
+/**
+ * Initialize OAuth2 client from env vars and load stored refresh token.
+ * Call at startup after initDb.
+ */
+export function initPersonalCalendarAuth(): void {
+  const { GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET, GOOGLE_OAUTH_REDIRECT_URI } = config;
+
+  if (!GOOGLE_OAUTH_CLIENT_ID || !GOOGLE_OAUTH_CLIENT_SECRET || !GOOGLE_OAUTH_REDIRECT_URI) {
+    logger.info('Google OAuth env vars not set — personal calendar features disabled');
+    return;
+  }
+
+  oauth2Client = new OAuth2Client(
+    GOOGLE_OAUTH_CLIENT_ID,
+    GOOGLE_OAUTH_CLIENT_SECRET,
+    GOOGLE_OAUTH_REDIRECT_URI,
+  );
+
+  // Listen for refreshed tokens and persist them
+  oauth2Client.on('tokens', (tokens) => {
+    if (tokens.refresh_token) {
+      setSetting(REFRESH_TOKEN_KEY, tokens.refresh_token);
+      logger.info('Persisted refreshed OAuth refresh token');
+    }
+  });
+
+  // Load existing refresh token from DB
+  const storedToken = getSetting(REFRESH_TOKEN_KEY);
+  if (storedToken) {
+    oauth2Client.setCredentials({ refresh_token: storedToken });
+    calendarClient = google.calendar({ version: 'v3', auth: oauth2Client });
+    logger.info('Personal calendar OAuth initialized with stored refresh token');
+  } else {
+    logger.info('Personal calendar OAuth client ready — awaiting user authorization');
+  }
+}
+
+/**
+ * Whether the personal calendar is connected (refresh token exists and client configured).
+ */
+export function isPersonalCalendarConnected(): boolean {
+  return oauth2Client !== null && getSetting(REFRESH_TOKEN_KEY) !== null;
+}
+
+/**
+ * Generate the Google OAuth consent URL. Returns null if OAuth env vars not configured.
+ */
+export function getAuthUrl(): string | null {
+  if (!oauth2Client) return null;
+
+  return oauth2Client.generateAuthUrl({
+    access_type: 'offline',
+    prompt: 'consent',
+    scope: ['https://www.googleapis.com/auth/calendar'],
+  });
+}
+
+/**
+ * Exchange the OAuth callback code for tokens and persist the refresh token.
+ */
+export async function handleAuthCallback(
+  code: string,
+): Promise<{ success: boolean; error?: string }> {
+  if (!oauth2Client) {
+    return { success: false, error: 'OAuth client not initialized' };
+  }
+
+  try {
+    const { tokens } = await oauth2Client.getToken(code);
+    if (!tokens.refresh_token) {
+      return { success: false, error: 'No refresh token received — try revoking app access and re-authorizing' };
+    }
+
+    oauth2Client.setCredentials(tokens);
+    setSetting(REFRESH_TOKEN_KEY, tokens.refresh_token);
+    calendarClient = google.calendar({ version: 'v3', auth: oauth2Client });
+
+    logger.info('Personal calendar OAuth callback successful');
+    return { success: true };
+  } catch (err) {
+    logger.error({ err }, 'Failed to exchange OAuth code for tokens');
+    return { success: false, error: String(err) };
+  }
+}
+
+/**
+ * Create an event on the user's personal Google Calendar.
+ * Returns the event ID or null on failure.
+ * On 401/invalid_grant: clears stored token (graceful degradation).
+ */
+export async function createPersonalCalendarEvent(params: {
+  calendarId: string;
+  title: string;
+  date: Date;
+  description?: string;
+  location?: string;
+}): Promise<string | null> {
+  if (!calendarClient) return null;
+
+  const timeZone = 'Asia/Jerusalem';
+  const endDate = new Date(params.date.getTime() + 3600000); // +1 hour
+
+  try {
+    const res = await calendarClient.events.insert({
+      calendarId: params.calendarId,
+      requestBody: {
+        summary: params.title,
+        description: params.description,
+        location: params.location,
+        start: {
+          dateTime: params.date.toISOString(),
+          timeZone,
+        },
+        end: {
+          dateTime: endDate.toISOString(),
+          timeZone,
+        },
+        reminders: {
+          useDefault: true,
+        },
+      },
+    });
+
+    const eventId = res.data.id;
+    if (!eventId) {
+      logger.error('Personal calendar event created but no ID returned');
+      return null;
+    }
+
+    logger.info(
+      { eventId, calendarId: params.calendarId, title: params.title },
+      'Created personal calendar event',
+    );
+    return eventId;
+  } catch (err: unknown) {
+    // Graceful degradation: clear token on auth errors
+    const errMsg = String(err);
+    if (errMsg.includes('invalid_grant') || errMsg.includes('401')) {
+      logger.warn('Personal calendar auth expired — clearing stored token');
+      setSetting(REFRESH_TOKEN_KEY, '');
+      calendarClient = null;
+    }
+
+    logger.error(
+      { err, calendarId: params.calendarId, title: params.title },
+      'Failed to create personal calendar event',
+    );
+    return null;
+  }
+}
+
+/**
+ * List the user's calendars so they can pick which one to use.
+ */
+export async function listUserCalendars(): Promise<
+  { id: string; summary: string; primary: boolean }[]
+> {
+  if (!calendarClient) return [];
+
+  try {
+    const res = await calendarClient.calendarList.list();
+    const items = res.data.items ?? [];
+    return items.map((cal) => ({
+      id: cal.id ?? '',
+      summary: cal.summary ?? '(Unnamed)',
+      primary: cal.primary === true,
+    }));
+  } catch (err) {
+    logger.error({ err }, 'Failed to list user calendars');
+    return [];
+  }
+}
+
+/**
+ * Get the selected calendar ID from settings, or null.
+ */
+export function getSelectedCalendarId(): string | null {
+  return getSetting(SELECTED_CALENDAR_KEY);
+}

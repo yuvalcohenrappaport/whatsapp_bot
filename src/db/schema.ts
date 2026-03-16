@@ -197,3 +197,30 @@ export const pendingSuggestions = sqliteTable(
     index('idx_pending_suggestions_expiry').on(table.expiresAt),
   ],
 );
+
+export const personalPendingEvents = sqliteTable(
+  'personal_pending_events',
+  {
+    id: text('id').primaryKey(),
+    sourceChatJid: text('source_chat_jid').notNull(),
+    sourceChatName: text('source_chat_name'),
+    senderJid: text('sender_jid').notNull(),
+    senderName: text('sender_name'),
+    sourceMessageId: text('source_message_id').notNull(),
+    sourceMessageText: text('source_message_text').notNull(),
+    title: text('title').notNull(),
+    eventDate: integer('event_date').notNull(), // Unix ms
+    location: text('location'),
+    description: text('description'),
+    url: text('url'),
+    status: text('status').notNull().default('pending'), // 'pending' | 'approved' | 'rejected'
+    notificationMsgId: text('notification_msg_id'), // self-chat msg ID for reply matching
+    createdAt: integer('created_at')
+      .notNull()
+      .$defaultFn(() => Date.now()),
+  },
+  (table) => [
+    index('idx_personal_pending_status').on(table.status),
+    index('idx_personal_pending_notification').on(table.notificationMsgId),
+  ],
+);

@@ -16,6 +16,7 @@ import { createServer } from './api/server.js';
 import { initGroupPipeline } from './groups/groupMessagePipeline.js';
 import { initReminderScheduler } from './groups/reminderScheduler.js';
 import { validateElevenLabsConnection } from './voice/client.js';
+import { initPersonalCalendarAuth } from './calendar/personalCalendarService.js';
 
 const logger = pino({
   level: config.LOG_LEVEL,
@@ -30,6 +31,9 @@ async function main(): Promise<void> {
 
   initDb();
   logger.info('Database initialized');
+
+  initPersonalCalendarAuth();
+  logger.info('Personal calendar auth initialized');
 
   await validateElevenLabsConnection(logger);
   // Note: result is intentionally not checked — failure is logged as warning, bot continues
