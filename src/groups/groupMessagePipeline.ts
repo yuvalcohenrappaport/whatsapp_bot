@@ -18,6 +18,7 @@ import { handleTravelMention } from './travelHandler.js';
 import { handleKeywordRules } from './keywordHandler.js';
 import { addToTripContextDebounce } from './tripContextManager.js';
 import { createSuggestion, handleConfirmReject, restorePendingSuggestions } from './suggestionTracker.js';
+import { processGroupMessage } from '../calendar/personalCalendarPipeline.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
 
@@ -288,6 +289,21 @@ export function initGroupPipeline(): void {
       try {
         const group = getGroup(groupJid);
         if (!group) return;
+
+        // Personal calendar detection -- runs for ALL groups, not just travelBotActive
+        // Skip own messages (bot confirmations) and messages without text
+        if (!msg.fromMe) {
+          processGroupMessage({
+            messageId: msg.id,
+            groupJid,
+            groupName: group.name ?? null,
+            senderJid: msg.senderJid,
+            senderName: msg.senderName,
+            text: msg.body,
+            timestamp: msg.timestamp,
+            isForwarded: false, // Group callback doesn't carry WAMessage forward metadata
+          }).catch(() => {}); // fire-and-forget
+        }
 
         if (group.travelBotActive) {
           // Travel @mention -- runs immediately, terminal

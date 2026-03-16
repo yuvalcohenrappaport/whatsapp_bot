@@ -24,6 +24,8 @@ import { getSetting } from '../db/queries/settings.js';
 import { generateReply } from '../ai/gemini.js';
 import { getGroup } from '../db/queries/groups.js';
 import { insertGroupMessage } from '../db/queries/groupMessages.js';
+import { processPrivateMessage } from '../calendar/personalCalendarPipeline.js';
+import { isForwardedMessage } from '../calendar/calendarDedup.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
 
@@ -318,6 +320,17 @@ async function processMessage(sock: WASocket, msg: WAMessage): Promise<void> {
         { contactJid },
         'Persisted manual message for live learning, reset auto count',
       );
+
+      // Personal calendar detection for outgoing messages (async fire-and-forget)
+      processPrivateMessage({
+        messageId: msg.key.id!,
+        contactJid,
+        contactName: null, // own message, no pushName needed
+        text,
+        timestamp,
+        fromMe: true,
+        isForwarded: isForwardedMessage(msg),
+      }).catch(() => {}); // fire-and-forget, errors logged internally
     }
     return;
   }
@@ -333,8 +346,19 @@ async function processMessage(sock: WASocket, msg: WAMessage): Promise<void> {
     timestamp,
   }).run();
 
-  // Auto-create contact if new
+  // Personal calendar detection for incoming messages (async fire-and-forget)
   const pushName = msg.pushName ?? null;
+  processPrivateMessage({
+    messageId: msg.key.id!,
+    contactJid,
+    contactName: pushName,
+    text,
+    timestamp,
+    fromMe: false,
+    isForwarded: isForwardedMessage(msg),
+  }).catch(() => {}); // fire-and-forget, errors logged internally
+
+  // Auto-create contact if new
   upsertContact(contactJid, pushName);
 
   // Route by contact mode
