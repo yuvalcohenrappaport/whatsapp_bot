@@ -64,29 +64,29 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CAL-01 | — | Pending |
-| CAL-02 | — | Pending |
-| CAL-03 | — | Pending |
-| CAL-04 | — | Pending |
-| CAL-05 | — | Pending |
-| CAL-06 | — | Pending |
-| REM-01 | — | Pending |
-| REM-02 | — | Pending |
-| REM-03 | — | Pending |
-| REM-04 | — | Pending |
-| REM-05 | — | Pending |
-| REM-06 | — | Pending |
-| TODO-01 | — | Pending |
-| TODO-02 | — | Pending |
-| TODO-03 | — | Pending |
-| TODO-04 | — | Pending |
-| TODO-05 | — | Pending |
+| CAL-01 | Phase 23 | Pending |
+| CAL-02 | Phase 23 | Pending |
+| CAL-03 | Phase 23 | Pending |
+| CAL-04 | Phase 23 | Pending |
+| CAL-05 | Phase 22 | Pending |
+| CAL-06 | Phase 23 | Pending |
+| REM-01 | Phase 24 | Pending |
+| REM-02 | Phase 25 | Pending |
+| REM-03 | Phase 24 | Pending |
+| REM-04 | Phase 24 | Pending |
+| REM-05 | Phase 24 | Pending |
+| REM-06 | Phase 24 | Pending |
+| TODO-01 | Phase 26 | Pending |
+| TODO-02 | Phase 26 | Pending |
+| TODO-03 | Phase 26 | Pending |
+| TODO-04 | Phase 26 | Pending |
+| TODO-05 | Phase 26 | Pending |
 
 **Coverage:**
 - v1.5 requirements: 17 total
-- Mapped to phases: 0
-- Unmapped: 17 ⚠️
+- Mapped to phases: 17
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-16*
-*Last updated: 2026-03-16 after initial definition*
+*Last updated: 2026-03-16 after roadmap creation*

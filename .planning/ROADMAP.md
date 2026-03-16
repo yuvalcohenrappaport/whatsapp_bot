@@ -7,6 +7,7 @@
 - [x] **v1.2 Group Auto-Response** — Phases 10-11 (shipped 2026-02-25) — [archive](milestones/v1.2-ROADMAP.md)
 - [x] **v1.3 Voice Responses** — Phases 12-16 (shipped 2026-03-02)
 - [x] **v1.4 Travel Agent** — Phases 17-21 (shipped 2026-03-02) — [archive](milestones/v1.4-ROADMAP.md)
+- [ ] **v1.5 Personal Assistant** — Phases 22-26 (in progress)
 
 ## Phases
 
@@ -59,7 +60,78 @@
 
 </details>
 
+### v1.5 Personal Assistant (In Progress)
+
+**Milestone Goal:** Turn the bot into a daily personal assistant that detects events, reminders, and tasks from all chats and manages them automatically.
+
+- [ ] **Phase 22: Calendar Detection Refactor** - Extract shared CalendarDetectionService from group pipeline
+- [ ] **Phase 23: Universal Calendar Detection** - Detect and create calendar events from all chats
+- [ ] **Phase 24: Smart Reminders** - Reminder scheduling via commands, WhatsApp messages, and calendar events
+- [ ] **Phase 25: Commitment Detection** - AI-powered extraction of commitments from private chats
+- [ ] **Phase 26: Microsoft To Do Sync** - OAuth flow and task creation via Graph API
+
+## Phase Details
+
+### Phase 22: Calendar Detection Refactor
+**Goal**: Date extraction logic is a reusable shared module callable from both private and group message pipelines
+**Depends on**: Phase 21 (v1.4 complete)
+**Requirements**: CAL-05
+**Success Criteria** (what must be TRUE):
+  1. CalendarDetectionService exists as a standalone module separate from groupMessagePipeline.ts
+  2. Group chat date extraction still works identically after the refactor (no behavior change)
+  3. The shared service can be called from any message handler with a message text and source context
+**Plans**: TBD
+
+### Phase 23: Universal Calendar Detection
+**Goal**: Users get calendar event proposals from messages in any chat -- private or group -- with suggest-then-confirm flow
+**Depends on**: Phase 22
+**Requirements**: CAL-01, CAL-02, CAL-03, CAL-04, CAL-06
+**Success Criteria** (what must be TRUE):
+  1. When a private chat message mentions a date/event, the bot proposes it in the owner's self-chat
+  2. When a group chat message mentions a date/event, the bot proposes it via the existing suggest-then-confirm flow
+  3. Confirming a proposed event creates a Google Calendar entry with title, date/time, and source context
+  4. Forwarding the same message to multiple chats does not create duplicate calendar events
+  5. Messages without date/event content are filtered cheaply in JS before any Gemini API call
+**Plans**: TBD
+
+### Phase 24: Smart Reminders
+**Goal**: Users can set reminders via WhatsApp commands and receive them as messages or calendar events at the right time
+**Depends on**: Phase 22
+**Requirements**: REM-01, REM-03, REM-04, REM-05, REM-06
+**Success Criteria** (what must be TRUE):
+  1. User can send "remind me to X at Y" to the bot and get a confirmation that the reminder is set
+  2. Quick reminders are delivered as WhatsApp messages to the owner's self-chat at the scheduled time
+  3. Time-specific reminders create Google Calendar events with notifications
+  4. Reminders survive a bot restart and fire at the correct time after recovery
+  5. Near-term reminders (<24h) use precise setTimeout; distant reminders are picked up by periodic DB scan
+**Plans**: TBD
+
+### Phase 25: Commitment Detection
+**Goal**: The bot detects commitments in private conversations and proactively suggests follow-up reminders
+**Depends on**: Phase 24
+**Requirements**: REM-02
+**Success Criteria** (what must be TRUE):
+  1. When the owner says "I'll send it tomorrow" in a private chat, the bot suggests a follow-up reminder in self-chat
+  2. Commitment detection uses a JS pre-filter (message length, temporal markers, action verbs) to avoid unnecessary Gemini calls
+  3. Detected commitments propose reminders through the existing reminder service from Phase 24
+**Plans**: TBD
+
+### Phase 26: Microsoft To Do Sync
+**Goal**: Actionable tasks detected in private chats are synced to Microsoft To Do for cross-device access
+**Depends on**: Phase 23
+**Requirements**: TODO-01, TODO-02, TODO-03, TODO-04, TODO-05
+**Success Criteria** (what must be TRUE):
+  1. User can authorize the bot to access Microsoft To Do via OAuth2 flow initiated from the dashboard
+  2. When a private chat message contains an actionable task, the bot proposes it in self-chat with suggest-then-confirm
+  3. Confirming a detected task creates it in Microsoft To Do via Graph API
+  4. The OAuth refresh token is persisted and auto-renewed so the user does not need to re-authorize
+  5. If Microsoft auth is not configured, the bot operates normally without To Do features (graceful degradation)
+**Plans**: TBD
+
 ## Progress
+
+**Execution Order:**
+Phases execute in numeric order: 22 -> 23 -> 24 -> 25 -> 26
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -82,3 +154,8 @@
 | 19. Itinerary Builder | v1.4 | 3/3 | Complete | 2026-03-02 |
 | 20. Enriched Search | v1.4 | 2/2 | Complete | 2026-03-02 |
 | 21. Travel Intelligence | v1.4 | 2/2 | Complete | 2026-03-02 |
+| 22. Calendar Detection Refactor | v1.5 | 0/TBD | Not started | - |
+| 23. Universal Calendar Detection | v1.5 | 0/TBD | Not started | - |
+| 24. Smart Reminders | v1.5 | 0/TBD | Not started | - |
+| 25. Commitment Detection | v1.5 | 0/TBD | Not started | - |
+| 26. Microsoft To Do Sync | v1.5 | 0/TBD | Not started | - |
