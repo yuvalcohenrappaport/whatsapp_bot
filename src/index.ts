@@ -17,6 +17,7 @@ import { initGroupPipeline } from './groups/groupMessagePipeline.js';
 import { initReminderScheduler } from './groups/reminderScheduler.js';
 import { validateElevenLabsConnection } from './voice/client.js';
 import { initPersonalCalendarAuth } from './calendar/personalCalendarService.js';
+import { initReminderSystem } from './reminders/reminderService.js';
 
 const logger = pino({
   level: config.LOG_LEVEL,
@@ -50,6 +51,9 @@ async function main(): Promise<void> {
 
   initReminderScheduler();
   logger.info('Reminder scheduler initialized');
+
+  initReminderSystem();
+  logger.info('Personal reminder system initialized');
 
   await startSocket();
 }

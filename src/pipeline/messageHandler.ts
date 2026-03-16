@@ -28,6 +28,7 @@ import { processPrivateMessage } from '../calendar/personalCalendarPipeline.js';
 import { isForwardedMessage } from '../calendar/calendarDedup.js';
 import { getPersonalPendingEventByNotificationMsgId } from '../db/queries/personalPendingEvents.js';
 import { handleCalendarApproval } from '../calendar/calendarApproval.js';
+import { tryHandleReminder } from '../reminders/reminderService.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
 
@@ -141,6 +142,10 @@ async function handleOwnerCommand(
       return handleCalendarApproval(sock, pendingEvent, text);
     }
   }
+
+  // --- Reminder commands ---
+  const reminderHandled = await tryHandleReminder(sock, text);
+  if (reminderHandled) return true;
 
   // --- Snooze command ---
   const snoozeMs = parseSnoozeCommand(trimmed);
