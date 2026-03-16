@@ -30,6 +30,7 @@ import { getPersonalPendingEventByNotificationMsgId } from '../db/queries/person
 import { handleCalendarApproval } from '../calendar/calendarApproval.js';
 import { tryHandleReminder } from '../reminders/reminderService.js';
 import { processCommitment } from '../commitments/commitmentPipeline.js';
+import { handleTaskCancel } from '../todo/todoPipeline.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
 
@@ -147,6 +148,15 @@ async function handleOwnerCommand(
   // --- Reminder commands ---
   const reminderHandled = await tryHandleReminder(sock, text);
   if (reminderHandled) return true;
+
+  // --- Task cancel (reply "cancel" to a task notification) ---
+  if (stanzaId && trimmed === 'cancel') {
+    const taskCancelled = await handleTaskCancel(stanzaId);
+    if (taskCancelled) {
+      await sock.sendMessage(config.USER_JID, { text: 'Task cancelled.' });
+      return true;
+    }
+  }
 
   // --- Snooze command ---
   const snoozeMs = parseSnoozeCommand(trimmed);

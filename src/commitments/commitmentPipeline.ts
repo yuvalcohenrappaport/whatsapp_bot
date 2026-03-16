@@ -12,6 +12,7 @@ import {
   createPersonalCalendarEvent,
   getSelectedCalendarId,
 } from '../calendar/personalCalendarService.js';
+import { processDetectedTask } from '../todo/todoPipeline.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
 
@@ -134,16 +135,34 @@ export async function processCommitment(params: {
     // g. Set cooldown BEFORE async Gemini call (avoid race condition)
     chatCooldowns.set(contactJid, Date.now());
 
-    // h. Extract commitments via Gemini
-    const commitments = await commitmentDetection.extractCommitments(text, {
+    // h. Extract commitments and tasks via Gemini
+    const results = await commitmentDetection.extractCommitments(text, {
       contactName,
       contactJid,
       fromMe,
     });
 
-    if (commitments.length === 0) return;
+    if (results.length === 0) return;
 
-    // i. Process each extracted commitment
+    // Split by type: commitments go to reminders, tasks go to todoPipeline
+    const commitments = results.filter((c) => c.type === 'commitment');
+    const tasks = results.filter((c) => c.type === 'task');
+
+    // Process tasks via todoPipeline (fire-and-forget)
+    for (const task of tasks) {
+      processDetectedTask({
+        task: task.task,
+        confidence: task.confidence,
+        originalText: task.originalText,
+        contactJid,
+        contactName,
+        chatText: text,
+      }).catch((err) =>
+        logger.error({ err, task: task.task }, 'Error processing detected task'),
+      );
+    }
+
+    // i. Process each extracted commitment (existing flow unchanged)
     for (const commitment of commitments) {
       const fireAt = commitment.dateTime
         ? commitment.dateTime.getTime()
