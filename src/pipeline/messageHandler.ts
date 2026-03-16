@@ -29,6 +29,7 @@ import { isForwardedMessage } from '../calendar/calendarDedup.js';
 import { getPersonalPendingEventByNotificationMsgId } from '../db/queries/personalPendingEvents.js';
 import { handleCalendarApproval } from '../calendar/calendarApproval.js';
 import { tryHandleReminder } from '../reminders/reminderService.js';
+import { processCommitment } from '../commitments/commitmentPipeline.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
 
@@ -348,6 +349,16 @@ async function processMessage(sock: WASocket, msg: WAMessage): Promise<void> {
         fromMe: true,
         isForwarded: isForwardedMessage(msg),
       }).catch(() => {}); // fire-and-forget, errors logged internally
+
+      // Commitment detection for outgoing messages (async fire-and-forget)
+      processCommitment({
+        messageId: msg.key.id!,
+        contactJid,
+        contactName: null,
+        text,
+        timestamp,
+        fromMe: true,
+      }).catch(() => {}); // fire-and-forget
     }
     return;
   }
@@ -374,6 +385,16 @@ async function processMessage(sock: WASocket, msg: WAMessage): Promise<void> {
     fromMe: false,
     isForwarded: isForwardedMessage(msg),
   }).catch(() => {}); // fire-and-forget, errors logged internally
+
+  // Commitment detection for incoming messages (async fire-and-forget)
+  processCommitment({
+    messageId: msg.key.id!,
+    contactJid,
+    contactName: pushName,
+    text,
+    timestamp,
+    fromMe: false,
+  }).catch(() => {}); // fire-and-forget
 
   // Auto-create contact if new
   upsertContact(contactJid, pushName);
