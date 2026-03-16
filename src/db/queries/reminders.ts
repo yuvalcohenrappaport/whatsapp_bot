@@ -7,6 +7,8 @@ export function insertReminder(data: {
   task: string;
   fireAt: number;
   calendarEventId?: string | null;
+  source?: string;
+  sourceContactJid?: string | null;
 }) {
   return db.insert(reminders).values(data).run();
 }

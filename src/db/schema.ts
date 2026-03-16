@@ -206,6 +206,8 @@ export const reminders = sqliteTable(
     fireAt: integer('fire_at').notNull(), // Unix ms when reminder should fire
     status: text('status').notNull().default('pending'), // 'pending' | 'fired' | 'cancelled' | 'skipped'
     calendarEventId: text('calendar_event_id'), // Google Calendar event ID if created
+    source: text('source').notNull().default('user'), // 'user' | 'commitment'
+    sourceContactJid: text('source_contact_jid'), // JID of contact whose message triggered commitment
     createdAt: integer('created_at')
       .notNull()
       .$defaultFn(() => Date.now()),
