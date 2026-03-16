@@ -10,16 +10,16 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 ## Current Position
 
 Phase: 25 of 26 (Commitment Detection)
-Plan: 1 of 3 (in progress)
+Plan: 2 of 2 (complete)
 Status: Executing Phase 25
-Last activity: 2026-03-16 — Plan 25-01 executed (CommitmentDetectionService with pre-filter and Gemini extraction)
+Last activity: 2026-03-16 — Plan 25-02 executed (commitment pipeline integration with auto-set reminders and notifications)
 
 Progress: [██████░░░░] 65% (v1.5)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 54 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 9, v1.4: 12, v1.5: 9)
+- Total plans completed: 55 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 9, v1.4: 12, v1.5: 10)
 - v1.4 shipped in 1 day (12 plans, 5 phases)
 - v1.3 shipped in 1 day (9 plans, 5 phases)
 
@@ -62,6 +62,8 @@ Recent decisions affecting current work:
 - [v1.5/P24]: Disambiguation uses module-level Map state, cleared on non-digit input
 - [v1.5/P25]: Hebrew regex uses non-word-boundary patterns (JS \b fails with Unicode)
 - [v1.5/P25]: Medium + high confidence included for commitments (calendar is high-only)
+- [v1.5/P25]: Exported fireReminder from reminderService.ts for reuse (minimal change, avoids duplication)
+- [v1.5/P25]: Cooldown set BEFORE async Gemini call to prevent race conditions
 
 ### Pending Todos
 
@@ -78,5 +80,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-03-16
-Stopped at: Completed 25-01-PLAN.md
-Resume with: Continue Phase 25 Plan 02 (commitment pipeline integration)
+Stopped at: Completed 25-02-PLAN.md
+Resume with: Phase 25 complete — all plans executed
