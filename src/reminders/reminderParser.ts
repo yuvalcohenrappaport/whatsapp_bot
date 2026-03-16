@@ -86,3 +86,72 @@ If the message is not a reminder command, return intent "none".`;
 
   return validated.data;
 }
+
+// ─── Cancel/Edit matching via Gemini ─────────────────────────────────────────
+
+const ReminderMatchSchema = z.object({
+  matchedIds: z.array(z.string()),
+});
+
+const REMINDER_MATCH_JSON_SCHEMA = z.toJSONSchema(ReminderMatchSchema);
+
+const matchTimeFormatter = new Intl.DateTimeFormat('en-IL', {
+  timeZone: 'Asia/Jerusalem',
+  weekday: 'short',
+  month: 'short',
+  day: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+});
+
+/**
+ * Match a user's cancel/edit description against pending reminders using Gemini.
+ * Handles Hebrew, English, and fuzzy descriptions naturally.
+ * Returns matched reminder IDs, or null on Gemini failure.
+ */
+export async function matchReminderForCancelEdit(
+  userDescription: string,
+  pendingReminders: Array<{ id: string; task: string; fireAt: number }>,
+): Promise<{ matchedIds: string[] } | null> {
+  if (pendingReminders.length === 0) return { matchedIds: [] };
+
+  // If only one reminder, skip Gemini and return it directly
+  if (pendingReminders.length === 1) {
+    return { matchedIds: [pendingReminders[0].id] };
+  }
+
+  const numberedList = pendingReminders
+    .map((r, i) => {
+      const time = matchTimeFormatter.format(new Date(r.fireAt));
+      return `${i + 1}. ID: "${r.id}" — Task: "${r.task}" — Due: ${time}`;
+    })
+    .join('\n');
+
+  const systemPrompt = `You match a user's description to their pending reminders.
+The user wants to find a specific reminder (to cancel or edit it).
+Return the IDs of matching reminders. If no reminder matches, return an empty array.
+Be generous with matching — the user may use partial descriptions, different language (Hebrew/English), or fuzzy wording.
+If the description is very vague and could match multiple, return all plausible matches.
+
+Here are the user's pending reminders:
+${numberedList}`;
+
+  const raw = await generateJson<{ matchedIds: string[] }>({
+    systemPrompt,
+    userContent: `Find: "${userDescription}"`,
+    jsonSchema: REMINDER_MATCH_JSON_SCHEMA as Record<string, unknown>,
+    schemaName: 'reminder_match',
+  });
+
+  if (!raw) return null;
+
+  const validated = ReminderMatchSchema.safeParse(raw);
+  if (!validated.success) return null;
+
+  // Filter to only IDs that actually exist in pending list
+  const validIds = new Set(pendingReminders.map((r) => r.id));
+  const filtered = validated.data.matchedIds.filter((id) => validIds.has(id));
+
+  return { matchedIds: filtered };
+}

@@ -3,18 +3,26 @@ import type { WASocket } from '@whiskeysockets/baileys';
 import pino from 'pino';
 import { config } from '../config.js';
 import { getState } from '../api/state.js';
-import { hasReminderIntent, parseReminderCommand } from './reminderParser.js';
+import {
+  hasReminderIntent,
+  parseReminderCommand,
+  matchReminderForCancelEdit,
+} from './reminderParser.js';
 import {
   scheduleReminder,
+  cancelScheduledReminder,
   startHourlyScan,
   scheduleAllUpcoming,
 } from './reminderScheduler.js';
 import {
   insertReminder,
   getReminderById,
+  getPendingReminders,
   getPendingOverdue,
   updateReminderStatus,
   updateReminderCalendarEventId,
+  updateReminderFireAt,
+  updateReminderTask,
 } from '../db/queries/reminders.js';
 import {
   createPersonalCalendarEvent,
@@ -65,6 +73,17 @@ function formatRelativeTime(diffMs: number): string {
   if (absMs < 86_400_000) return `${Math.round(absMs / 3_600_000)}h ago`;
   return `${Math.round(absMs / 86_400_000)}d ago`;
 }
+
+// ─── Disambiguation state ────────────────────────────────────────────────────
+
+/** Pending cancel disambiguation: choice number -> reminder ID */
+let pendingCancelIds: Map<number, string> | null = null;
+
+/** Pending edit disambiguation: choice number -> reminder ID */
+let pendingEditIds: Map<number, string> | null = null;
+
+/** Stored edit params for disambiguation follow-up */
+let pendingEditParams: { editNewTime?: string; editNewTask?: string } | null = null;
 
 // ─── Fire handler ────────────────────────────────────────────────────────────
 
@@ -159,6 +178,75 @@ export async function recoverReminders(): Promise<void> {
   );
 }
 
+// ─── Cancel/Edit executors ───────────────────────────────────────────────────
+
+async function executeCancelReminder(
+  sock: WASocket,
+  reminderId: string,
+): Promise<boolean> {
+  const reminder = getReminderById(reminderId);
+  if (!reminder) return false;
+
+  cancelScheduledReminder(reminderId);
+  updateReminderStatus(reminderId, 'cancelled');
+
+  if (reminder.calendarEventId) {
+    logger.info(
+      { reminderId, calendarEventId: reminder.calendarEventId },
+      'Reminder cancelled — calendar event remains (manual deletion needed)',
+    );
+  }
+
+  await sock.sendMessage(config.USER_JID, {
+    text: `\u274C Cancelled: ${reminder.task}`,
+  });
+
+  logger.info({ reminderId, task: reminder.task }, 'Reminder cancelled');
+  return true;
+}
+
+async function executeEditReminder(
+  sock: WASocket,
+  reminderId: string,
+  editParams: { editNewTime?: string; editNewTask?: string } | null,
+): Promise<boolean> {
+  const reminder = getReminderById(reminderId);
+  if (!reminder) return false;
+
+  let updatedTask = reminder.task;
+  let updatedFireAt = reminder.fireAt;
+
+  if (editParams?.editNewTime) {
+    const newFireAt = new Date(editParams.editNewTime).getTime();
+    if (!isNaN(newFireAt)) {
+      updateReminderFireAt(reminderId, newFireAt);
+      updatedFireAt = newFireAt;
+
+      // Reschedule: cancel old timer, set new one if within 24h
+      cancelScheduledReminder(reminderId);
+      const hoursUntil = (newFireAt - Date.now()) / 3_600_000;
+      if (hoursUntil <= 24 && hoursUntil > 0) {
+        scheduleReminder(reminderId, newFireAt, (id) => {
+          fireReminder(id);
+        });
+      }
+    }
+  }
+
+  if (editParams?.editNewTask) {
+    updateReminderTask(reminderId, editParams.editNewTask);
+    updatedTask = editParams.editNewTask;
+  }
+
+  const formattedTime = timeFormatter.format(new Date(updatedFireAt));
+  await sock.sendMessage(config.USER_JID, {
+    text: `\u270F\uFE0F Updated: ${updatedTask} \u2014 ${formattedTime}`,
+  });
+
+  logger.info({ reminderId, task: updatedTask, fireAt: updatedFireAt }, 'Reminder edited');
+  return true;
+}
+
 // ─── Command handler ─────────────────────────────────────────────────────────
 
 /**
@@ -169,6 +257,35 @@ export async function tryHandleReminder(
   sock: WASocket,
   text: string,
 ): Promise<boolean> {
+  // --- Disambiguation handling (check FIRST before normal parsing) ---
+  if (pendingCancelIds || pendingEditIds) {
+    const trimmed = text.trim();
+    const choiceNum = parseInt(trimmed, 10);
+
+    if (!isNaN(choiceNum) && choiceNum >= 1 && choiceNum <= 9) {
+      // Handle cancel disambiguation
+      if (pendingCancelIds && pendingCancelIds.has(choiceNum)) {
+        const reminderId = pendingCancelIds.get(choiceNum)!;
+        pendingCancelIds = null;
+        return await executeCancelReminder(sock, reminderId);
+      }
+
+      // Handle edit disambiguation
+      if (pendingEditIds && pendingEditIds.has(choiceNum)) {
+        const reminderId = pendingEditIds.get(choiceNum)!;
+        const editParams = pendingEditParams;
+        pendingEditIds = null;
+        pendingEditParams = null;
+        return await executeEditReminder(sock, reminderId, editParams);
+      }
+    }
+
+    // Non-digit or out-of-range: clear disambiguation, continue normal flow
+    pendingCancelIds = null;
+    pendingEditIds = null;
+    pendingEditParams = null;
+  }
+
   if (!hasReminderIntent(text)) return false;
 
   const parsed = await parseReminderCommand(text);
@@ -241,10 +358,99 @@ export async function tryHandleReminder(
     return true;
   }
 
-  if (parsed.intent === 'cancel' || parsed.intent === 'edit') {
-    // Stub — Task 2 implements full cancel/edit logic with Gemini matching
+  if (parsed.intent === 'cancel') {
+    const pending = getPendingReminders();
+    if (pending.length === 0) {
+      await sock.sendMessage(config.USER_JID, { text: 'No pending reminders to cancel.' });
+      return true;
+    }
+
+    const target = parsed.editTarget ?? parsed.task ?? text;
+    const matchResult = await matchReminderForCancelEdit(
+      target,
+      pending.map((r) => ({ id: r.id, task: r.task, fireAt: r.fireAt })),
+    );
+
+    const matchedIds = matchResult?.matchedIds ?? [];
+
+    if (matchedIds.length === 1) {
+      return await executeCancelReminder(sock, matchedIds[0]);
+    }
+
+    if (matchedIds.length > 1) {
+      const matched = pending.filter((r) => matchedIds.includes(r.id));
+      const choiceMap = new Map<number, string>();
+      const lines = matched.map((r, i) => {
+        choiceMap.set(i + 1, r.id);
+        const time = timeFormatter.format(new Date(r.fireAt));
+        return `${i + 1}. ${r.task} \u2014 ${time}`;
+      });
+      pendingCancelIds = choiceMap;
+      await sock.sendMessage(config.USER_JID, {
+        text: `Multiple reminders match. Reply with the number:\n${lines.join('\n')}`,
+      });
+      return true;
+    }
+
+    // No matches — show all pending
+    const listLines = pending.map((r) => {
+      const time = timeFormatter.format(new Date(r.fireAt));
+      return `- ${r.task} \u2014 ${time}`;
+    });
     await sock.sendMessage(config.USER_JID, {
-      text: 'Cancel/edit support coming soon.',
+      text: `No matching reminder found. Your pending reminders:\n${listLines.join('\n')}`,
+    });
+    return true;
+  }
+
+  if (parsed.intent === 'edit') {
+    const pending = getPendingReminders();
+    if (pending.length === 0) {
+      await sock.sendMessage(config.USER_JID, { text: 'No pending reminders to edit.' });
+      return true;
+    }
+
+    const target = parsed.editTarget ?? parsed.task ?? text;
+    const matchResult = await matchReminderForCancelEdit(
+      target,
+      pending.map((r) => ({ id: r.id, task: r.task, fireAt: r.fireAt })),
+    );
+
+    const matchedIds = matchResult?.matchedIds ?? [];
+
+    if (matchedIds.length === 1) {
+      return await executeEditReminder(sock, matchedIds[0], {
+        editNewTime: parsed.editNewTime,
+        editNewTask: parsed.editNewTask,
+      });
+    }
+
+    if (matchedIds.length > 1) {
+      const matched = pending.filter((r) => matchedIds.includes(r.id));
+      const choiceMap = new Map<number, string>();
+      const lines = matched.map((r, i) => {
+        choiceMap.set(i + 1, r.id);
+        const time = timeFormatter.format(new Date(r.fireAt));
+        return `${i + 1}. ${r.task} \u2014 ${time}`;
+      });
+      pendingEditIds = choiceMap;
+      pendingEditParams = {
+        editNewTime: parsed.editNewTime,
+        editNewTask: parsed.editNewTask,
+      };
+      await sock.sendMessage(config.USER_JID, {
+        text: `Multiple reminders match. Reply with the number:\n${lines.join('\n')}`,
+      });
+      return true;
+    }
+
+    // No matches
+    const listLines = pending.map((r) => {
+      const time = timeFormatter.format(new Date(r.fireAt));
+      return `- ${r.task} \u2014 ${time}`;
+    });
+    await sock.sendMessage(config.USER_JID, {
+      text: `No matching reminder found. Your pending reminders:\n${listLines.join('\n')}`,
     });
     return true;
   }
