@@ -136,7 +136,10 @@
   3. Confirming a detected task creates it in Microsoft To Do via Graph API
   4. The OAuth refresh token is persisted and auto-renewed so the user does not need to re-authorize
   5. If Microsoft auth is not configured, the bot operates normally without To Do features (graceful degradation)
-**Plans**: TBD
+**Plans:** 3 plans
+- [ ] 26-01-PLAN.md -- MSAL auth service, Graph API service, DB schema, API routes
+- [ ] 26-02-PLAN.md -- Extend Gemini schema for task classification, To Do pipeline, cancel handler
+- [ ] 26-03-PLAN.md -- Dashboard Integrations and Tasks pages
 
 ## Progress
 
@@ -167,5 +170,5 @@ Phases execute in numeric order: 22 -> 23 -> 24 -> 25 -> 26
 | 22. Calendar Detection Refactor | v1.5 | Complete    | 2026-03-16 | 2026-03-16 |
 | 23. Universal Calendar Detection | v1.5 | Complete    | 2026-03-16 | 2026-03-16 |
 | 24. Smart Reminders | 3/3 | Complete    | 2026-03-16 | - |
-| 25. Commitment Detection | 2/2 | Complete   | 2026-03-16 | - |
-| 26. Microsoft To Do Sync | v1.5 | 0/TBD | Not started | - |
+| 25. Commitment Detection | 2/2 | Complete    | 2026-03-16 | - |
+| 26. Microsoft To Do Sync | v1.5 | 0/3 | Not started | - |
