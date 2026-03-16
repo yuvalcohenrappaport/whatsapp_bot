@@ -46,6 +46,16 @@ export function updateTodoTaskStatus(
   db.update(todoTasks).set(updates).where(eq(todoTasks.id, id)).run();
 }
 
+export function updateTodoTaskNotificationMsgId(
+  id: string,
+  notificationMsgId: string,
+): void {
+  db.update(todoTasks)
+    .set({ notificationMsgId })
+    .where(eq(todoTasks.id, id))
+    .run();
+}
+
 export function getTodoTasksByStatus(status: string, limit?: number) {
   const query = db
     .select()

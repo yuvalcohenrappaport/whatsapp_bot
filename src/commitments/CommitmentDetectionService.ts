@@ -12,6 +12,7 @@ export interface ExtractedCommitment {
   dateTime: Date | null; // null = timeless, default to 24h
   confidence: 'high' | 'medium';
   originalText: string;
+  type: 'commitment' | 'task';
 }
 
 export interface CommitmentContext {
@@ -60,6 +61,11 @@ const CommitmentExtractionSchema = z.object({
         .describe(
           'The part of the message containing the commitment',
         ),
+      type: z
+        .enum(['commitment', 'task'])
+        .describe(
+          'commitment = involves other people or has a specific time/deadline. task = personal/solo action item without a specific time (e.g., buy groceries, fix the door, call the plumber)',
+        ),
     }),
   ),
 });
@@ -103,15 +109,25 @@ export class CommitmentDetectionService {
     const nowIso = new Date().toISOString();
     const contactLabel = context.contactName || 'the contact';
 
-    const systemInstruction = `You extract promises and commitments from WhatsApp messages (Hebrew or English). The message is from a private chat with ${contactLabel}.
+    const systemInstruction = `You extract promises, commitments, and tasks from WhatsApp messages (Hebrew or English). The message is from a private chat with ${contactLabel}.
 
 Rules:
-- Extract actionable commitments/promises the sender is making
+- Extract actionable commitments/promises the sender is making, and personal tasks/action items
 - Distinguish actionable intent from social politeness
 - For medium confidence: "I'll look into it", "let me check" = include. "yeah maybe", "we'll see" = skip
 - Skip social niceties: "we should catch up", "talk soon", "see you", "have a good day"
 - Resolve relative times against current date, timezone Asia/Jerusalem
-- If no specific time mentioned, set dateTime to null (timeless commitment)
+- If no specific time mentioned, set dateTime to null
+
+Also classify each item:
+- "commitment" if it involves other people or mentions a specific time/deadline
+- "task" if it's a personal/solo action item without a specific time
+
+Examples:
+- "I'll send it to David tomorrow" = commitment (involves David, has time)
+- "I need to buy groceries" = task (solo, no time)
+- "I'll look into it by Monday" = commitment (has deadline)
+- "I need to fix the door" = task (solo, no time)
 
 Current date: ${nowIso}. Timezone: Asia/Jerusalem.`;
 
@@ -122,6 +138,7 @@ Current date: ${nowIso}. Timezone: Asia/Jerusalem.`;
           dateTime: string | null;
           confidence: 'high' | 'medium' | 'low';
           originalText: string;
+          type: 'commitment' | 'task';
         }[];
       }>({
         systemPrompt: systemInstruction,
@@ -173,6 +190,7 @@ Current date: ${nowIso}. Timezone: Asia/Jerusalem.`;
             dateTime,
             confidence: c.confidence as 'high' | 'medium',
             originalText: c.originalText,
+            type: c.type,
           };
         });
     } catch (err) {
