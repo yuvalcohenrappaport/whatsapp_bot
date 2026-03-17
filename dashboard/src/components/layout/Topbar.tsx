@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { Moon, Sun } from 'lucide-react';
 import { QRModal } from '@/components/status/QRModal';
 import { ConnectionBadge } from '@/components/status/ConnectionBadge';
 import { DisconnectBanner } from '@/components/status/DisconnectBanner';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+import { Button } from '@/components/ui/button';
 import type { ConnectionStatus } from '@/hooks/useConnectionStatus';
 
 interface TopbarProps {
@@ -29,7 +31,10 @@ export function Topbar({ status, qr }: TopbarProps) {
             WhatsApp Bot
           </span>
         </div>
-        <ConnectionBadge status={status} />
+        <div className="flex items-center gap-2">
+          <ConnectionBadge status={status} />
+          <ThemeToggle />
+        </div>
       </header>
       {status !== 'connected' && (
         <DisconnectBanner
@@ -44,5 +49,30 @@ export function Topbar({ status, qr }: TopbarProps) {
         onClose={() => setQrModalOpen(false)}
       />
     </>
+  );
+}
+
+function ThemeToggle() {
+  const [dark, setDark] = useState(() =>
+    document.documentElement.classList.contains('dark'),
+  );
+
+  const toggle = useCallback(() => {
+    const next = !dark;
+    setDark(next);
+    document.documentElement.classList.toggle('dark', next);
+    localStorage.setItem('theme', next ? 'dark' : 'light');
+  }, [dark]);
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={toggle}
+      className="size-8 cursor-pointer"
+      aria-label="Toggle theme"
+    >
+      {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
+    </Button>
   );
 }
