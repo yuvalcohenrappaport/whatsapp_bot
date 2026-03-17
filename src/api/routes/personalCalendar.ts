@@ -22,16 +22,15 @@ const logger = pino({ level: config.LOG_LEVEL });
 const SELECTED_CALENDAR_KEY = 'google_oauth_calendar_id';
 
 export default async function personalCalendarRoutes(fastify: FastifyInstance) {
-  // 1. GET /api/auth/google — generate OAuth consent URL
+  // 1. GET /api/auth/google — generate OAuth consent URL and redirect
   fastify.get(
     '/api/auth/google',
-    { onRequest: [fastify.authenticate] },
     async (_request, reply) => {
       const url = getAuthUrl();
       if (!url) {
         return reply.status(503).send({ error: 'Google OAuth not configured' });
       }
-      return { url };
+      return reply.redirect(url);
     },
   );
 
