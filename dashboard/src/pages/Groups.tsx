@@ -28,7 +28,10 @@ export default function Groups() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>Groups</h1>
+        <div>
+          <h1 className="text-2xl font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>Groups</h1>
+          <p className="text-sm text-muted-foreground mt-1">WhatsApp groups with travel bot or keyword rules</p>
+        </div>
         <Button onClick={() => setDialogOpen(true)}>
           <Plus className="size-4 mr-2" />
           Add Group

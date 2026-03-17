@@ -57,9 +57,10 @@ export default function Events() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold mb-6" style={{ fontFamily: 'var(--font-heading)' }}>
+      <h1 className="text-2xl font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
         Events
       </h1>
+      <p className="text-sm text-muted-foreground mb-6">Calendar events detected from your chats</p>
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as Status)}>
         <TabsList className="mb-4">

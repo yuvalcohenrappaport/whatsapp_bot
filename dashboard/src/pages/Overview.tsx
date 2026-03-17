@@ -76,7 +76,7 @@ const statConfig = [
   {
     key: 'tasks',
     title: 'Synced Tasks',
-    description: 'Tasks synced to Microsoft To Do',
+    description: 'Tasks synced to Google Tasks',
     icon: CheckSquare,
     color: 'blue',
     glowClass: 'glow-blue',
@@ -129,34 +129,32 @@ export default function Overview() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold mb-6" style={{ fontFamily: 'var(--font-heading)' }}>Overview</h1>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
+      <h1 className="text-2xl font-semibold mb-1" style={{ fontFamily: 'var(--font-heading)' }}>Overview</h1>
+      <p className="text-sm text-muted-foreground mb-6">Your bot at a glance</p>
+
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
         {statConfig.map((stat) => {
           const value = values[stat.key];
           const highlight = (stat.key === 'drafts' || stat.key === 'events' || stat.key === 'reminders' || stat.key === 'tasks') && value > 0;
           return (
             <Card
               key={stat.key}
-              className={`card-shine p-5 md:p-8 transition-all duration-300 hover:scale-[1.02] ${highlight ? `${stat.borderClass} ${stat.glowClass}` : 'border-border/50'}`}
+              className={`card-shine p-4 md:p-5 transition-all duration-200 cursor-pointer hover:border-border ${highlight ? `${stat.borderClass} ${stat.glowClass}` : 'border-border/50'}`}
             >
-              <CardHeader className="p-0 mb-4">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base font-medium text-muted-foreground">{stat.title}</CardTitle>
-                  <div className={`flex size-9 items-center justify-center rounded-lg ${stat.bgClass}`}>
-                    <stat.icon className={`size-4 ${stat.textClass}`} />
-                  </div>
+              <div className="flex items-center gap-2 mb-3">
+                <div className={`flex size-7 items-center justify-center rounded-md ${stat.bgClass}`}>
+                  <stat.icon className={`size-3.5 ${stat.textClass}`} />
                 </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                <p className={`text-3xl md:text-5xl font-bold ${highlight ? stat.textClass : ''}`}>{value}</p>
-                <p className="text-sm text-muted-foreground mt-2">{stat.description}</p>
-              </CardContent>
+                <span className="text-xs font-medium text-muted-foreground truncate">{stat.title}</span>
+              </div>
+              <p className={`text-2xl md:text-3xl font-bold tracking-tight ${highlight ? stat.textClass : ''}`}>{value}</p>
+              <p className="text-xs text-muted-foreground mt-1">{stat.description}</p>
             </Card>
           );
         })}
       </div>
 
-      <div className="mt-8 space-y-8">
+      <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
         <ProviderCard />
         <PersonaCard />
       </div>

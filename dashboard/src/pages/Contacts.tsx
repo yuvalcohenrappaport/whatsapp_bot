@@ -25,7 +25,10 @@ export default function Contacts() {
     <div>
       {/* Page header */}
       <div className="flex items-center justify-between mb-8">
-        <h1 className="text-2xl font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>Contacts</h1>
+        <div>
+          <h1 className="text-2xl font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>Contacts</h1>
+          <p className="text-sm text-muted-foreground mt-1">Contacts with active auto-reply or draft mode</p>
+        </div>
         <Button onClick={() => setAddDialogOpen(true)}>
           <UserPlus className="size-4 mr-2" />
           Add Contact
