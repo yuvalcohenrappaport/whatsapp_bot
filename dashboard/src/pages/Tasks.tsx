@@ -35,9 +35,9 @@ interface TaskStats {
 }
 
 const statusConfig: Record<string, { label: string; color: string; icon: React.ElementType }> = {
-  synced: { label: 'Synced', color: 'bg-emerald-subtle text-emerald border-glow-emerald', icon: CheckSquare },
-  pending: { label: 'Pending', color: 'bg-amber-subtle text-amber-accent border-amber-500/20', icon: Clock },
-  cancelled: { label: 'Cancelled', color: 'bg-muted text-muted-foreground border-border/50', icon: XCircle },
+  synced: { label: 'Synced to Google Tasks', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', icon: CheckSquare },
+  pending: { label: 'Pending', color: 'bg-amber-500/10 text-amber-400 border-amber-500/20', icon: Clock },
+  cancelled: { label: 'Cancelled', color: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20', icon: XCircle },
   failed: { label: 'Failed', color: 'bg-red-500/10 text-red-400 border-red-500/20', icon: AlertTriangle },
 };
 
@@ -167,11 +167,11 @@ export default function Tasks() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold mb-2" style={{ fontFamily: 'var(--font-heading)' }}>
+      <h1 className="text-2xl font-semibold mb-1" style={{ fontFamily: 'var(--font-heading)' }}>
         Tasks
       </h1>
       <p className="text-sm text-muted-foreground mb-6">
-        Detected commitments and their sync status
+        Tasks detected from your conversations
       </p>
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as TaskStatus)}>

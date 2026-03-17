@@ -57,9 +57,12 @@ export default function Reminders() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold mb-6" style={{ fontFamily: 'var(--font-heading)' }}>
+      <h1 className="text-2xl font-semibold mb-1" style={{ fontFamily: 'var(--font-heading)' }}>
         Reminders
       </h1>
+      <p className="text-sm text-muted-foreground mb-6">
+        Reminders from commitments and self-chat commands
+      </p>
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as Status)}>
         <TabsList className="mb-4">
