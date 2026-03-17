@@ -23,13 +23,41 @@ import {
   updateReminderCalendarEventId,
   updateReminderFireAt,
   updateReminderTask,
+  updateReminderTodoIds,
 } from '../db/queries/reminders.js';
 import {
   createPersonalCalendarEvent,
   getSelectedCalendarId,
 } from '../calendar/personalCalendarService.js';
+import { createTodoTask, deleteTodoTask } from '../todo/todoService.js';
+import { isTasksConnected } from '../todo/todoAuthService.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
+
+// ─── Google Tasks sync helper ────────────────────────────────────────────────
+
+async function syncReminderToTasks(id: string, task: string, fireAt: number): Promise<void> {
+  if (!isTasksConnected()) return;
+  try {
+    const result = await createTodoTask({
+      title: `⏰ ${task}`,
+      note: `Reminder due: ${timeFormatter.format(new Date(fireAt))}`,
+    });
+    updateReminderTodoIds(id, result.taskId, result.listId);
+  } catch (err) {
+    logger.warn({ err, id }, 'Failed to sync reminder to Google Tasks');
+  }
+}
+
+async function deleteReminderFromTasks(reminder: { todoTaskId?: string | null; todoListId?: string | null }): Promise<void> {
+  if (reminder.todoTaskId && reminder.todoListId) {
+    try {
+      await deleteTodoTask(reminder.todoTaskId, reminder.todoListId);
+    } catch (err) {
+      logger.warn({ err }, 'Failed to delete reminder from Google Tasks');
+    }
+  }
+}
 
 // ─── Time formatting ─────────────────────────────────────────────────────────
 
@@ -190,6 +218,9 @@ async function executeCancelReminder(
   cancelScheduledReminder(reminderId);
   updateReminderStatus(reminderId, 'cancelled');
 
+  // Delete from Google Tasks
+  await deleteReminderFromTasks(reminder);
+
   if (reminder.calendarEventId) {
     logger.info(
       { reminderId, calendarEventId: reminder.calendarEventId },
@@ -308,6 +339,9 @@ export async function tryHandleReminder(
 
     // Insert into DB
     insertReminder({ id, task, fireAt });
+
+    // Sync to Google Tasks (fire-and-forget)
+    syncReminderToTasks(id, task, fireAt).catch(() => {});
 
     // Smart routing based on time distance
     const hoursUntil = (fireAt - Date.now()) / 3_600_000;

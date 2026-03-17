@@ -5,7 +5,9 @@ import { getState } from '../api/state.js';
 import { getSetting } from '../db/queries/settings.js';
 import { commitmentDetection } from './CommitmentDetectionService.js';
 import { detectMessageLanguage } from '../calendar/calendarApproval.js';
-import { insertReminder } from '../db/queries/reminders.js';
+import { insertReminder, updateReminderTodoIds } from '../db/queries/reminders.js';
+import { createTodoTask } from '../todo/todoService.js';
+import { isTasksConnected } from '../todo/todoAuthService.js';
 import { scheduleReminder } from '../reminders/reminderScheduler.js';
 import { fireReminder } from '../reminders/reminderService.js';
 import {
@@ -178,6 +180,18 @@ export async function processCommitment(params: {
         source: 'commitment',
         sourceContactJid: contactJid,
       });
+
+      // Sync to Google Tasks (fire-and-forget)
+      if (isTasksConnected()) {
+        createTodoTask({
+          title: `⏰ ${commitment.task}`,
+          note: `Commitment from ${contactName ?? contactJid}`,
+        }).then((result) => {
+          updateReminderTodoIds(id, result.taskId, result.listId);
+        }).catch((err) => {
+          logger.warn({ err, id }, 'Failed to sync commitment reminder to Google Tasks');
+        });
+      }
 
       // Smart routing (same pattern as reminderService)
       const hoursUntil = (fireAt - Date.now()) / 3_600_000;

@@ -99,3 +99,11 @@ export function updateReminderCalendarEventId(id: string, calendarEventId: strin
     .where(eq(reminders.id, id))
     .run();
 }
+
+export function updateReminderTodoIds(id: string, todoTaskId: string, todoListId: string) {
+  return db
+    .update(reminders)
+    .set({ todoTaskId, todoListId, updatedAt: Date.now() })
+    .where(eq(reminders.id, id))
+    .run();
+}

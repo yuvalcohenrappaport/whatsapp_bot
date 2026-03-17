@@ -127,6 +127,13 @@
       "when": 1773677800000,
       "tag": "0017_todo_tasks",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1773757800000,
+      "tag": "0018_reminders_google_tasks",
+      "breakpoints": true
     }
   ]
 }
