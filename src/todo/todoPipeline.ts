@@ -10,7 +10,7 @@ import {
   getTodoTaskByNotificationMsgId,
 } from '../db/queries/todoTasks.js';
 import { createTodoTask, deleteTodoTask } from './todoService.js';
-import { isMicrosoftConnected } from './todoAuthService.js';
+import { isTasksConnected } from './todoAuthService.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
 
@@ -61,7 +61,7 @@ export async function processDetectedTask(params: {
 
   // b. Attempt To Do sync
   let synced = false;
-  const connected = await isMicrosoftConnected();
+  const connected = isTasksConnected();
 
   if (connected) {
     try {
@@ -82,7 +82,7 @@ export async function processDetectedTask(params: {
           const sock = getState().sock;
           if (sock) {
             await sock.sendMessage(config.USER_JID, {
-              text: 'Microsoft To Do disconnected \u2014 re-authorize in dashboard.',
+              text: 'Google Tasks disconnected \u2014 re-authorize Google Calendar in dashboard.',
             }).catch((e: unknown) =>
               logger.warn({ err: e }, 'Failed to send auth failure notification'),
             );
@@ -90,7 +90,7 @@ export async function processDetectedTask(params: {
         }
       } else {
         // Transient failure -- log, don't notify
-        logger.warn({ err, id }, 'Transient error syncing task to Microsoft To Do');
+        logger.warn({ err, id }, 'Transient error syncing task to Google Tasks');
         updateTodoTaskStatus(id, 'failed');
       }
     }
@@ -146,7 +146,7 @@ export async function handleTaskCancel(
     try {
       await deleteTodoTask(task.todoTaskId, task.todoListId);
     } catch (err) {
-      logger.warn({ err, taskId: task.id }, 'Failed to delete task from Microsoft To Do');
+      logger.warn({ err, taskId: task.id }, 'Failed to delete task from Google Tasks');
     }
   }
 

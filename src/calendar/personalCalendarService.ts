@@ -15,6 +15,11 @@ const logger = pino({
 let oauth2Client: OAuth2Client | null = null;
 let calendarClient: calendar_v3.Calendar | null = null;
 
+/** Expose the OAuth2 client for reuse by other Google APIs (e.g., Tasks). */
+export function getOAuth2Client(): OAuth2Client | null {
+  return oauth2Client;
+}
+
 // Settings keys
 const REFRESH_TOKEN_KEY = 'google_oauth_refresh_token';
 const SELECTED_CALENDAR_KEY = 'google_oauth_calendar_id';
@@ -72,7 +77,10 @@ export function getAuthUrl(): string | null {
   return oauth2Client.generateAuthUrl({
     access_type: 'offline',
     prompt: 'consent',
-    scope: ['https://www.googleapis.com/auth/calendar'],
+    scope: [
+      'https://www.googleapis.com/auth/calendar',
+      'https://www.googleapis.com/auth/tasks',
+    ],
   });
 }
 

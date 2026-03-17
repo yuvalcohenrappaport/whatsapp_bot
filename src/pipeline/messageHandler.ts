@@ -333,6 +333,11 @@ async function processMessage(sock: WASocket, msg: WAMessage): Promise<void> {
     return;
   }
 
+  // Debug: log fromMe messages that didn't match self-chat (possible JID format mismatch)
+  if (fromMe && text && !contactJid.endsWith('@g.us')) {
+    logger.debug({ contactJid, userJid: config.USER_JID, text: text.slice(0, 30) }, 'fromMe message not matched as self-chat');
+  }
+
   // Outgoing messages to regular contacts: persist for live style learning and reset auto count
   if (fromMe) {
     if (contactJid !== config.USER_JID) {
