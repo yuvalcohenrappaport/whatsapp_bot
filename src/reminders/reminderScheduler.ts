@@ -57,12 +57,21 @@ export function cancelScheduledReminder(id: string): void {
   }
 }
 
+// ─── Hourly scan tracking ─────────────────────────────────────────────────────
+
+let hourlyScanTimer: NodeJS.Timeout | null = null;
+
 /**
  * Start the hourly DB scan that promotes distant reminders crossing
  * into the <24h window to setTimeout.
+ * Safe to call multiple times (e.g., on reconnect) — clears any previous interval.
  */
 export function startHourlyScan(onFire: (id: string) => void): void {
-  setInterval(() => {
+  if (hourlyScanTimer) {
+    clearInterval(hourlyScanTimer);
+  }
+
+  hourlyScanTimer = setInterval(() => {
     try {
       const now = Date.now();
       const upcoming = getRemindersInWindow(now, now + 24 * 60 * 60 * 1000);

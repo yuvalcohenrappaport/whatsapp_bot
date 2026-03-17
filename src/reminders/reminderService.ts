@@ -460,15 +460,20 @@ export async function tryHandleReminder(
 
 // ─── Initialization ──────────────────────────────────────────────────────────
 
+let reminderSystemInitialized = false;
+
 /**
  * Initialize the reminder system: recover missed reminders, start hourly scan,
  * and schedule upcoming reminders.
  * Call after WhatsApp connection is established (sock must be available for recovery messages).
+ * Safe to call on every reconnect — recovery and scheduling are idempotent,
+ * and the hourly scan clears any previous interval.
  */
 export async function initReminderSystem(): Promise<void> {
   // Recovery first — fires recent missed reminders and summarizes old ones
   await recoverReminders();
 
+  // Hourly scan is safe to restart (clears previous interval internally)
   startHourlyScan((id) => {
     fireReminder(id);
   });
@@ -477,5 +482,10 @@ export async function initReminderSystem(): Promise<void> {
     fireReminder(id);
   });
 
-  logger.info('Reminder system initialized (with recovery)');
+  if (!reminderSystemInitialized) {
+    logger.info('Reminder system initialized (with recovery)');
+    reminderSystemInitialized = true;
+  } else {
+    logger.info('Reminder system re-initialized after reconnect');
+  }
 }
