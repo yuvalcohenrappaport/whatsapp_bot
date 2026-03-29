@@ -8,18 +8,20 @@ An AI-powered WhatsApp bot that impersonates the user in private conversations a
 
 The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
 
-## Current Milestone: v1.5 Personal Assistant
+## Current Milestone: v1.6 Scheduled Replies
 
-**Goal:** Turn the bot into a daily personal assistant that detects events, reminders, and tasks from all chats and manages them automatically.
+**Goal:** Let the owner schedule messages to any contact or group from the dashboard, with support for text, voice, and AI-generated content on one-off or recurring schedules.
 
 **Target features:**
-- Universal calendar detection (private + group chats) with suggest-then-confirm flow
-- Smart reminders via WhatsApp messages and calendar events
-- Microsoft To Do sync with auto-detected tasks from chats
+- Dashboard form to schedule messages (pick recipient, write content, set date/time)
+- Three message types: plain text, voice note (ElevenLabs TTS), AI-generated (Gemini prompt at send time)
+- Recurring schedules (daily/weekly/monthly)
+- Dashboard management page to view, edit, and cancel scheduled messages
+- WhatsApp self-chat notification before each send with cancel option
 
 ## Current State
 
-**Shipped:** v1.0 Foundation + v1.1 Dashboard & Groups + v1.2 Group Auto-Response + v1.3 Voice Responses + v1.4 Travel Agent
+**Shipped:** v1.0 Foundation + v1.1 Dashboard & Groups + v1.2 Group Auto-Response + v1.3 Voice Responses + v1.4 Travel Agent + v1.5 Personal Assistant
 **Codebase:** ~6,500 LOC TypeScript (src/)
 **Tech stack:** Baileys v7 + Gemini 2.5 Flash + Fastify 5 + React 19 + shadcn/ui + Drizzle/SQLite + Commander.js/Ink + googleapis + ElevenLabs
 
@@ -58,13 +60,22 @@ The bot replies to WhatsApp messages in the user's authentic voice, so contacts 
 - ✓ Maps Grounding search with ratings, reviews, addresses, and booking labels — v1.4
 - ✓ Proactive destination-aware activity suggestions with rate limiting — v1.4
 - ✓ Trip-aware weekly digest with open questions and trip status section — v1.4
+- ✓ Universal calendar event detection from all chats (private + group) — v1.5
+- ✓ Suggest-then-confirm flow for detected events — v1.5
+- ✓ Smart reminders via WhatsApp messages and calendar events — v1.5
+- ✓ Commitment detection with proactive follow-up reminders — v1.5
+- ✓ Microsoft To Do sync via Graph API with auto-detected tasks — v1.5
 
 ### Active
 
-- [ ] Universal calendar event detection from all chats (private + group)
-- [ ] Suggest-then-confirm flow for detected events
-- [ ] Smart reminders — WhatsApp messages for quick, calendar events for time-specific
-- [ ] Microsoft To Do sync via Graph API with auto-detected tasks from chats
+- [ ] Dashboard form to create scheduled messages with recipient, content, and date/time
+- [ ] Plain text scheduled message delivery at specified time
+- [ ] Voice note scheduled messages via ElevenLabs TTS
+- [ ] AI-generated scheduled messages (Gemini generates from prompt at send time)
+- [ ] Recurring schedule support (daily/weekly/monthly)
+- [ ] Dashboard page to view, edit, and cancel scheduled messages
+- [ ] WhatsApp self-chat pre-send notification with cancel option
+- [ ] Restart-safe persistence (DB-backed scheduling)
 
 ### Out of Scope
 
@@ -133,4 +144,4 @@ The bot replies to WhatsApp messages in the user's authentic voice, so contacts 
 | Hand-written migrations after 0010 | FTS5 virtual tables incompatible with drizzle-kit | ✓ Good — never run db:generate after 0010 |
 
 ---
-*Last updated: 2026-03-16 after v1.5 Personal Assistant milestone started*
+*Last updated: 2026-03-30 after v1.6 Scheduled Replies milestone started*
