@@ -1,0 +1,91 @@
+import { eq, and, lte, asc, inArray, sql } from 'drizzle-orm';
+import { db } from '../client.js';
+import { scheduledMessages } from '../schema.js';
+
+export function insertScheduledMessage(data: {
+  id: string;
+  type: string;
+  content: string;
+  scheduledAt: number;
+  cronExpression?: string | null;
+}) {
+  return db.insert(scheduledMessages).values(data).run();
+}
+
+export function getScheduledMessageById(id: string) {
+  return db
+    .select()
+    .from(scheduledMessages)
+    .where(eq(scheduledMessages.id, id))
+    .get();
+}
+
+export function getPendingScheduledMessages(nowMs: number) {
+  return db
+    .select()
+    .from(scheduledMessages)
+    .where(
+      and(
+        eq(scheduledMessages.status, 'pending'),
+        lte(scheduledMessages.scheduledAt, nowMs),
+      ),
+    )
+    .orderBy(asc(scheduledMessages.scheduledAt))
+    .all();
+}
+
+export function getNotifiedScheduledMessages() {
+  return db
+    .select()
+    .from(scheduledMessages)
+    .where(eq(scheduledMessages.status, 'notified'))
+    .orderBy(asc(scheduledMessages.scheduledAt))
+    .all();
+}
+
+export function updateScheduledMessageStatus(id: string, status: string) {
+  return db
+    .update(scheduledMessages)
+    .set({ status, updatedAt: Date.now() })
+    .where(eq(scheduledMessages.id, id))
+    .run();
+}
+
+export function markScheduledMessageCancelled(id: string) {
+  return db
+    .update(scheduledMessages)
+    .set({ status: 'cancelled', cancelRequestedAt: Date.now(), updatedAt: Date.now() })
+    .where(eq(scheduledMessages.id, id))
+    .run();
+}
+
+export function incrementScheduledMessageFailCount(id: string) {
+  return db
+    .update(scheduledMessages)
+    .set({
+      failCount: sql`${scheduledMessages.failCount} + 1`,
+      updatedAt: Date.now(),
+    })
+    .where(eq(scheduledMessages.id, id))
+    .run();
+}
+
+export function updateScheduledMessageNotificationMsgId(id: string, msgId: string) {
+  return db
+    .update(scheduledMessages)
+    .set({ notificationMsgId: msgId, updatedAt: Date.now() })
+    .where(eq(scheduledMessages.id, id))
+    .run();
+}
+
+export function deleteOldScheduledMessages(cutoffMs: number) {
+  return db
+    .delete(scheduledMessages)
+    .where(
+      and(
+        inArray(scheduledMessages.status, ['sent', 'cancelled', 'failed']),
+        lte(scheduledMessages.createdAt, cutoffMs),
+      ),
+    )
+    .returning({ id: scheduledMessages.id });
+}
