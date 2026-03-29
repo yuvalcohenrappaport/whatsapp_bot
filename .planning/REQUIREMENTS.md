@@ -10,7 +10,7 @@ Requirements for Scheduled Replies milestone. Each maps to roadmap phases.
 ### Scheduling Core
 
 - [ ] **SCHED-01**: User can create a scheduled message with a recipient, content, and future date/time from the dashboard
-- [ ] **SCHED-02**: Scheduled messages persist in the database and survive bot restarts
+- [x] **SCHED-02**: Scheduled messages persist in the database and survive bot restarts
 - [ ] **SCHED-03**: Scheduler uses two-tier pattern (setTimeout for near-term, periodic DB scan for distant)
 - [ ] **SCHED-04**: Reconnect dedup guard prevents double-fire after Baileys reconnection
 - [ ] **SCHED-05**: User can set recurring schedules (daily, weekly, monthly) stored as cron expressions for DST safety
@@ -89,7 +89,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | SCHED-01 | Phase 30 | Pending |
-| SCHED-02 | Phase 27 | Pending |
+| SCHED-02 | Phase 27 | Complete |
 | SCHED-03 | Phase 28 | Pending |
 | SCHED-04 | Phase 28 | Pending |
 | SCHED-05 | Phase 32 | Pending |

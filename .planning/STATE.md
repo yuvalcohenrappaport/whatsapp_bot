@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-30)
 ## Current Position
 
 Phase: 27 of 32 (DB Foundation)
-Plan: 0 of ? in current phase
-Status: Ready to plan
-Last activity: 2026-03-30 — v1.6 roadmap created, phases 27-32 defined
+Plan: 1 of 1 in current phase
+Status: In progress
+Last activity: 2026-03-30 — Phase 27 Plan 01 complete (DB foundation tables)
 
-Progress: [░░░░░░░░░░] 0% (v1.6)
+Progress: [█░░░░░░░░░] 10% (v1.6)
 
 ## Performance Metrics
 
@@ -40,6 +40,8 @@ Recent decisions affecting v1.6:
 - Cron strings (not ms intervals) stored for recurrence — DST-safe via node-cron Asia/Jerusalem
 - Promise.race timeout on every Baileys send (15s) and every TTS/Gemini call (30s)
 - p-queue concurrency:1 for TTS to respect ElevenLabs limits
+- Plain text FK for scheduledMessageId (no drizzle references()) — consistent with project convention (27-01)
+- Migration applied directly to live DB; hash inserted into __drizzle_migrations to prevent double-run (27-01)
 
 ### Pending Todos
 
@@ -54,5 +56,5 @@ Recent decisions affecting v1.6:
 ## Session Continuity
 
 Last session: 2026-03-30
-Stopped at: Phase 27 context gathered
-Resume with: /gsd:plan-phase 27
+Stopped at: Completed 27-01-PLAN.md (DB Foundation tables)
+Resume with: /gsd:execute-phase 28
