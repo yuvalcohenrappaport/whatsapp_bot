@@ -54,5 +54,5 @@ Recent decisions affecting v1.6:
 ## Session Continuity
 
 Last session: 2026-03-30
-Stopped at: v1.6 roadmap written (ROADMAP.md, STATE.md, REQUIREMENTS.md traceability updated)
+Stopped at: Phase 27 context gathered
 Resume with: /gsd:plan-phase 27
