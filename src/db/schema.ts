@@ -275,3 +275,50 @@ export const personalPendingEvents = sqliteTable(
     index('idx_personal_pending_content_hash').on(table.contentHash),
   ],
 );
+
+export const scheduledMessages = sqliteTable(
+  'scheduled_messages',
+  {
+    id: text('id').primaryKey().notNull(), // UUID
+    type: text('type').notNull().default('text'), // 'text' | 'voice' | 'ai'
+    content: text('content').notNull(), // user text, AI prompt, or text-to-speak
+    status: text('status').notNull().default('pending'), // 'pending' | 'notified' | 'sending' | 'sent' | 'failed' | 'cancelled'
+    scheduledAt: integer('scheduled_at').notNull(), // Unix ms, one-time fire time
+    cronExpression: text('cron_expression'), // nullable, cron string for recurring (Phase 32)
+    notificationMsgId: text('notification_msg_id'), // nullable, self-chat msg ID for cancel window (Phase 29)
+    cancelRequestedAt: integer('cancel_requested_at'), // nullable, Unix ms when user cancels
+    sentAt: integer('sent_at'), // nullable, Unix ms on successful send
+    failCount: integer('fail_count').notNull().default(0),
+    createdAt: integer('created_at')
+      .notNull()
+      .$defaultFn(() => Date.now()),
+    updatedAt: integer('updated_at')
+      .notNull()
+      .$defaultFn(() => Date.now()),
+  },
+  (table) => [
+    index('idx_scheduled_messages_status_at').on(table.status, table.scheduledAt),
+    index('idx_scheduled_messages_notification').on(table.notificationMsgId),
+  ],
+);
+
+export const scheduledMessageRecipients = sqliteTable(
+  'scheduled_message_recipients',
+  {
+    id: text('id').primaryKey().notNull(), // UUID
+    scheduledMessageId: text('scheduled_message_id').notNull(), // plain text FK to scheduled_messages.id
+    recipientJid: text('recipient_jid').notNull(), // contact or group JID
+    recipientType: text('recipient_type').notNull().default('contact'), // 'contact' | 'group'
+    status: text('status').notNull().default('pending'), // 'pending' | 'sent' | 'failed' | 'cancelled'
+    sentContent: text('sent_content'), // nullable, populated after AI/voice send for dashboard history
+    failCount: integer('fail_count').notNull().default(0),
+    sentAt: integer('sent_at'), // nullable, Unix ms
+    createdAt: integer('created_at')
+      .notNull()
+      .$defaultFn(() => Date.now()),
+  },
+  (table) => [
+    index('idx_smr_message_id').on(table.scheduledMessageId),
+    index('idx_smr_status').on(table.status),
+  ],
+);
