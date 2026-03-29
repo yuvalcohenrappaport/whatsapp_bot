@@ -76,7 +76,7 @@
 
 **Milestone Goal:** Let the owner schedule messages to any contact or group from the dashboard, with support for text, voice, and AI-generated content on one-off or recurring schedules.
 
-- [ ] **Phase 27: DB Foundation** - scheduled_messages table, migration, and query layer
+- [x] **Phase 27: DB Foundation** - scheduled_messages table, migration, and query layer (completed 2026-03-29)
 - [ ] **Phase 28: Core Scheduler and Text Delivery** - two-tier scheduler, one-time text send end-to-end, reconnect dedup
 - [ ] **Phase 29: Pre-Send Safety** - self-chat cancel notification with DB-persisted cancel state and retry
 - [ ] **Phase 30: Dashboard CRUD** - list, create, edit, and cancel scheduled messages from the dashboard
@@ -94,7 +94,7 @@
   2. A Drizzle migration file applies cleanly with no errors
   3. All CRUD query functions (create, getById, getPending, updateStatus, markCancelled, incrementFailCount) are callable from TypeScript with correct types
   4. The table survives a bot restart with data intact (WAL mode, no in-memory state)
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [ ] 27-01-PLAN.md — Schema definition, migration SQL, and journal update for both tables
 - [ ] 27-02-PLAN.md — Query layer (15 CRUD functions across both tables)
@@ -187,7 +187,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32
 | 24. Smart Reminders | v1.5 | 3/3 | Complete | 2026-03-16 |
 | 25. Commitment Detection | v1.5 | 2/2 | Complete | 2026-03-16 |
 | 26. Microsoft To Do Sync | v1.5 | 3/3 | Complete | 2026-03-16 |
-| 27. DB Foundation | 1/2 | In Progress|  | - |
+| 27. DB Foundation | 2/2 | Complete   | 2026-03-29 | - |
 | 28. Core Scheduler and Text Delivery | v1.6 | 0/? | Not started | - |
 | 29. Pre-Send Safety | v1.6 | 0/? | Not started | - |
 | 30. Dashboard CRUD | v1.6 | 0/? | Not started | - |

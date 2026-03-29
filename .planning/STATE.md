@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-03-30)
 ## Current Position
 
 Phase: 27 of 32 (DB Foundation)
-Plan: 1 of 1 in current phase
-Status: In progress
-Last activity: 2026-03-30 — Phase 27 Plan 01 complete (DB foundation tables)
+Plan: 2 of 2 in current phase
+Status: Complete
+Last activity: 2026-03-30 — Phase 27 Plan 02 complete (query layer for scheduled_messages and scheduled_message_recipients)
 
 Progress: [█░░░░░░░░░] 10% (v1.6)
 
@@ -42,6 +42,8 @@ Recent decisions affecting v1.6:
 - p-queue concurrency:1 for TTS to respect ElevenLabs limits
 - Plain text FK for scheduledMessageId (no drizzle references()) — consistent with project convention (27-01)
 - Migration applied directly to live DB; hash inserted into __drizzle_migrations to prevent double-run (27-01)
+- getPending and getNotified are separate functions — Phase 29 uses notified independently for cancel window expiry (27-02)
+- deleteOldScheduledMessages uses .returning() to pass deleted IDs to deleteRecipientsForMessages — avoids secondary lookup (27-02)
 
 ### Pending Todos
 
@@ -56,5 +58,5 @@ Recent decisions affecting v1.6:
 ## Session Continuity
 
 Last session: 2026-03-30
-Stopped at: Completed 27-01-PLAN.md (DB Foundation tables)
+Stopped at: Completed 27-02-PLAN.md (Query layer for scheduled messages)
 Resume with: /gsd:execute-phase 28
