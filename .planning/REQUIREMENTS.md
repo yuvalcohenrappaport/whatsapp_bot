@@ -88,28 +88,28 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SCHED-01 | — | Pending |
-| SCHED-02 | — | Pending |
-| SCHED-03 | — | Pending |
-| SCHED-04 | — | Pending |
-| SCHED-05 | — | Pending |
-| TYPE-01 | — | Pending |
-| TYPE-02 | — | Pending |
-| TYPE-03 | — | Pending |
-| SAFE-01 | — | Pending |
-| SAFE-02 | — | Pending |
-| SAFE-03 | — | Pending |
-| DASH-01 | — | Pending |
-| DASH-02 | — | Pending |
-| DASH-03 | — | Pending |
-| DASH-04 | — | Pending |
-| DASH-05 | — | Pending |
+| SCHED-01 | Phase 30 | Pending |
+| SCHED-02 | Phase 27 | Pending |
+| SCHED-03 | Phase 28 | Pending |
+| SCHED-04 | Phase 28 | Pending |
+| SCHED-05 | Phase 32 | Pending |
+| TYPE-01 | Phase 28 | Pending |
+| TYPE-02 | Phase 31 | Pending |
+| TYPE-03 | Phase 31 | Pending |
+| SAFE-01 | Phase 29 | Pending |
+| SAFE-02 | Phase 29 | Pending |
+| SAFE-03 | Phase 29 | Pending |
+| DASH-01 | Phase 30 | Pending |
+| DASH-02 | Phase 30 | Pending |
+| DASH-03 | Phase 30 | Pending |
+| DASH-04 | Phase 30 | Pending |
+| DASH-05 | Phase 30 | Pending |
 
 **Coverage:**
 - v1.6 requirements: 16 total
-- Mapped to phases: 0
-- Unmapped: 16 ⚠️
+- Mapped to phases: 16
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-30*
-*Last updated: 2026-03-30 after initial definition*
+*Last updated: 2026-03-30 — traceability filled after roadmap creation*

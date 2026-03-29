@@ -7,7 +7,8 @@
 - [x] **v1.2 Group Auto-Response** — Phases 10-11 (shipped 2026-02-25) — [archive](milestones/v1.2-ROADMAP.md)
 - [x] **v1.3 Voice Responses** — Phases 12-16 (shipped 2026-03-02)
 - [x] **v1.4 Travel Agent** — Phases 17-21 (shipped 2026-03-02) — [archive](milestones/v1.4-ROADMAP.md)
-- [ ] **v1.5 Personal Assistant** — Phases 22-26 (in progress)
+- [x] **v1.5 Personal Assistant** — Phases 22-26 (shipped 2026-03-16)
+- [ ] **v1.6 Scheduled Replies** — Phases 27-32 (in progress)
 
 ## Phases
 
@@ -60,91 +61,102 @@
 
 </details>
 
-### v1.5 Personal Assistant (In Progress)
+<details>
+<summary>v1.5 Personal Assistant (Phases 22-26) — SHIPPED 2026-03-16</summary>
 
-**Milestone Goal:** Turn the bot into a daily personal assistant that detects events, reminders, and tasks from all chats and manages them automatically.
+- [x] Phase 22: Calendar Detection Refactor (2/2 plans) — completed 2026-03-16
+- [x] Phase 23: Universal Calendar Detection (3/3 plans) — completed 2026-03-16
+- [x] Phase 24: Smart Reminders (3/3 plans) — completed 2026-03-16
+- [x] Phase 25: Commitment Detection (2/2 plans) — completed 2026-03-16
+- [x] Phase 26: Microsoft To Do Sync (3/3 plans) — completed 2026-03-16
 
-- [x] **Phase 22: Calendar Detection Refactor** - Extract shared CalendarDetectionService from group pipeline
-- [x] **Phase 23: Universal Calendar Detection** - Detect and create calendar events from all chats
-- [x] **Phase 24: Smart Reminders** - Reminder scheduling via commands, WhatsApp messages, and calendar events (completed 2026-03-16)
-- [x] **Phase 25: Commitment Detection** - AI-powered extraction of commitments from private chats (completed 2026-03-16)
-- [x] **Phase 26: Microsoft To Do Sync** - OAuth flow and task creation via Graph API (completed 2026-03-16)
+</details>
+
+### v1.6 Scheduled Replies (In Progress)
+
+**Milestone Goal:** Let the owner schedule messages to any contact or group from the dashboard, with support for text, voice, and AI-generated content on one-off or recurring schedules.
+
+- [ ] **Phase 27: DB Foundation** - scheduled_messages table, migration, and query layer
+- [ ] **Phase 28: Core Scheduler and Text Delivery** - two-tier scheduler, one-time text send end-to-end, reconnect dedup
+- [ ] **Phase 29: Pre-Send Safety** - self-chat cancel notification with DB-persisted cancel state and retry
+- [ ] **Phase 30: Dashboard CRUD** - list, create, edit, and cancel scheduled messages from the dashboard
+- [ ] **Phase 31: Voice and AI Content Types** - ElevenLabs TTS and Gemini generation at fire time
+- [ ] **Phase 32: Recurring Schedules** - daily/weekly/monthly cron recurrence with DST-safe next-fire computation
 
 ## Phase Details
 
-### Phase 22: Calendar Detection Refactor
-**Goal**: Date extraction logic is a reusable shared module callable from both private and group message pipelines
-**Depends on**: Phase 21 (v1.4 complete)
-**Requirements**: CAL-05
+### Phase 27: DB Foundation
+**Goal**: The scheduled_messages table exists with all columns needed by every downstream phase, and a complete query layer is ready to use
+**Depends on**: Phase 26 (v1.5 complete)
+**Requirements**: SCHED-02
 **Success Criteria** (what must be TRUE):
-  1. CalendarDetectionService exists as a standalone module separate from groupMessagePipeline.ts
-  2. Group chat date extraction still works identically after the refactor (no behavior change)
-  3. The shared service can be called from any message handler with a message text and source context
-**Plans:** 2/2 plans complete
-- [x] 22-01-PLAN.md -- Extract CalendarDetectionService and break circular dependencies
-- [x] 22-02-PLAN.md -- Personal calendar OAuth2 infrastructure
+  1. A scheduled_messages table exists in the DB with status, scheduledAt, cronExpression, notificationMsgId, cancelRequestedAt, sentAt, and failCount columns
+  2. A Drizzle migration file applies cleanly with no errors
+  3. All CRUD query functions (create, getById, getPending, updateStatus, markCancelled, incrementFailCount) are callable from TypeScript with correct types
+  4. The table survives a bot restart with data intact (WAL mode, no in-memory state)
+**Plans**: TBD
 
-### Phase 23: Universal Calendar Detection
-**Goal**: Users get calendar event proposals from messages in any chat -- private or group -- with suggest-then-confirm flow
-**Depends on**: Phase 22
-**Requirements**: CAL-01, CAL-02, CAL-03, CAL-04, CAL-06
+### Phase 28: Core Scheduler and Text Delivery
+**Goal**: A one-time plain text scheduled message fires at the correct time, survives a crash and restart, and never fires twice after a Baileys reconnect
+**Depends on**: Phase 27
+**Requirements**: SCHED-03, SCHED-04, TYPE-01
 **Success Criteria** (what must be TRUE):
-  1. When a private chat message mentions a date/event, the bot proposes it in the owner's self-chat
-  2. When a group chat message mentions a date/event, the bot proposes it via the existing suggest-then-confirm flow
-  3. Confirming a proposed event creates a Google Calendar entry with title, date/time, and source context
-  4. Forwarding the same message to multiple chats does not create duplicate calendar events
-  5. Messages without date/event content are filtered cheaply in JS before any Gemini API call
-**Plans:** 3/3 plans complete
-- [x] 23-01-PLAN.md -- Detection pipeline, dedup, schema, all-day events
-- [x] 23-02-PLAN.md -- Self-chat approval flow (notifications + reply-based approve/reject/edit)
-- [x] 23-03-PLAN.md -- Dashboard events UI with tabs and overview integration
+  1. A scheduled text message created in the DB fires at the specified time and is delivered via WhatsApp
+  2. After a bot restart, any pending messages that were missed or near-term are rescheduled and fire correctly
+  3. When Baileys reconnects, no scheduled message fires twice (dedup guard via activeTimers Map)
+  4. A hung sendMessage call does not block the scheduler indefinitely (Promise.race timeout guard)
+  5. A failed send writes status='failed' to the DB rather than silently dropping the message
+**Plans**: TBD
 
-### Phase 24: Smart Reminders
-**Goal**: Users can set reminders via WhatsApp commands and receive them as messages or calendar events at the right time
-**Depends on**: Phase 22
-**Requirements**: REM-01, REM-03, REM-04, REM-05, REM-06
+### Phase 29: Pre-Send Safety
+**Goal**: The owner receives a self-chat warning before every scheduled send and can cancel it, even if PM2 restarts between the warning and the send
+**Depends on**: Phase 28
+**Requirements**: SAFE-01, SAFE-02, SAFE-03
 **Success Criteria** (what must be TRUE):
-  1. User can send "remind me to X at Y" to the bot and get a confirmation that the reminder is set
-  2. Quick reminders are delivered as WhatsApp messages to the owner's self-chat at the scheduled time
-  3. Time-specific reminders create Google Calendar events with notifications
-  4. Reminders survive a bot restart and fire at the correct time after recovery
-  5. Near-term reminders (<24h) use precise setTimeout; distant reminders are picked up by periodic DB scan
-**Plans:** 3/3 plans complete
-- [x] 24-01-PLAN.md -- Core backend: DB schema, Gemini parser, two-tier scheduler, handleOwnerCommand wiring
-- [x] 24-02-PLAN.md -- Smart delivery routing, restart recovery, cancel/edit commands
-- [x] 24-03-PLAN.md -- Dashboard API routes and Reminders page with tabs
+  1. Before each scheduled send, the bot sends a self-chat notification identifying the recipient, content preview, and cancel instruction
+  2. Replying to the notification with the cancel command stops the send
+  3. A PM2 reload between the notification and the send does not lose the cancel state (cancel is DB-persisted, not in-memory)
+  4. A send that fails is retried automatically up to 3 times via the hourly scan, with failure status visible in the DB
+**Plans**: TBD
 
-### Phase 25: Commitment Detection
-**Goal**: The bot detects commitments in private conversations and proactively suggests follow-up reminders
-**Depends on**: Phase 24
-**Requirements**: REM-02
+### Phase 30: Dashboard CRUD
+**Goal**: The owner can create, view, edit, and cancel scheduled messages entirely from the dashboard without touching the DB or CLI
+**Depends on**: Phase 29
+**Requirements**: SCHED-01, DASH-01, DASH-02, DASH-03, DASH-04, DASH-05
 **Success Criteria** (what must be TRUE):
-  1. When the owner says "I'll send it tomorrow" in a private chat, the bot suggests a follow-up reminder in self-chat
-  2. Commitment detection uses a JS pre-filter (message length, temporal markers, action verbs) to avoid unnecessary Gemini calls
-  3. Detected commitments propose reminders through the existing reminder service from Phase 24
-**Plans:** 2/2 plans complete
-- [ ] 25-01-PLAN.md -- DB migration, CommitmentDetectionService with pre-filter and Gemini extraction
-- [ ] 25-02-PLAN.md -- Pipeline integration, auto-set reminders, self-chat notifications
+  1. The dashboard lists all scheduled messages with recipient, content preview, scheduled time, and status indicator
+  2. The owner can create a scheduled message by selecting a recipient from a picker, entering content, and choosing a date/time
+  3. The owner can edit the content or time of a pending scheduled message from the dashboard
+  4. The owner can cancel a scheduled message from the dashboard and it no longer fires
+  5. When a cron expression is entered, a human-readable description appears live next to the field (via cronstrue)
+**Plans**: TBD
 
-### Phase 26: Microsoft To Do Sync
-**Goal**: Actionable tasks detected in private chats are synced to Microsoft To Do for cross-device access
-**Depends on**: Phase 23
-**Requirements**: TODO-01, TODO-02, TODO-03, TODO-04, TODO-05
+### Phase 31: Voice and AI Content Types
+**Goal**: The owner can schedule voice notes and AI-generated messages, with content resolved at fire time rather than schedule time
+**Depends on**: Phase 30
+**Requirements**: TYPE-02, TYPE-03
 **Success Criteria** (what must be TRUE):
-  1. User can authorize the bot to access Microsoft To Do via OAuth2 flow initiated from the dashboard
-  2. When a private chat message contains an actionable task, the bot proposes it in self-chat with suggest-then-confirm
-  3. Confirming a detected task creates it in Microsoft To Do via Graph API
-  4. The OAuth refresh token is persisted and auto-renewed so the user does not need to re-authorize
-  5. If Microsoft auth is not configured, the bot operates normally without To Do features (graceful degradation)
-**Plans:** 3/3 plans complete
-- [x] 26-01-PLAN.md -- MSAL auth service, Graph API service, DB schema, API routes
-- [ ] 26-02-PLAN.md -- Extend Gemini schema for task classification, To Do pipeline, cancel handler
-- [x] 26-03-PLAN.md -- Dashboard Integrations and Tasks pages
+  1. A scheduled message with type=voice generates a voice note via ElevenLabs TTS at fire time and delivers it as a PTT audio message
+  2. A scheduled message with type=ai generates content via Gemini from the owner's prompt at fire time, using the contact's style context
+  3. A TTS or Gemini timeout does not permanently block the fire callback (Promise.race with 30s limit)
+  4. Concurrent TTS fires do not exceed ElevenLabs concurrency limits (p-queue with concurrency:1)
+**Plans**: TBD
+
+### Phase 32: Recurring Schedules
+**Goal**: The owner can schedule daily, weekly, or monthly recurring messages that re-arm automatically after each fire and survive DST transitions without drifting
+**Depends on**: Phase 31
+**Requirements**: SCHED-05
+**Success Criteria** (what must be TRUE):
+  1. A recurring scheduled message re-fires on the correct cadence (daily, weekly, or monthly) after each send
+  2. The schedule does not drift by an hour across Israel's daylight saving time transitions in March and October
+  3. If the bot is down during a recurring fire, the next occurrence is computed correctly on startup
+  4. The owner can cancel a recurring series from the dashboard and all future fires stop
+**Plans**: TBD
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 22 -> 23 -> 24 -> 25 -> 26
+Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -167,8 +179,14 @@ Phases execute in numeric order: 22 -> 23 -> 24 -> 25 -> 26
 | 19. Itinerary Builder | v1.4 | 3/3 | Complete | 2026-03-02 |
 | 20. Enriched Search | v1.4 | 2/2 | Complete | 2026-03-02 |
 | 21. Travel Intelligence | v1.4 | 2/2 | Complete | 2026-03-02 |
-| 22. Calendar Detection Refactor | v1.5 | Complete    | 2026-03-16 | 2026-03-16 |
-| 23. Universal Calendar Detection | v1.5 | Complete    | 2026-03-16 | 2026-03-16 |
-| 24. Smart Reminders | 3/3 | Complete    | 2026-03-16 | - |
-| 25. Commitment Detection | 2/2 | Complete    | 2026-03-16 | - |
-| 26. Microsoft To Do Sync | 3/3 | Complete   | 2026-03-16 | - |
+| 22. Calendar Detection Refactor | v1.5 | 2/2 | Complete | 2026-03-16 |
+| 23. Universal Calendar Detection | v1.5 | 3/3 | Complete | 2026-03-16 |
+| 24. Smart Reminders | v1.5 | 3/3 | Complete | 2026-03-16 |
+| 25. Commitment Detection | v1.5 | 2/2 | Complete | 2026-03-16 |
+| 26. Microsoft To Do Sync | v1.5 | 3/3 | Complete | 2026-03-16 |
+| 27. DB Foundation | v1.6 | 0/? | Not started | - |
+| 28. Core Scheduler and Text Delivery | v1.6 | 0/? | Not started | - |
+| 29. Pre-Send Safety | v1.6 | 0/? | Not started | - |
+| 30. Dashboard CRUD | v1.6 | 0/? | Not started | - |
+| 31. Voice and AI Content Types | v1.6 | 0/? | Not started | - |
+| 32. Recurring Schedules | v1.6 | 0/? | Not started | - |
