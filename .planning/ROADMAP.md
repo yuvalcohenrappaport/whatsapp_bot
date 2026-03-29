@@ -94,7 +94,10 @@
   2. A Drizzle migration file applies cleanly with no errors
   3. All CRUD query functions (create, getById, getPending, updateStatus, markCancelled, incrementFailCount) are callable from TypeScript with correct types
   4. The table survives a bot restart with data intact (WAL mode, no in-memory state)
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 27-01-PLAN.md — Schema definition, migration SQL, and journal update for both tables
+- [ ] 27-02-PLAN.md — Query layer (15 CRUD functions across both tables)
 
 ### Phase 28: Core Scheduler and Text Delivery
 **Goal**: A one-time plain text scheduled message fires at the correct time, survives a crash and restart, and never fires twice after a Baileys reconnect
