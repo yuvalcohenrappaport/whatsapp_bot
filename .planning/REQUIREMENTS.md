@@ -1,13 +1,43 @@
 # Requirements: WhatsApp Bot
 
-**Defined:** 2026-03-16
+**Defined:** 2026-03-30
 **Core Value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
 
-## v1.5 Requirements
+## v1.6 Requirements
 
-Requirements for Personal Assistant milestone. Each maps to roadmap phases.
+Requirements for Scheduled Replies milestone. Each maps to roadmap phases.
 
-### Calendar Detection
+### Scheduling Core
+
+- [ ] **SCHED-01**: User can create a scheduled message with a recipient, content, and future date/time from the dashboard
+- [ ] **SCHED-02**: Scheduled messages persist in the database and survive bot restarts
+- [ ] **SCHED-03**: Scheduler uses two-tier pattern (setTimeout for near-term, periodic DB scan for distant)
+- [ ] **SCHED-04**: Reconnect dedup guard prevents double-fire after Baileys reconnection
+- [ ] **SCHED-05**: User can set recurring schedules (daily, weekly, monthly) stored as cron expressions for DST safety
+
+### Message Types
+
+- [ ] **TYPE-01**: User can schedule a plain text message for delivery at a specified time
+- [ ] **TYPE-02**: User can schedule a voice note message generated via ElevenLabs TTS at fire time
+- [ ] **TYPE-03**: User can schedule an AI-generated message where Gemini generates content from a prompt at fire time using contact style context
+
+### Pre-Send Safety
+
+- [ ] **SAFE-01**: Bot sends a self-chat notification before each scheduled send with a cancel option
+- [ ] **SAFE-02**: Cancel state is persisted in the database (survives PM2 reloads)
+- [ ] **SAFE-03**: Failed sends are tracked with status and retried automatically
+
+### Dashboard Management
+
+- [ ] **DASH-01**: Dashboard page lists all scheduled messages with status indicators
+- [ ] **DASH-02**: Dashboard form to create scheduled messages with recipient picker, content input, date/time picker, and recurrence options
+- [ ] **DASH-03**: User can edit a pending scheduled message from the dashboard
+- [ ] **DASH-04**: User can cancel/delete a scheduled message from the dashboard
+- [ ] **DASH-05**: Live cron expression preview via cronstrue shows human-readable schedule description
+
+## Previous Milestones
+
+### v1.5 Requirements (Complete)
 
 - [x] **CAL-01**: Bot detects date/event mentions in private chat messages using Gemini with JS pre-filter
 - [x] **CAL-02**: Bot detects date/event mentions in group chat messages (extends existing extraction to all groups)
@@ -15,18 +45,12 @@ Requirements for Personal Assistant milestone. Each maps to roadmap phases.
 - [x] **CAL-04**: Confirmed events are created in Google Calendar with title, date/time, and source context
 - [x] **CAL-05**: CalendarDetectionService extracted as shared module for both private and group pipelines
 - [x] **CAL-06**: Duplicate event detection prevents double-creation from forwarded messages
-
-### Smart Reminders
-
 - [x] **REM-01**: User can request reminders via WhatsApp command ("remind me to X at Y")
 - [x] **REM-02**: Bot detects commitments in private chats ("I'll send it tomorrow") and suggests follow-up reminders
 - [x] **REM-03**: Quick reminders delivered as WhatsApp messages to owner's self-chat
 - [x] **REM-04**: Time-specific reminders created as Google Calendar events with notifications
 - [x] **REM-05**: Reminders persisted in SQLite with restart recovery and startup catch-up
 - [x] **REM-06**: Reminder scheduling uses setTimeout for <24h and periodic DB scan for distant reminders
-
-### Microsoft To Do
-
 - [x] **TODO-01**: OAuth2 authorization code flow for Microsoft Graph API via dashboard
 - [x] **TODO-02**: Bot auto-detects actionable tasks in private chat messages with pre-filter
 - [x] **TODO-03**: Detected tasks proposed via self-chat with suggest-then-confirm flow
@@ -35,28 +59,28 @@ Requirements for Personal Assistant milestone. Each maps to roadmap phases.
 
 ## Future Requirements
 
+### Advanced Scheduling
+
+- **ASCHED-01**: Natural language scheduling via WhatsApp ("send happy birthday to Mom at midnight")
+- **ASCHED-02**: Template messages with variable interpolation at fire time
+- **ASCHED-03**: Batch scheduling (multiple recipients, same message)
+
 ### Dashboard Integration
 
-- **DASH-01**: Dashboard page for viewing and managing upcoming reminders
-- **DASH-02**: Dashboard page for Microsoft To Do connection status and task history
-- **DASH-03**: Dashboard controls for calendar detection sensitivity per contact/group
-
-### Advanced Detection
-
+- **DASH-06**: Dashboard controls for calendar detection sensitivity per contact/group
 - **ADV-01**: Two-way To Do sync (changes in To Do reflected in bot)
-- **ADV-02**: Recurring reminder patterns ("remind me every Monday")
 - **ADV-03**: Multi-language commitment detection tuning (Hebrew/English/mixed)
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Full booking integration | Requires OAuth, payment handling, API partnerships |
-| Two-way To Do sync | v1.5 is one-way push only; polling adds complexity |
-| Voice reminders | Voice is for private impersonation, not utility messages |
-| Cross-calendar deduplication | Requires reading personal calendars beyond bot-created events |
-| Recurring reminders | Single-fire reminders first; recurring adds scheduling complexity |
-| Group chat task detection | Tasks are personal; groups are utility-only |
+| Natural language scheduling via WhatsApp | Dashboard-only for v1.6; WhatsApp commands add complexity |
+| Bulk broadcast to multiple recipients | Triggers WhatsApp bans |
+| Auto-retry persistent job queue (e.g., BullMQ) | Overkill for single-user bot; simple DB retry is sufficient |
+| Scheduled media/image messages | Text and voice only; Baileys media handling is fragile |
+| Contact-initiated scheduling | Owner-only in v1.6; contacts requesting timed replies adds scope |
+| react-js-cron component | Requires Ant Design peer dep, incompatible with shadcn/Tailwind stack |
 
 ## Traceability
 
@@ -64,29 +88,28 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CAL-01 | Phase 23 | Complete |
-| CAL-02 | Phase 23 | Complete |
-| CAL-03 | Phase 23 | Complete |
-| CAL-04 | Phase 23 | Complete |
-| CAL-05 | Phase 22 | Complete |
-| CAL-06 | Phase 23 | Complete |
-| REM-01 | Phase 24 | Complete |
-| REM-02 | Phase 25 | Complete |
-| REM-03 | Phase 24 | Complete |
-| REM-04 | Phase 24 | Complete |
-| REM-05 | Phase 24 | Complete |
-| REM-06 | Phase 24 | Complete |
-| TODO-01 | Phase 26 | Complete |
-| TODO-02 | Phase 26 | Complete |
-| TODO-03 | Phase 26 | Complete |
-| TODO-04 | Phase 26 | Complete |
-| TODO-05 | Phase 26 | Complete |
+| SCHED-01 | — | Pending |
+| SCHED-02 | — | Pending |
+| SCHED-03 | — | Pending |
+| SCHED-04 | — | Pending |
+| SCHED-05 | — | Pending |
+| TYPE-01 | — | Pending |
+| TYPE-02 | — | Pending |
+| TYPE-03 | — | Pending |
+| SAFE-01 | — | Pending |
+| SAFE-02 | — | Pending |
+| SAFE-03 | — | Pending |
+| DASH-01 | — | Pending |
+| DASH-02 | — | Pending |
+| DASH-03 | — | Pending |
+| DASH-04 | — | Pending |
+| DASH-05 | — | Pending |
 
 **Coverage:**
-- v1.5 requirements: 17 total
-- Mapped to phases: 17
-- Unmapped: 0
+- v1.6 requirements: 16 total
+- Mapped to phases: 0
+- Unmapped: 16 ⚠️
 
 ---
-*Requirements defined: 2026-03-16*
-*Last updated: 2026-03-16 after roadmap creation*
+*Requirements defined: 2026-03-30*
+*Last updated: 2026-03-30 after initial definition*
