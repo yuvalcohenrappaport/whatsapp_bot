@@ -1,289 +1,215 @@
-# Feature Landscape: v1.5 Personal Assistant Features
+# Feature Research
 
-**Domain:** WhatsApp bot -- universal calendar detection, smart reminders, Microsoft To Do sync
-**Researched:** 2026-03-16
-**Scope:** NEW features only (existing travel/group calendar pipeline not covered)
+**Domain:** Scheduled message delivery — WhatsApp bot that impersonates owner
+**Researched:** 2026-03-30
+**Confidence:** HIGH (project context clear; scheduling patterns well-established)
 
 ---
 
 ## Context: What Is Already Built
 
 This is a subsequent milestone. The existing bot has:
-- Group message monitoring with Gemini-based date extraction (`dateExtractor.ts`)
-- Suggest-then-confirm flow for calendar events (`suggestionTracker.ts` -- ✅/❌ reply pattern)
-- Enriched calendar events with location, description, links
-- Per-group calendars with lazy creation and member email sharing (`calendarService.ts`)
-- Weekly AI digest with node-cron (`reminderScheduler.ts`)
-- Trip memory with context accumulation (`tripContextManager.ts`)
 - Draft queue with pending/approved/rejected lifecycle
-- Private chat impersonation (auto/draft modes per contact)
-- Owner command handling via self-chat (snooze, resume, draft ✅/❌)
+- Auto-reply with safety guardrails (cap, cooldown, snooze)
+- Smart reminders with two-tier scheduler (setTimeout + hourly DB scan) in `src/reminders/reminderScheduler.ts`
+- Commitment detection from private chats
+- Voice message generation via ElevenLabs TTS (`src/voice/`)
+- Dashboard management for contacts, groups, keyword rules, reminders
+- Self-chat notification pattern for owner approvals (`notificationMsgId` column pattern)
+- Recurring weekly digest via node-cron
+- AI pipeline for text generation (`src/ai/`)
 
 **Critical integration points for new features:**
-- `messageHandler.ts` -- main message router. Currently private chats go to AI reply pipeline, groups go to `groupMessageCallback`. Date extraction only runs in groups with `travelBotActive`
-- `groupMessagePipeline.ts` -- debounce + date extraction + suggest-then-confirm. Needs generalization beyond travel groups
-- `suggestionTracker.ts` -- generic suggest-then-confirm with TTL, DB persistence, and restart recovery. Can be extended for reminders/tasks
-- `config.ts` -- env schema with Zod validation. New Microsoft credentials go here
-- `db/schema.ts` -- Drizzle ORM with SQLite. New tables for reminders, task sync state
+- `src/reminders/reminderScheduler.ts` — two-tier scheduler to extend/reuse
+- `src/db/schema.ts` — Drizzle ORM + SQLite; new `scheduledMessages` table follows established patterns
+- `src/voice/` — ElevenLabs TTS already wired; call at fire time for voice messages
+- `src/ai/` — Gemini pipeline; call at fire time for AI prompt messages
+- `dashboard/src/` — React app; new page follows existing route/component patterns
+- Self-chat notification pattern — used by drafts, commitments, reminders for owner interaction
 
 ---
 
-## Table Stakes
+## Table Stakes (Users Expect These)
 
-Features users expect from a personal assistant bot with calendar and task management.
+Features the owner assumes exist. Missing any makes the feature feel incomplete.
 
-| Feature | Why Expected | Complexity | Dependencies on Existing | Notes |
-|---------|--------------|------------|--------------------------|-------|
-| **Universal calendar detection (private + group)** | Bot already detects dates in travel groups; extending to all chats is the natural next step. "Dentist Tuesday 2pm" in a private chat should be caught | Medium | `dateExtractor.ts` (reuse Gemini extraction), `messageHandler.ts` (add private chat hook), `suggestionTracker.ts` (extend suggest-then-confirm) | Currently limited to groups with `travelBotActive`. Need to process private chats and non-travel groups. Requires a "personal calendar" concept |
-| **Suggest-then-confirm for all detected events** | Existing pattern users already know from group travel. Must carry over to private chats and non-travel groups | Low | `suggestionTracker.ts` (mostly reuse, adapt for private/self-chat confirmation) | Private chat confirmation goes to self-chat (USER_JID). Simpler than group flow -- no multi-user voting |
-| **Quick reminders via WhatsApp DM** | "Remind me to X in Y" is the most basic assistant function. Every personal assistant (Siri, Google, Alexa) does this | Medium | `node-cron` already used for weekly digests. `sender.ts` for message delivery | Core loop: detect intent -> suggest -> confirm -> store -> schedule -> deliver -> optional snooze |
-| **Time-specific reminders as calendar events** | When reminder has a specific date/time ("remind me March 20 at 9am"), it belongs on Google Calendar with a native notification | Low | `calendarService.ts` (createCalendarEvent already exists) | Routing decision: relative time ("in 30 min") -> WhatsApp DM reminder. Absolute datetime -> calendar event with reminder |
-| **Microsoft To Do task creation** | Detected tasks need a persistent home. To Do is the Microsoft personal task hub, syncs across devices | High | Entirely new integration. Requires OAuth2 device code flow + Graph API client + token management | `Tasks.ReadWrite` delegated permission only. Application permissions NOT supported. Must use delegated auth with refresh token |
-| **Task detection from chat messages** | Bot should notice "I need to buy groceries" or "don't forget to call the dentist" -- clear task intent without explicit dates | Medium | Pattern from `dateExtractor.ts` (Gemini structured output + Zod validation) | Separate Gemini prompt from date extraction. Tasks may have no date. Need intent pre-filter to avoid unnecessary Gemini calls |
-| **Linked resources on To Do tasks** | Tasks created from WhatsApp should reference back to the original conversation for context | Low | Part of Graph API task creation payload | `linkedResource`: applicationName ("WhatsApp Bot"), displayName (sender/group name), webUrl (optional) |
+| Feature | Why Expected | Complexity | Dependencies on Existing |
+|---------|--------------|------------|--------------------------|
+| One-time scheduled message | Core promise of the milestone | LOW | Reuses two-tier scheduler from `reminderScheduler.ts` |
+| Send to contact OR group | Both recipient types already tracked | LOW | `contacts.jid` and `groups.id` already in DB |
+| Text message content | Simplest content type | LOW | Plain string, sends via existing WhatsApp socket |
+| Dashboard list of scheduled messages | Cannot manage what you cannot see | MEDIUM | New page in dashboard; table with status, recipient, time, content preview |
+| Edit a pending scheduled message | Scheduling errors are common | LOW | Update body or time before it fires; cancel timer, register new one |
+| Cancel a pending scheduled message | Must exist — unsent messages must not fire silently | LOW | Set status = 'cancelled', clear in-memory timer |
+| Pre-send self-chat notification with cancel window | Established codebase pattern; owner expects it from reminders | MEDIUM | Self-chat send + reply matching via `notificationMsgId` pattern |
+| Status tracking (pending / sent / cancelled / failed) | Owner needs to audit what actually fired | LOW | Follows `reminders.status` pattern already in schema |
+| Timezone-correct scheduling | Owner is in IST; times must be unambiguous | LOW | Store all times as UTC Unix ms; display in IST in dashboard — existing project convention |
 
----
+### Notes on Table Stakes
 
-## Differentiators
-
-Features that make this bot stand out from basic reminder/calendar bots.
-
-| Feature | Value Proposition | Complexity | Dependencies on Existing | Notes |
-|---------|-------------------|------------|--------------------------|-------|
-| **Smart routing: reminder vs calendar vs task** | Bot decides WHERE to put each detected item based on context. Most bots make the user choose; this bot infers correctly | Medium | All three destination systems must work first | Decision tree: specific datetime -> calendar; relative time -> WhatsApp reminder; task intent without time -> To Do; task with deadline -> calendar + To Do |
-| **Context-aware task extraction** | "I'll handle the hotel booking" in a trip group = task with trip context attached. Bot understands speaker assignment | High | `tripContextManager.ts` (trip context), `dateExtractor.ts` extraction pattern | Differentiated from generic task detection. Leverages existing trip memory for richer task descriptions |
-| **Unified suggest-then-confirm across all types** | Same ✅/❌ UX regardless of whether it's a calendar event, reminder, or task. Consistent, learnable interaction | Medium | `suggestionTracker.ts` generalization from calendar-only to multi-type suggestions | Most bots use different flows per type. Unified flow reduces cognitive load |
-| **Private chat calendar detection** | Most WhatsApp calendar bots only work in groups. Detecting "let's meet Thursday at 3" in a private chat and offering to add it is uncommon | Medium | `messageHandler.ts` (currently private chats -> reply generation only) | Personal calendar (not group-specific). Auto-create or use a configured default calendar ID |
-| **Reminder snooze/reschedule** | When a reminder fires, user replies "snooze 1h" or "tomorrow" to reschedule | Low | `parseSnoozeCommand` already exists in `messageHandler.ts` | Reuse snooze parsing pattern. Track delivered reminder message ID for reply matching |
-| **Weekly digest includes To Do tasks** | Existing digest shows calendar events + chat-inferred tasks. Adding actual To Do items completes the picture | Low | `reminderScheduler.ts` (weekly digest generation) | Fetch via `GET /me/todo/lists/{id}/tasks` and include in digest prompt context |
-| **Broadened Gemini prompt for non-travel events** | Current prompt is travel-focused. A universal prompt catches "dentist appointment", "meeting at 10", "dinner Friday" -- everyday life events | Low | `dateExtractor.ts` prompt text | Prompt change only. Widen from travel context to general event detection |
+- **Pre-send cancel window** is critical for a bot that impersonates the owner. Sending wrong messages to real contacts without a safety net is a serious UX risk. Default window of 5 minutes is appropriate.
+- **Status tracking** should show `sentAt` timestamp so the owner can confirm delivery — not just "sent" as a boolean.
 
 ---
 
-## Anti-Features
+## Differentiators (Competitive Advantage)
 
-Features to explicitly NOT build in v1.5.
+Features that add real value beyond basic scheduling.
 
-| Anti-Feature | Why Avoid | What to Do Instead |
-|--------------|-----------|-------------------|
-| **Two-way To Do sync (To Do -> WhatsApp)** | Requires webhooks/polling, conflict resolution. Microsoft Graph does NOT support application-level subscriptions for To Do tasks (confirmed in official docs). Massive complexity for a personal bot | One-way push: WhatsApp -> To Do only. User manages/completes tasks in the To Do app |
-| **Natural language task management ("mark X done", "list my tasks")** | Requires task listing, fuzzy matching against To Do, state management. The To Do app already has a great UI for this | Bot only creates tasks. Management happens in Microsoft To Do directly |
-| **Shared/collaborative task lists** | Each user needs separate OAuth. This is a personal bot for one user | Use personal task list only. Group-detected tasks get suggested to the bot owner's To Do |
-| **Calendar event editing via WhatsApp** | Editing (change time, add attendees) is an edge-case rabbithole. Current flow supports create + delete | Keep create + delete. For edits: delete and re-create, or edit in Google Calendar directly |
-| **Recurring reminders ("remind me every Monday")** | Requires cron management, cancellation UX, storage of recurrence patterns. Weekly digest already handles recurring awareness | One-shot reminders only. Recurring needs are served by calendar recurring events or weekly digest |
-| **Multi-account Microsoft auth** | Supporting org accounts, multiple personal accounts, or family accounts multiplies OAuth complexity | Single personal Microsoft account. Device code flow. One refresh token stored in DB |
-| **Proactive unsolicited task suggestions** | Bot randomly saying "you should do X" based on conversation analysis feels creepy and spammy | Only detect tasks from clear intent statements ("I need to", "don't forget to", "we should book") |
-| **Reminder grouping / batching** | "Here are your 5 reminders for today" -- adds scheduling complexity and reduces urgency of individual reminders | Each reminder fires independently at its scheduled time |
+| Feature | Value Proposition | Complexity | Dependencies on Existing |
+|---------|-------------------|------------|--------------------------|
+| Voice message content type | Bot already does TTS; scheduling a voice message is novel | MEDIUM | `src/voice/` ElevenLabs pipeline; `contacts.voiceId` for per-contact voice override — resolve at fire time |
+| AI prompt content type | Owner writes a short prompt; actual message generated at send time — stays contextually fresh | MEDIUM | `src/ai/` Gemini pipeline; generate at fire time, not at schedule time |
+| Simple recurrence (daily / weekly / monthly) | Covers "good morning every Monday" without calendar complexity | MEDIUM | On fire: compute next occurrence, insert new row; no cron-string complexity needed |
+| Cancel window configurable per message | Some sends need 1-minute warning, others need 10 minutes | LOW | Store `cancelWindowMinutes` on the row; default = 5 |
+| Delivery status (`sentAt` timestamp) | Did it actually send? | LOW | Set after WhatsApp socket ACK; surface in dashboard list |
+
+---
+
+## Anti-Features (Commonly Requested, Often Problematic)
+
+| Anti-Feature | Why Requested | Why Problematic | Alternative |
+|--------------|---------------|-----------------|-------------|
+| Complex recurrence (RRULE, every 2nd Tuesday) | Feels powerful | iCal RRULE parsing is complex; month-end boundary cases (Feb 30), DST gaps, missed-send recovery — rabbit hole | Support daily/weekly/monthly only; insert-next-row on fire |
+| Bulk broadcast (send same message to many contacts) | Seems efficient | WhatsApp rate limits will ban the number; bulk send is a distinct problem domain | Keep it one recipient per scheduled message |
+| Message templates with variable substitution ({{name}}) | Personalization without AI | Adds a template engine; AI prompt mode already covers this better | Use AI prompt content type for dynamic content |
+| Persistent job queue (Bull/Agenda/BullMQ) | Seems more robust | Overkill — project already has a proven two-tier scheduler that survives restarts via hourly DB scan; introduces Redis/MongoDB dependency | Extend the existing `reminderScheduler.ts` pattern |
+| Delivery receipts / read confirmations | Transparency | WhatsApp Web.js does not reliably surface read receipts for all message types; creates false confidence | Show `sent` vs `failed` only; do not promise `read` status |
+| Auto-retry on failure | Prevents silent drops | Auto-retry risks double-sends if first send succeeded but ACK was lost | Mark as `failed`, surface in dashboard; let owner manually reschedule |
+| Recipient picker from "all contacts" | Seems obvious | Contacts table may have hundreds of entries; sending to wrong contact is dangerous | Require explicit JID selection from dashboard; show name + last active for confirmation |
 
 ---
 
 ## Feature Dependencies
 
 ```
-Phase 1: Universal Calendar Detection
-=========================================
-Broaden Gemini prompt (non-travel)
-    -> Universal date extraction (private + group chats)
-        -> Personal calendar concept (lazy creation)
-            -> Suggest-then-confirm in private chats (via self-chat)
+[scheduledMessages DB table]
+    └──required by──> [Dashboard list/create/edit/cancel]
+    └──required by──> [Scheduler registration on startup]
+    └──required by──> [Pre-send self-chat notification]
+    └──required by──> [Recurrence: next-occurrence insert]
 
-Phase 2: Quick Reminders
-=========================================
-Reminder intent detection (new Gemini prompt)
-    -> Reminders table + in-memory scheduling
-        -> Delivery via WhatsApp DM to USER_JID
-            -> Snooze on delivered reminders (reuse parseSnoozeCommand)
+[Existing two-tier scheduler (reminderScheduler.ts)]
+    └──extended by──> [scheduledMessages timer registration]
+                       (generalize scheduleReminder to accept generic callback)
 
-Phase 3: Microsoft To Do Sync
-=========================================
-Microsoft OAuth2 device code flow
-    -> Token storage + auto-refresh
-        -> To Do task creation via Graph API
-            -> Linked resources on created tasks
-            -> Weekly digest includes To Do tasks
+[Pre-send self-chat notification]
+    └──required by──> [Cancel window via owner reply]
 
-Cross-cutting: Smart Routing
-=========================================
-All three destinations operational (calendar, reminder, To Do)
-    -> Smart routing decision tree (per-extraction)
-        -> Unified suggest-then-confirm (type-aware suggestions)
+[Voice content type]
+    └──depends on──> [ElevenLabs TTS — exists in src/voice/]
+    └──depends on──> [contacts.voiceId — exists in schema]
+
+[AI prompt content type]
+    └──depends on──> [Gemini pipeline — exists in src/ai/]
+
+[Recurrence]
+    └──depends on──> [One-time send working end-to-end]
+    └──implemented as──> [Insert new scheduledMessages row on fire]
 ```
+
+### Dependency Notes
+
+- **DB schema is the root blocker.** Every other feature in this milestone needs it. Schema design gates all parallel work.
+- **Two-tier scheduler generalization** is low-effort. `scheduleReminder` already accepts an `onFire` callback. A thin wrapper that reads `scheduledMessages` instead of `reminders` is all that's needed. The hourly scan already handles missed fires after restart.
+- **Voice and AI content types are parallel additions.** Both are optional content types resolved at fire time. Neither blocks text scheduling.
+- **Recurrence has no engine** — it's just an insert. On successful fire, compute next occurrence based on `recurrenceType` + original `scheduledAt`, insert a new row with `status = 'pending'`.
+- **Cancel window depends on pre-send notification.** The self-chat message IS the cancel mechanism — owner replies to abort. This follows the existing `notificationMsgId` reply-matching pattern already in drafts, commitments, and reminders.
 
 ---
 
-## Implementation Details by Feature
+## MVP Definition
 
-### Universal Calendar Detection
+### Launch With (v1)
 
-**Current state:** `groupMessagePipeline.ts` processes group messages only when `travelBotActive` is set. Date extraction runs via debounced batches. Private chats go through `messageHandler.ts` which only does AI reply generation.
+Minimum viable for this milestone.
 
-**What changes:**
-1. **`messageHandler.ts`** -- after persisting incoming private message and before generating reply, run date extraction on the message body. If dates found, send suggestion to self-chat (USER_JID)
-2. **Personal calendar** -- not tied to any group. Store calendar ID in `settings` table (key: `personal_calendar_id`). Lazy-create on first use via `createGroupCalendar("My Events")`
-3. **Group expansion** -- date extraction should run for ALL groups, not just `travelBotActive`. Add a new `calendarDetectionActive` flag on groups table, defaulting to true
-4. **Gemini prompt** -- broaden from travel-specific to universal. Catch appointments, meetings, dinners, deadlines, social plans. Keep Hebrew + English support
+- [ ] `scheduledMessages` DB table with all required columns
+- [ ] One-time text message: contact or group recipient, specific datetime
+- [ ] Extend hourly scan to cover `scheduledMessages` (reuse `reminderScheduler.ts`)
+- [ ] Pre-send self-chat notification with 5-minute cancel window
+- [ ] Dashboard page: list, create, edit, cancel
+- [ ] Status lifecycle: `pending` → `sent` / `cancelled` / `failed`
 
-**Suggestion flow in private chats:**
-- Bot detects date in private message (from contact or fromMe)
-- Sends suggestion to USER_JID: "Add 'Dentist appointment' on Tuesday March 18 at 2:00 PM? Reply ✅ or ❌"
-- On ✅, creates event on personal calendar
-- On ❌, silently discards
+### Add After Validation (v1.x)
 
-### Quick Reminders
+- [ ] Voice message content type — existing TTS pipeline, medium effort
+- [ ] AI prompt content type — existing AI pipeline, medium effort
+- [ ] Simple recurrence (daily / weekly / monthly) — insert-next-row approach
+- [ ] Configurable cancel window per message
 
-**Expected UX:**
-1. User sends "remind me to call mom in 2 hours" (in any chat, or to self)
-2. Bot detects reminder intent via Gemini (new prompt, separate from date extraction)
-3. Bot suggests: "Set reminder: Call mom at 3:00 PM? ✅ / ❌"
-4. User confirms in self-chat
-5. Bot stores reminder in DB + starts in-memory timer
-6. At trigger time, bot sends to USER_JID: "Reminder: Call mom"
-7. User can reply "snooze 30m" to reschedule
+### Future Consideration (v2+)
 
-**New DB table:**
-```sql
-reminders (
-  id TEXT PRIMARY KEY,          -- UUID
-  title TEXT NOT NULL,
-  triggerAt INTEGER NOT NULL,   -- Unix ms
-  sourceJid TEXT,               -- chat where reminder was detected
-  sourceMessageId TEXT,
-  suggestionMsgId TEXT,         -- for confirm/reject tracking
-  deliveredMsgId TEXT,          -- for snooze tracking
-  status TEXT DEFAULT 'pending', -- pending | confirmed | delivered | snoozed | cancelled
-  createdAt INTEGER NOT NULL
-)
-```
-
-**Scheduling strategy:** Follow the `suggestionTracker.ts` pattern exactly:
-- `setTimeout` for reminders within 24 hours
-- On startup, `restoreReminders()` loads all confirmed-but-undelivered reminders from DB and re-schedules with adjusted remaining time
-- For reminders >24h out, just store in DB. A periodic scan (every hour via node-cron) picks up reminders coming due in the next hour and schedules them
-
-### Microsoft To Do Integration
-
-**Auth flow (device code -- verified via official docs):**
-1. Register app in Azure AD (Microsoft Entra) with `Tasks.ReadWrite` delegated permission
-2. User triggers setup via dashboard button or self-chat command ("setup todo")
-3. Bot calls `POST /devicecode` with `scope=Tasks.ReadWrite offline_access`
-4. Gets `user_code` + `verification_uri` + `device_code` + `interval`
-5. Sends to USER_JID: "Go to https://microsoft.com/devicelogin and enter code XXXXXXXX"
-6. Bot polls `POST /token` with `device_code` at specified interval until auth completes or expires
-7. Store `access_token`, `refresh_token`, `expires_at` in settings table
-8. Auto-refresh before expiry (personal account refresh tokens last ~90 days, must be used before expiry)
-
-**Task creation (verified via Microsoft docs):**
-```http
-POST /me/todo/lists/{listId}/tasks
-Content-Type: application/json
-
-{
-  "title": "Buy groceries",
-  "body": { "content": "Detected from WhatsApp chat with Mom", "contentType": "text" },
-  "importance": "normal",
-  "dueDateTime": { "dateTime": "2026-03-20T00:00:00", "timeZone": "Asia/Jerusalem" },
-  "linkedResources": [{
-    "applicationName": "WhatsApp Bot",
-    "displayName": "Chat with Mom",
-    "externalId": "msg-abc123"
-  }]
-}
-```
-
-**Permissions confirmed:** `Tasks.ReadWrite` (delegated only). Application permissions are NOT supported for To Do API. This means the bot must always act on behalf of the signed-in user via delegated auth.
-
-**Dedicated task list:** On first setup, create a dedicated list (`POST /me/todo/lists` with summary "WhatsApp Bot Tasks") and store the list ID. Avoids polluting the user's default task list.
-
-### Task Detection
-
-**New Gemini prompt (separate from date extraction):**
-
-```typescript
-const TaskExtractionSchema = z.object({
-  tasks: z.array(z.object({
-    title: z.string().describe('Concise task title, action-oriented'),
-    dueDate: z.string().optional().describe('ISO date if a deadline is mentioned'),
-    importance: z.enum(['low', 'normal', 'high']),
-    confidence: z.enum(['high', 'medium', 'low']),
-    context: z.string().optional().describe('Brief context from the message'),
-  })),
-});
-```
-
-**Pre-filter (avoid unnecessary Gemini calls):**
-Unlike date extraction (checks for digits), task detection uses intent keyword matching:
-- English: "need to", "have to", "should", "must", "don't forget", "remember to", "todo", "task"
-- Hebrew: equivalents -- "צריך ל", "חייב ל", "אל תשכח", "לא לשכוח"
-- Only messages matching at least one keyword pattern go to Gemini
-
-**Confidence filtering:** Same as date extraction -- only HIGH confidence tasks get suggested. "We should totally go skydiving someday" (LOW confidence) gets filtered out.
-
-### Smart Routing
-
-**Decision tree (post-extraction):**
-
-```
-1. Gemini returns date/event extraction result?
-   -> Has specific date+time? -> CALENDAR EVENT (existing flow)
-   -> Has relative time ("in 2 hours")? -> WHATSAPP REMINDER (new)
-
-2. Gemini returns task extraction result?
-   -> Has due date? -> TO DO TASK with dueDateTime
-   -> No due date? -> TO DO TASK without dueDateTime
-   -> Task is time-critical ("call dentist at 3pm")? -> CALENDAR EVENT + TO DO TASK
-
-3. Ambiguous (both date and task detected)?
-   -> Default to CALENDAR EVENT (calendar has native reminders)
-   -> Also create TO DO TASK if task confidence is HIGH
-```
-
-Routing logic is a pure function: given extraction results, returns `{ type: 'calendar' | 'reminder' | 'todo', data }`. No Gemini call needed -- routing is rule-based on the extraction output structure.
+- [ ] Recurrence end date / max occurrences — adds row-management complexity; only if owner uses recurrence heavily
+- [ ] Message preview in pre-send notification for AI content — useful but post-MVP
 
 ---
 
-## MVP Recommendation
+## Feature Prioritization Matrix
 
-**Phase 1 -- Universal Calendar Detection (foundation):**
-1. Broaden `dateExtractor.ts` Gemini prompt for non-travel events
-2. Add personal calendar concept (settings-based, lazy creation)
-3. Hook date extraction into `messageHandler.ts` for private chats
-4. Adapt `suggestionTracker.ts` for private chat suggestions (via self-chat)
-5. New `calendarDetectionActive` flag on groups table (default true)
+| Feature | User Value | Implementation Cost | Priority |
+|---------|------------|---------------------|----------|
+| DB schema + one-time text scheduling | HIGH | LOW | P1 |
+| Scheduler extension (hourly scan) | HIGH | LOW | P1 |
+| Pre-send self-chat + cancel window | HIGH | MEDIUM | P1 |
+| Dashboard list/create/edit/cancel | HIGH | MEDIUM | P1 |
+| Voice content type | MEDIUM | MEDIUM | P2 |
+| AI prompt content type | MEDIUM | MEDIUM | P2 |
+| Simple recurrence | MEDIUM | MEDIUM | P2 |
+| Configurable cancel window | LOW | LOW | P2 |
+| Delivery `sentAt` timestamp | LOW | LOW | P2 |
 
-**Phase 2 -- Quick Reminders:**
-1. Reminder intent detection (new Gemini prompt + pre-filter)
-2. `reminders` DB table + in-memory scheduling (follow suggestionTracker pattern)
-3. Delivery via WhatsApp DM to USER_JID
-4. Startup recovery (`restoreReminders()`)
-5. Snooze on delivered reminders (reuse `parseSnoozeCommand`)
+**Priority key:**
+- P1: Must have for launch
+- P2: Should have, add when possible
+- P3: Nice to have, future consideration
 
-**Phase 3 -- Microsoft To Do Sync:**
-1. Azure AD app registration + OAuth2 device code flow
-2. Token storage in settings table + auto-refresh logic
-3. Task detection (new Gemini prompt + Zod schema + pre-filter)
-4. Create tasks via Graph API with linkedResources
-5. Dedicated "WhatsApp Bot Tasks" list creation
-6. Smart routing between calendar / reminder / To Do
+---
 
-**Defer:**
-- **Weekly digest To Do integration** -- nice-to-have, add after core To Do works
-- **Context-aware task extraction from trip groups** -- requires deep trip context integration
-- **Reminder snooze** -- can ship basic reminders without snooze, add in follow-up
+## Edge Cases to Handle
+
+| Edge Case | Expected Behavior |
+|-----------|-------------------|
+| Bot restarts before a scheduled message fires | Hourly scan picks it up within 60 min; fires within 1 hour of scheduled time — same guarantee as reminders |
+| Owner cancels via self-chat reply after pre-send notification fires | Parse "cancel" reply matched by `notificationMsgId`; set status = 'cancelled'; clear timer |
+| Scheduled time is in the past at creation time | Reject at creation with validation error; dashboard shows "scheduled time must be in the future" |
+| Recurrence fires but next month occurrence falls on invalid day (e.g., Feb 30) | Round to last valid day of month (standard calendar behavior, e.g., Feb 28/29) |
+| AI generation fails at fire time | Mark `status = 'failed'`, log error, surface in dashboard; do not retry automatically (double-send risk) |
+| Recipient contact deleted from DB before fire time | Attempt send using stored JID anyway; log warning if contact lookup fails for display purposes |
+| Cancel window race: message fires before owner can read self-chat notification | Pre-send notification time + cancel window duration must elapse before fire; timer for send starts AFTER pre-send notification is delivered |
+| Two messages to same recipient scheduled at same time | No dedup needed — both fire; owner is responsible for scheduling |
+| Voice message with no voiceId on contact | Fall back to default ElevenLabs voice; same as ad-hoc voice replies |
+
+---
+
+## Existing System Leverage
+
+Key existing building blocks to reuse rather than rebuild:
+
+| Existing Asset | Location | How It's Used |
+|---------------|----------|----------------|
+| Two-tier scheduler | `src/reminders/reminderScheduler.ts` | Generalize `scheduleReminder` + `startHourlyScan` to handle `scheduledMessages` rows |
+| Self-chat notification + reply matching | Drafts, commitments, reminders pattern | `notificationMsgId` + owner reply parsing for cancel window |
+| ElevenLabs TTS | `src/voice/` | Call at fire time for voice content type |
+| Gemini AI pipeline | `src/ai/` | Call at fire time for AI prompt content type |
+| Drizzle ORM + SQLite | `src/db/schema.ts` | Add `scheduledMessages` table following established conventions |
+| Dashboard React app | `dashboard/src/` | New page following existing route/component patterns |
+| Contacts + Groups DB | `src/db/schema.ts` | Recipient JID resolution and display name lookup |
+| node-cron (already in package.json) | — | Existing hourly scan driver |
 
 ---
 
 ## Sources
 
-- [Microsoft To Do API Overview](https://learn.microsoft.com/en-us/graph/todo-concept-overview) -- HIGH confidence (official docs)
-- [Create todoTask - Microsoft Graph v1.0](https://learn.microsoft.com/en-us/graph/api/todotasklist-post-tasks?view=graph-rest-1.0) -- HIGH confidence (task fields, permissions, linkedResources, code examples)
-- [linkedResource resource type](https://learn.microsoft.com/en-us/graph/api/resources/linkedresource?view=graph-rest-1.0) -- HIGH confidence (official)
-- [OAuth 2.0 device authorization grant](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-device-code) -- HIGH confidence (official, confirms personal account support)
-- [Microsoft Graph permissions reference](https://learn.microsoft.com/en-us/graph/permissions-reference) -- HIGH confidence (Tasks.ReadWrite is delegated-only, no application permission for To Do)
-- [Use the Microsoft To Do API](https://learn.microsoft.com/en-us/graph/api/resources/todo-overview?view=graph-rest-1.0) -- HIGH confidence (API structure, delta query support)
-- Existing codebase analysis: `dateExtractor.ts`, `suggestionTracker.ts`, `messageHandler.ts`, `groupMessagePipeline.ts`, `calendarService.ts`, `reminderScheduler.ts`, `config.ts`, `db/schema.ts` -- HIGH confidence (read directly)
+- [WhatsApp Message Scheduler: How to Automate Messages Easily — PickyAssist](https://pickyassist.com/blog/whatsapp-message-scheduler/)
+- [Top 10 WhatsApp Scheduler Use Cases — AiSensy](https://m.aisensy.com/blog/whatsapp-scheduler-use-cases/)
+- [Communicate Across Time Zones on WhatsApp — A2C.chat](https://www.a2c.chat/en/communicate-across-time-zones-on-whatsapp-4-effective-scheduling-tools.html)
+- [Job Schedulers for Node: Bull or Agenda? — AppSignal](https://blog.appsignal.com/2023/09/06/job-schedulers-for-node-bull-or-agenda.html)
+- [Comparing the best Node.js schedulers — LogRocket](https://blog.logrocket.com/comparing-best-node-js-schedulers/)
+- [Scheduling messages — Slack API docs](https://api.slack.com/messaging/scheduling)
+- Existing codebase: `src/reminders/reminderScheduler.ts`, `src/db/schema.ts`, `package.json`
 
 ---
 
-*Feature research for: WhatsApp Bot v1.5 -- Personal Assistant Features*
-*Researched: 2026-03-16*
-*Codebase files read: src/groups/dateExtractor.ts, src/groups/suggestionTracker.ts, src/groups/groupMessagePipeline.ts, src/groups/reminderScheduler.ts, src/pipeline/messageHandler.ts, src/calendar/calendarService.ts, src/config.ts, src/db/schema.ts*
+*Feature research for: WhatsApp bot scheduled message delivery milestone*
+*Researched: 2026-03-30*

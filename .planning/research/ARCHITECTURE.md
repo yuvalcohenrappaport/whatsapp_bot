@@ -1,669 +1,424 @@
-# Architecture Patterns: Personal Assistant Features (v1.5)
+# Architecture Research
 
-**Domain:** Universal calendar detection, smart reminders, and Microsoft To Do sync for existing WhatsApp bot
-**Researched:** 2026-03-16
-**Confidence:** HIGH -- based on direct codebase inspection of all relevant source files
-
----
-
-## Current Architecture Summary
-
-The bot has two main pipelines:
-
-1. **Private pipeline** (`pipeline/messageHandler.ts`): Incoming message -> persist -> contact mode check (off/draft/auto) -> AI reply generation -> send or create draft
-2. **Group pipeline** (`groups/groupMessagePipeline.ts`): Registered via single-slot `setGroupMessageCallback` -> travel handler -> confirm/reject -> delete handler -> keyword handler -> trip context accumulation + date extraction (debounced 10s)
-
-Key patterns already in use:
-- Single-slot callback registration (`setGroupMessageCallback`) -- last write wins, no pub/sub
-- Debounced message batching (10s window) before AI date extraction
-- Suggest-then-confirm flow with reply-based confirm/reject and 30-minute TTL
-- Lazy resource creation (Google Calendars created on first event)
-- In-memory Map + DB persistence for pending suggestions (crash recovery via `restorePendingSuggestions`)
-- AI provider abstraction (`generateText` / `generateJson` via `ai/provider.ts`)
-- Global state singleton (`getState()` for sock access)
-- `node-cron` for scheduled jobs (weekly digest reminders)
-- Owner command parsing in `messageHandler.ts` (snooze, resume, draft approval via emojis)
-
-**Calendar detection currently lives only in the group pipeline.** `dateExtractor.ts` extracts dates, `groupMessagePipeline.ts` orchestrates the debounce/batch/create flow, `suggestionTracker.ts` handles suggest-then-confirm. None of this is accessible from the private message path.
+**Domain:** Scheduled message delivery — adding to existing WhatsApp bot
+**Researched:** 2026-03-30
+**Confidence:** HIGH (based on direct codebase analysis)
 
 ---
 
-## New Features Integration Map
+## Existing Architecture Summary
 
-### Feature 1: Universal Calendar Detection (Private Messages)
-
-**What it is:** Extend the existing date extraction capability from group-only to also work on private (1:1) messages. When a friend says "let's meet Thursday at 3pm", the bot detects the date and creates a Google Calendar event on the owner's personal calendar.
-
-#### New Components
-
-| Component | Location | Responsibility |
-|-----------|----------|---------------|
-| `CalendarDetectionService` | `src/calendar/calendarDetection.ts` | Source-agnostic orchestrator: wraps dateExtractor + calendar event creation logic |
-| Owner calendar config | `settings` table or `config.ts` | Owner's personal Google Calendar ID for private message events |
-
-#### Modified Components
-
-| Component | Change |
-|-----------|--------|
-| `pipeline/messageHandler.ts` | After persisting incoming private message, call `CalendarDetectionService.detectAndCreate()` before reply generation |
-| `groups/groupMessagePipeline.ts` | Refactor: delegate to `CalendarDetectionService` instead of inline date extraction + suggestion logic |
-| `config.ts` | Add optional `OWNER_CALENDAR_ID` env var |
-
-#### Data Flow: Private Messages
+The bot follows a clean layered structure:
 
 ```
-Incoming private message (not fromMe, not group)
-  |
-  v
-  Persist to messages table (existing)
-  |
-  v
-  CalendarDetectionService.detectPrivate(text, contactName)
-    |-> hasNumberPreFilter(text)  [existing, fast JS check]
-    |-> extractDates(text, contactName, null)  [existing Gemini call]
-    |-> If dates found with high confidence:
-    |     -> createCalendarEvent on OWNER_CALENDAR_ID
-    |     -> Send confirmation to owner's self-chat:
-    |        "Added 'Meeting with Dan' on Thursday at 3pm to your calendar"
-    |     -> Insert into calendarEvents table (sourceType: 'private')
-    |
-  Continue to reply generation (existing, unaffected)
+┌─────────────────────────────────────────────────────────────┐
+│                      Dashboard (React SPA)                   │
+│  shadcn/ui, React Query, Vite — served as static by Fastify │
+├─────────────────────────────────────────────────────────────┤
+│                    Fastify REST API                          │
+│  src/api/routes/*.ts — JWT-protected, one file per domain   │
+├───────────────────┬─────────────────────────────────────────┤
+│  Message Pipeline │  Scheduler Subsystems                   │
+│  src/pipeline/    │  src/reminders/  src/groups/            │
+│  messageHandler   │  Two-tier model  node-cron jobs         │
+├───────────────────┴─────────────────────────────────────────┤
+│                  Service Layer                               │
+│  src/ai/  src/voice/  src/calendar/  src/commitments/       │
+│  src/todo/  src/whatsapp/sender.ts                          │
+├─────────────────────────────────────────────────────────────┤
+│                  DB Layer (Drizzle + SQLite)                 │
+│  src/db/schema.ts + src/db/queries/*.ts                     │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-**Key design decision: No suggest-then-confirm for private messages.**
+### Existing Scheduler Patterns (Both Reusable)
 
-Rationale:
-1. Sending a suggestion message in a 1:1 chat would confuse the contact (they'd see the bot asking itself to confirm)
-2. Private messages are higher signal than group chat -- a friend explicitly mentioning a date/time is very likely intentional
-3. The owner can delete events via calendar app or via a future "undo" command
-4. This matches the user's mental model: "the bot watches my chats and adds things to my calendar"
+**Two-tier pattern** (`src/reminders/reminderScheduler.ts`):
+- `scheduleReminder(id, fireAt, onFire)` — uses `setTimeout` for ≤24h. Beyond 24h, skips (DB scan promotes later).
+- `startHourlyScan(onFire)` — `setInterval` every hour, queries DB for records entering the 24h window, promotes to `setTimeout`.
+- `scheduleAllUpcoming(onFire)` — called on startup to bootstrap near-term timers.
+- `activeTimers: Map<string, NodeJS.Timeout>` — tracks in-memory timers, supports cancel.
 
-The confirmation goes to the owner's self-chat (existing `config.USER_JID`), not to the contact.
+**Cron pattern** (`src/groups/reminderScheduler.ts`):
+- `node-cron.schedule(expression, handler, { timezone: 'Asia/Jerusalem' })` keyed in a `Map<id, ScheduledTask>`.
+- Used for group weekly digest — fixed day/time recurring jobs.
 
-#### Data Flow: Group Messages (Refactored)
+Both patterns are directly reusable. The scheduled messages feature combines them: cron for cron-expression recurring, two-tier for one-off and interval-based.
 
-```
-Group message batch (after existing 10s debounce)
-  |
-  v
-  CalendarDetectionService.detectGroup(messages, groupJid, calendarId, calendarLink)
-    |-> Same extraction logic as today
-    |-> Routes through existing suggestionTracker (suggest-then-confirm)
-    |-> No behavior change -- just moved to shared service
-```
+### Self-Chat Approval Pattern (`src/calendar/personalCalendarPipeline.ts`)
 
-The refactoring enables code reuse without changing any group pipeline behavior.
+Existing pattern for owner approval flows:
+1. Send notification to `config.USER_JID`, store returned message ID as `notificationMsgId` in DB.
+2. Inbound reply to self-chat is checked via `quotedMsgId` against `notificationMsgId`.
+3. Owner's "yes"/"no" reply triggers approval or rejection.
+
+This pattern is already in `messageHandler.ts` via `handleCalendarApproval`, `handleTaskCancel`, `tryHandleReminder`. Add scheduled message approval to the same chain.
+
+### Sender Layer (`src/whatsapp/sender.ts`)
+
+- `sendWithDelay(sock, jid, text)` — typing presence + 1.5–4s delay + send + DB persist.
+- `sendVoiceWithDelay(sock, jid, audioBuffer, replyText)` — recording presence + send PTT + DB persist (text, not audio).
+Both called as-is. No modification needed.
+
+### Voice Pipeline (`src/voice/tts.ts`)
+
+- `textToSpeech(text, logger): Promise<Buffer>` — ElevenLabs → MP3 → ffmpeg → OGG/Opus.
+Called as-is at fire time. No modification needed.
+
+### AI Layer (`src/ai/gemini.ts`)
+
+- `generateReply(contactJid)` — builds from last 50 messages + style context. **Not suitable for scheduled messages** (assumes an inbound message to reply to).
+- `buildSystemPrompt` (internal) — assembles per-contact style context (persona, styleSummary, examples).
+A new exported function `generateScheduledContent(contactJid, promptHint)` is needed. It reuses `buildSystemPrompt` but uses `promptHint` as the user message instead of real chat history.
 
 ---
 
-### Feature 2: Smart Reminders
+## New vs Modified — Explicit Component Map
 
-**What it is:** Proactive reminder system that goes beyond the existing weekly digest. Supports event-triggered reminders, commitment detection from conversations, and owner-initiated "remind me" commands.
+| Component | Status | What Changes |
+|-----------|--------|--------------|
+| `src/db/schema.ts` | **Modified** | Add `scheduledMessages` table |
+| `src/db/queries/scheduledMessages.ts` | **New** | Insert, getById, getByStatus, getInWindow, updateStatus, updateScheduledAt, updateNotificationMsgId |
+| `drizzle/XXXX_scheduled_messages.sql` | **New** | Migration for the table |
+| `src/scheduled/scheduledMessageScheduler.ts` | **New** | Timer logic: setTimeout/cron, activeTimers + activeCrons Maps, hourly scan, startup bootstrap |
+| `src/scheduled/scheduledMessageService.ts` | **New** | Fire logic, pre-send approval notification, recovery on restart, `initScheduledMessageSystem()` |
+| `src/ai/gemini.ts` | **Modified** | Add `generateScheduledContent(contactJid, promptHint)` export |
+| `src/api/routes/scheduledMessages.ts` | **New** | CRUD + manual fire endpoints |
+| `src/api/server.ts` | **Modified** | One `fastify.register(scheduledMessageRoutes)` line |
+| `src/index.ts` | **Modified** | Call `initScheduledMessageSystem()` in `onOpen` callback |
+| `src/pipeline/messageHandler.ts` | **Modified** | Add `tryHandleScheduledMessageApproval` to self-chat handler chain |
+| `dashboard/src/pages/ScheduledMessages.tsx` | **New** | Management list + create form |
+| `dashboard/src/hooks/useScheduledMessages.ts` | **New** | React Query hook |
+| `dashboard/src/api/scheduledMessages.ts` | **New** | API client functions |
+| `dashboard/src/router.tsx` | **Modified** | One route entry |
 
-#### New Components
-
-| Component | Location | Responsibility |
-|-----------|----------|---------------|
-| `ReminderService` | `src/reminders/reminderService.ts` | Manages reminder lifecycle: create, schedule, fire, cancel |
-| `CommitmentDetector` | `src/ai/commitmentDetector.ts` | AI-powered extraction of commitments/follow-ups from messages |
-| `reminders` table | DB migration | Persists reminder definitions |
-| Owner command: "remind me" | `pipeline/messageHandler.ts` | Parse "remind me to X at/in Y" in owner self-chat |
-
-#### Modified Components
-
-| Component | Change |
-|-----------|--------|
-| `CalendarDetectionService` | After creating calendar event, auto-create a default reminder (1h before) |
-| `pipeline/messageHandler.ts` | Add "remind me" command parsing in `handleOwnerCommand()` |
-| `groups/reminderScheduler.ts` | On startup, also call `ReminderService.loadAndSchedule()` |
-| `index.ts` | Initialize ReminderService during startup |
-
-#### Reminder Types
-
-| Type | Source | Example |
-|------|--------|---------|
-| **Event reminder** | Auto-created when calendar event is created | "Reminder: Flight to Barcelona in 1 hour" |
-| **Commitment follow-up** | AI detects commitment in chat | Friend: "I'll send you the doc tomorrow" -> remind owner in 24h to follow up |
-| **Custom reminder** | Owner sends "remind me to X at Y" to self-chat | "remind me to call dentist tomorrow at 9am" |
-| **Recurring** | Owner configures via dashboard or command | "remind me every Monday to check project status" |
-
-#### Scheduling Strategy
-
-```
-Reminder created
-  |
-  |-- triggerAt <= 24h from now?
-  |     YES -> setTimeout(fireReminder, remainingMs)
-  |     NO  -> Store in DB only. Loaded on next startup or hourly check.
-  |
-  |-- On startup:
-  |     Load all pending reminders from DB
-  |     For each where triggerAt <= 24h: schedule setTimeout
-  |     For each where triggerAt > 24h: skip (hourly loader picks them up)
-  |
-  |-- Hourly loader (node-cron, every hour):
-  |     SELECT * FROM reminders WHERE status='pending' AND triggerAt <= now + 24h
-  |     Schedule setTimeout for each
-```
-
-**Why setTimeout instead of node-cron for individual reminders:** node-cron is designed for recurring patterns ("every Monday at 9"), not one-shot events at arbitrary times. `setTimeout` is precise for one-shots. For reminders beyond 24h, we avoid holding thousands of timers by doing a periodic DB scan.
-
-**Why not just use node-cron for everything:** A cron expression can't represent "March 20 at 14:37" -- it would need per-minute resolution checks, which is wasteful.
-
-#### Data Flow: Event Reminder
-
-```
-CalendarDetectionService creates event (private or group)
-  |
-  v
-  ReminderService.createEventReminder({
-    type: 'event',
-    sourceId: calendarEventRecord.id,
-    targetJid: groupJid or USER_JID,
-    message: "Reminder: Flight to Barcelona in 1 hour",
-    triggerAt: eventDate - 3600000  (1 hour before)
-  })
-  |
-  v
-  Insert into reminders table
-  |
-  v
-  If triggerAt <= 24h: schedule setTimeout
-  |
-  v
-  At trigger time:
-    const { sock } = getState();
-    sock.sendMessage(targetJid, { text: message });
-    UPDATE reminders SET status = 'fired'
-```
-
-#### Data Flow: Commitment Detection
-
-```
-Private message persisted
-  |
-  v
-  CommitmentDetector.detect(text, contactName)
-    |-> Pre-filter: skip if < 15 chars, no action verbs, no temporal markers
-    |-> generateJson with CommitmentSchema
-    |-> Returns: { hasCommitment, description, suggestedFollowUpDate, who }
-    |
-    v
-  If hasCommitment:
-    ReminderService.createCommitmentReminder({
-      type: 'commitment',
-      targetJid: USER_JID,
-      message: "Follow up with Dan: they said they'd send the doc",
-      triggerAt: suggestedFollowUpDate
-    })
-    |
-    Optionally -> TodoService.createTask() (if connected)
-```
-
-#### Data Flow: Owner "Remind Me" Command
-
-```
-Owner sends to self-chat: "remind me to call dentist tomorrow at 9am"
-  |
-  v
-  handleOwnerCommand() in messageHandler.ts
-    |-> Detect "remind me" prefix
-    |-> generateJson with ReminderParseSchema:
-    |     { task: "call dentist", triggerAt: "2026-03-17T09:00:00", recurring: null }
-    |-> ReminderService.createCustomReminder({
-          type: 'custom',
-          targetJid: USER_JID,
-          message: "Reminder: call dentist",
-          triggerAt: parsed timestamp
-        })
-    |-> Reply: "Got it! I'll remind you to call dentist tomorrow at 9:00 AM"
-```
+Everything else — `sender.ts`, `tts.ts`, voice pipeline, DB client, reminder system — is unchanged.
 
 ---
 
-### Feature 3: Microsoft To Do Sync
+## Data Schema
 
-**What it is:** One-way push of detected tasks, commitments, and calendar events to Microsoft To Do lists.
-
-#### New Components
-
-| Component | Location | Responsibility |
-|-----------|----------|---------------|
-| `TodoService` | `src/todo/todoService.ts` | Microsoft Graph API client for To Do CRUD |
-| `TodoAuthManager` | `src/todo/authManager.ts` | MSAL token management with SQLite persistence |
-| `todoAuth` table | DB migration | Persists MSAL serialized token cache |
-| `todoMappings` table | DB migration | Maps local entity IDs to To Do task IDs |
-| API route: `/api/todo` | `src/api/routes/todo.ts` | OAuth initiation + callback + sync config |
-| Dashboard component | React SPA | Connect/disconnect Microsoft account, select default list |
-
-#### Modified Components
-
-| Component | Change |
-|-----------|--------|
-| `config.ts` | Add optional `MS_CLIENT_ID`, `MS_CLIENT_SECRET`, `MS_REDIRECT_URI` env vars |
-| `CalendarDetectionService` | After event creation, optionally push to To Do |
-| `CommitmentDetector` | Detected commitments also create To Do tasks |
-| `api/server.ts` | Register `/api/todo` routes |
-
-#### Authentication Architecture
-
-**Critical decision: OAuth2 Authorization Code Flow via the existing dashboard web UI.**
-
-The bot already has a Fastify web server serving the React dashboard. Use this for the OAuth flow:
-
-```
-1. Owner logs into dashboard (existing JWT auth)
-2. Clicks "Connect Microsoft To Do"
-3. Dashboard opens: /api/todo/auth/start
-   -> Fastify redirects to Microsoft login URL
-   -> Scopes: Tasks.ReadWrite, offline_access
-4. Microsoft redirects to: /api/todo/auth/callback
-   -> Fastify exchanges code for tokens via MSAL
-   -> MSAL token cache serialized to SQLite (todoAuth table)
-   -> Redirect back to dashboard with success message
-5. Subsequent API calls:
-   -> TodoAuthManager.getClient()
-   -> MSAL silently refreshes access token using cached refresh token
-   -> If refresh fails (token expired after 90 days of inactivity):
-      -> TodoService.isConnected() returns false
-      -> Dashboard shows "Reconnect Microsoft To Do" prompt
-```
-
-**Why NOT device code flow:** Device code flow requires the owner to manually open a URL and enter a code -- unnecessary complexity when we already have a web UI.
-
-**Why NOT app-only (daemon) auth:** The To Do API requires delegated permissions (acting on behalf of a user). App-only permissions cannot access a specific user's To Do lists without admin consent for an organization.
-
-**Required Azure AD app registration:**
-- Application type: Web
-- Redirect URI: `{API_HOST}:{API_PORT}/api/todo/auth/callback`
-- Supported account types: Personal Microsoft accounts (or personal + work/school)
-- API permissions: `Tasks.ReadWrite`, `offline_access` (delegated)
-
-**Token persistence:** MSAL Node's `CachePlugin` interface writes serialized token cache to SQLite. Tokens survive restarts. Refresh tokens last 90 days if used regularly; MSAL handles rotation automatically.
-
-#### Data Flow: Task Creation
-
-```
-Event or commitment detected
-  |
-  v
-  TodoService.isConnected()
-    |
-    |-- NO -> skip silently (graceful degradation)
-    |
-    |-- YES ->
-          TodoService.createTask({
-            title: "Flight to Barcelona",
-            body: "Detected from chat with Dan",
-            dueDate: "2026-03-20",
-            listId: owner's configured default list
-          })
-          |
-          v
-          Microsoft Graph API: POST /me/todo/lists/{listId}/tasks
-          |
-          v
-          Store mapping in todoMappings table:
-            { localType: 'calendar_event', localId, todoTaskId, todoListId }
-```
-
-#### Sync Strategy
-
-**v1: One-way push only.** The bot creates tasks in To Do when events/commitments are detected. No polling for changes in To Do.
-
-Rationale:
-- Polling adds complexity, API quota concerns, and stale-data bugs
-- The bot is the source of truth for detected items
-- If the owner completes a task in To Do, that's fine -- the bot doesn't need to know
-- Microsoft Graph webhook subscriptions require a publicly accessible HTTPS endpoint, which adds infrastructure requirements
-
-**Future v2 (defer):** Add webhook subscription via Microsoft Graph change notifications for bidirectional sync. Requires HTTPS endpoint exposed to the internet (currently the bot runs on a Tailscale network at `100.124.47.99`).
-
----
-
-## Component Boundaries (Complete New/Modified Map)
-
-```
-src/
-  calendar/
-    calendarService.ts         [UNCHANGED] -- Google Calendar API wrapper
-    calendarDetection.ts       [NEW] -- Source-agnostic detection orchestrator
-                                       Calls dateExtractor + calendarService + reminderService + todoService
-
-  reminders/
-    reminderService.ts         [NEW] -- Reminder lifecycle: create, schedule (setTimeout), fire, cancel
-                                       Hourly DB scan via node-cron for distant reminders
-                                       On-startup load of pending reminders
-
-  todo/
-    todoService.ts             [NEW] -- Microsoft Graph To Do CRUD via @microsoft/msgraph-sdk
-    authManager.ts             [NEW] -- MSAL ConfidentialClientApplication + SQLite CachePlugin
-
-  ai/
-    provider.ts                [UNCHANGED]
-    gemini.ts                  [UNCHANGED]
-    commitmentDetector.ts      [NEW] -- AI commitment extraction from messages
-                                       Pre-filter + Gemini generateJson with CommitmentSchema
-
-  pipeline/
-    messageHandler.ts          [MODIFIED] -- Add:
-                                 1. CalendarDetection hook after private message persistence
-                                 2. CommitmentDetector hook after private message persistence
-                                 3. "remind me" command in handleOwnerCommand()
-
-  groups/
-    groupMessagePipeline.ts    [MODIFIED] -- Refactor: delegate to CalendarDetectionService
-                                            (behavior unchanged, code moved)
-    dateExtractor.ts           [UNCHANGED] -- Reused by CalendarDetectionService
-    suggestionTracker.ts       [UNCHANGED] -- Still used for group suggest-then-confirm
-    reminderScheduler.ts       [MODIFIED] -- On startup, also call ReminderService.loadAndSchedule()
-
-  api/
-    routes/
-      todo.ts                  [NEW] -- /api/todo/auth/start, /api/todo/auth/callback,
-                                        GET /api/todo/status, POST /api/todo/config
-    server.ts                  [MODIFIED] -- Register todo routes
-
-  db/
-    schema.ts                  [MODIFIED] -- Add reminders, todoAuth, todoMappings tables
-    queries/
-      reminders.ts             [NEW] -- CRUD for reminders table
-      todoAuth.ts              [NEW] -- Get/set MSAL token cache
-      todoMappings.ts          [NEW] -- CRUD for local<->todo mappings
-```
-
----
-
-## Communication Between Components
-
-```
-messageHandler.ts (private message path)
-  |
-  |-> CalendarDetectionService.detectPrivate(text, contactName)
-  |     |-> dateExtractor.extractDates()
-  |     |-> calendarService.createCalendarEvent() on OWNER_CALENDAR_ID
-  |     |-> ReminderService.createEventReminder()  [auto 1h-before]
-  |     |-> TodoService.createTask()  [if connected, graceful skip if not]
-  |     |-> sock.sendMessage(USER_JID, confirmation)
-  |
-  |-> CommitmentDetector.detect(text, contactName)
-  |     |-> Pre-filter (length, verb check)
-  |     |-> generateJson with CommitmentSchema
-  |     |-> ReminderService.createCommitmentReminder()
-  |     |-> TodoService.createTask()  [if connected]
-  |
-  |-> generateReply()  [existing, unchanged]
-
-
-groupMessagePipeline.ts (group message path)
-  |
-  |-> [existing steps: travel, confirm/reject, delete, keywords]
-  |
-  |-> CalendarDetectionService.detectGroup(messages, groupJid, ...)
-  |     |-> dateExtractor.extractDates()  [existing]
-  |     |-> suggestionTracker.createSuggestion()  [existing suggest-then-confirm]
-  |     |-> On confirmation:
-  |           |-> calendarService.createCalendarEvent()  [existing]
-  |           |-> ReminderService.createEventReminder()  [NEW]
-  |           |-> TodoService.createTask()  [NEW, if connected]
-
-
-ReminderService (background)
-  |
-  |-> On startup: loadAndSchedule() -- DB scan, setTimeout for near-term
-  |-> Hourly cron: scan DB for reminders entering 24h window
-  |-> On fire: sock.sendMessage(targetJid, reminderText), mark 'fired'
-
-
-TodoAuthManager (background)
-  |
-  |-> On OAuth callback: persist MSAL cache to DB
-  |-> On API call: MSAL silently refreshes token from cache
-  |-> On refresh failure: mark disconnected, dashboard prompts reconnect
-```
-
----
-
-## Patterns to Follow
-
-### Pattern 1: Service Isolation with Graceful Degradation
-
-Each new service must work independently. If Microsoft auth fails, calendar detection and reminders still work. If reminder scheduling fails, calendar events still get created.
+Add to `src/db/schema.ts`:
 
 ```typescript
-// In CalendarDetectionService
-async function onEventCreated(event: CreatedEvent): Promise<void> {
-  // Core: always try reminders
-  await reminderService.createEventReminder(event).catch(err => {
-    logger.error({ err, eventId: event.id }, 'Failed to schedule reminder');
-  });
-
-  // Optional: push to To Do only if connected
-  if (todoService.isConnected()) {
-    await todoService.createTask({
-      title: event.title,
-      dueDate: event.date,
-      body: `Detected from ${event.source}`,
-    }).catch(err => {
-      logger.error({ err, eventId: event.id }, 'Failed to create To Do task');
-    });
-  }
-}
+export const scheduledMessages = sqliteTable(
+  'scheduled_messages',
+  {
+    id: text('id').primaryKey(),                    // UUID
+    label: text('label'),                           // Human-readable name for dashboard
+    recipientJid: text('recipient_jid').notNull(),  // Contact or group JID
+    messageType: text('message_type').notNull(),    // 'text' | 'voice' | 'ai'
+    content: text('content'),                       // Raw text (text/voice) or prompt hint (ai)
+    status: text('status').notNull().default('pending'), // 'pending' | 'sent' | 'failed' | 'cancelled'
+    scheduledAt: integer('scheduled_at').notNull(), // Unix ms — next fire time
+    cronExpression: text('cron_expression'),        // null for one-off; cron string for recurring
+    intervalMs: integer('interval_ms'),             // null unless interval-based recurring
+    requireApproval: integer('require_approval', { mode: 'boolean' }).notNull().default(false),
+    notifyBeforeMs: integer('notify_before_ms'),    // How early to send approval notification
+    notificationMsgId: text('notification_msg_id'), // Self-chat msg ID for approval matching
+    approvalStatus: text('approval_status'),        // null | 'pending' | 'approved' | 'rejected'
+    lastSentAt: integer('last_sent_at'),            // Unix ms of most recent send
+    failureReason: text('failure_reason'),
+    createdAt: integer('created_at').notNull().$defaultFn(() => Date.now()),
+    updatedAt: integer('updated_at').notNull().$defaultFn(() => Date.now()),
+  },
+  (table) => [
+    index('idx_sched_msgs_status_time').on(table.status, table.scheduledAt),
+    index('idx_sched_msgs_notification').on(table.notificationMsgId),
+  ],
+);
 ```
 
-**Why:** The owner should never lose calendar events because Microsoft auth expired. Each `.catch()` isolates failures.
+**Design decisions:**
+- `cronExpression` (node-cron string) and `intervalMs` (milliseconds) are mutually exclusive. `cronExpression` for human-specified day/time patterns; `intervalMs` for "every N days/hours". Null for one-off.
+- `requireApproval + notifyBeforeMs` mirrors `personalPendingEvents`. Fire the notification `notifyBeforeMs` before `scheduledAt`, wait for reply.
+- `messageType: 'ai'` stores a prompt hint in `content` (e.g., "morning check-in message", "remind about meeting"). The AI call gets style context from the contact record.
+- Status `'pending'` covers both waiting-to-fire and waiting-for-approval-before-fire. `approvalStatus` tracks the approval sub-state when `requireApproval` is true.
 
-### Pattern 2: Extend Existing Pipeline Callback (Never Register a Second)
+---
 
-The group pipeline uses `setGroupMessageCallback` which has a **single slot**. Calling it again from a new module silently overwrites the existing registration and breaks travel, keywords, dates, and everything else -- with no error thrown.
+## Data Flow
 
-All new group processing goes inside the existing callback in `groupMessagePipeline.ts`.
+### Create Flow (Dashboard → DB → Timer)
 
-### Pattern 3: Reuse Existing Owner Command Pattern
-
-The "remind me" command follows the same pattern as the existing snooze/resume/draft-approval commands in `handleOwnerCommand()`:
-
-```typescript
-// Existing pattern in messageHandler.ts
-async function handleOwnerCommand(sock: WASocket, text: string): Promise<boolean> {
-  // ... existing snooze, resume, draft approval ...
-
-  // NEW: "remind me" command
-  if (trimmed.startsWith('remind me')) {
-    // Parse and create reminder
-    return true;  // consumed
-  }
-
-  return false;  // not a command
-}
+```
+Dashboard form submit
+    ↓
+POST /api/scheduled-messages
+    ↓
+Insert row (status: 'pending', scheduledAt: given time)
+    ↓
+If cronExpression:
+    node-cron.schedule(cronExpression, onFire, { timezone: 'Asia/Jerusalem' })
+    store in activeCrons Map<id, ScheduledTask>
+Else if scheduledAt within 24h:
+    setTimeout → activeTimers Map<id, Timeout>
+Else:
+    hourly scan will promote when it enters the 24h window
+    ↓
+Return { id } to dashboard
 ```
 
-### Pattern 4: Confirmation to Self-Chat (Not to Contact)
+### Fire Flow (Timer → WhatsApp)
 
-For private message calendar detection, confirmations go to the owner's self-chat (`USER_JID`), not to the contact's chat. This avoids:
-1. Confusing the contact with bot messages
-2. Revealing that a bot is active
-3. Breaking the existing auto-reply flow
+```
+setTimeout or cron triggers onFire(id)
+    ↓
+scheduledMessageService.fireMessage(id)
+    ↓
+Read row — guard: status === 'pending', approvalStatus !== 'rejected'
+    ↓
+If requireApproval and notifyBeforeMs and not yet notified:
+    Send self-chat notification → save returned msgId as notificationMsgId
+    Set approvalStatus = 'pending'
+    Re-schedule fire for scheduledAt (actual send time)
+    Return — wait for owner reply
+    ↓ (owner approves via self-chat reply)
+    approvalStatus = 'approved' → continue to send
+    ↓
+Branch on messageType:
+
+  'text'  → sendWithDelay(sock, recipientJid, content)
+
+  'voice' → textToSpeech(content, logger)
+            → sendVoiceWithDelay(sock, recipientJid, buffer, content)
+
+  'ai'    → generateScheduledContent(recipientJid, content)
+            → based on contact.voiceReplyEnabled:
+                voice: textToSpeech → sendVoiceWithDelay
+                text:  sendWithDelay
+    ↓
+Update: status = 'sent', lastSentAt = now
+    ↓
+If cronExpression: cron handles next execution; status resets to 'pending'
+If intervalMs: update scheduledAt = now + intervalMs; re-enter two-tier scheduler
+If one-off: done, status stays 'sent'
+```
+
+### Approval Flow (Self-Chat Reply → Fire)
+
+```
+Owner replies "yes" or "no" in self-chat (quoting or following notification)
+    ↓
+messageHandler.ts self-chat handler chain:
+    tryHandleReminder → tryHandleScheduledMessageApproval (NEW) → ...
+    ↓
+tryHandleScheduledMessageApproval(sock, text, incomingMsg):
+    Look up row by notificationMsgId matching quotedMsgId (or last pending-approval row)
+    ↓
+'yes' → approvalStatus = 'approved'
+         → fireMessage(id) immediately (bypasses approval check)
+'no'  → approvalStatus = 'rejected'
+         → send confirmation: "Scheduled message cancelled"
+         If recurring: reset to 'pending' for next cycle
+         If one-off: status = 'cancelled'
+```
+
+---
+
+## Integration Points in Existing Code
+
+### 1. `src/index.ts` — `onOpen` callback
 
 ```typescript
-// CalendarDetectionService for private messages
-await sock.sendMessage(config.USER_JID, {
-  text: `Added "${event.title}" on ${formatDate(event.date)} to your calendar`,
+// alongside initReminderSystem():
+initScheduledMessageSystem().catch((err) => {
+  logger.error(err, 'Failed to initialize scheduled message system');
 });
 ```
+
+`initScheduledMessageSystem` does: recover missed one-offs, bootstrap near-term timers, start hourly scan, register cron jobs for recurring.
+
+### 2. `src/pipeline/messageHandler.ts` — self-chat handler chain
+
+The file has a chain where each `tryHandle*` returns `true` if it consumed the message. Add after `tryHandleReminder`:
+
+```typescript
+if (await tryHandleScheduledMessageApproval(sock, text, msg)) return;
+```
+
+The function signature mirrors existing handlers: `(sock, text, msg?) => Promise<boolean>`.
+
+### 3. `src/api/server.ts` — route registration
+
+```typescript
+import scheduledMessageRoutes from './routes/scheduledMessages.js';
+// ...
+await fastify.register(scheduledMessageRoutes);
+```
+
+### 4. `src/ai/gemini.ts` — new export for AI scheduled messages
+
+```typescript
+export async function generateScheduledContent(
+  contactJid: string,
+  promptHint: string,
+): Promise<string | null>
+```
+
+Reuses `buildSystemPrompt(contactJid, contact)` (already exists as internal function — no changes to its logic), then calls `generateText` with `promptHint` as user message. Does not read recent chat history (this is an outbound-only message, not a reply).
+
+---
+
+## Scheduler Architecture for Recurring Messages
+
+Three sub-cases based on recurrence type:
+
+**One-off** (no `cronExpression`, no `intervalMs`):
+- Two-tier scheduler (setTimeout ≤24h, hourly scan otherwise).
+- After sending: `status = 'sent'`. Done.
+
+**Cron-expression recurring** (`cronExpression` set, e.g., `0 9 * * 1`):
+- On create/init: `node-cron.schedule(expression, () => fireMessage(id))` → store in `activeCrons Map<id, ScheduledTask>`.
+- After each send: reset `status = 'pending'`, `lastSentAt = now`. Cron continues automatically.
+- On cancel: `activeCrons.get(id)?.stop()`, `activeCrons.delete(id)`, `status = 'cancelled'`.
+
+**Interval recurring** (`intervalMs` set, e.g., every 3 days = 259200000ms):
+- Two-tier scheduler (same as one-off for initial fire).
+- After each send: `scheduledAt = now + intervalMs`, `status = 'pending'`. Re-enter scheduler.
+
+**Recovery on restart** (same strategy as `recoverReminders`):
+- Missed by <1h: fire immediately.
+- Missed by >1h and one-off: mark `status = 'skipped'`, notify self-chat.
+- Missed by >1h and recurring: compute next fire time, update `scheduledAt`, reschedule.
+
+---
+
+## API Routes Shape
+
+```
+GET    /api/scheduled-messages           — list (filter by status)
+GET    /api/scheduled-messages/:id       — single record
+POST   /api/scheduled-messages           — create
+PATCH  /api/scheduled-messages/:id       — update (reschedule, edit content)
+DELETE /api/scheduled-messages/:id       — cancel + remove timer
+POST   /api/scheduled-messages/:id/fire  — manual fire (dashboard "send now" button)
+```
+
+The `PATCH` endpoint must cancel any existing timer before rescheduling.
+
+---
+
+## Dashboard Components
+
+Two views on the new `ScheduledMessages.tsx` page:
+
+1. **Management list** — shows all scheduled messages (pending, sent, failed, cancelled). Each card: label, recipient name, next fire time, recurrence indicator, cancel button. Filter tabs by status. Mirrors pattern of `Reminders.tsx`.
+
+2. **Create form** — fields: label, recipient (contact picker from existing `/api/contacts`), message type (text/voice/ai), content/prompt, scheduled date-time, recurrence (none / cron / interval), require approval toggle + notify-before-minutes. Submit → `POST /api/scheduled-messages`.
+
+Contact picker reuses the existing contacts API. No new API needed for that.
+
+---
+
+## Suggested Build Order
+
+Each step unblocks the next. No step requires work from a later step.
+
+**Step 1: DB schema + migration**
+- Add `scheduledMessages` table to `src/db/schema.ts`.
+- Run `npm run db:generate` to produce migration SQL, then `npm run db:migrate`.
+- Everything downstream depends on the table existing.
+
+**Step 2: DB queries** (`src/db/queries/scheduledMessages.ts`)
+- insert, getById, getByStatus, getPendingInWindow, updateStatus, updateScheduledAt, updateNotificationMsgId.
+- No other dependencies.
+
+**Step 3: Scheduler** (`src/scheduled/scheduledMessageScheduler.ts`)
+- Mirror `src/reminders/reminderScheduler.ts` structure.
+- Add `activeCrons Map<string, cron.ScheduledTask>` alongside `activeTimers`.
+- Exports: `scheduleMessage`, `cancelScheduledMessage`, `scheduleCronMessage`, `cancelCronMessage`, `startHourlyScan`, `scheduleAllUpcoming`.
+- Depends only on DB queries and `node-cron`.
+
+**Step 4: `generateScheduledContent` in `src/ai/gemini.ts`**
+- New export, reuses existing `buildSystemPrompt`.
+- Isolated change, no downstream impact yet.
+- Can be stubbed (returns `promptHint` as-is) and fleshed out separately.
+
+**Step 5: Service** (`src/scheduled/scheduledMessageService.ts`)
+- Fire logic, approval notification, recovery, init function.
+- Depends on: scheduler (step 3), `generateScheduledContent` (step 4), `textToSpeech`, `sendWithDelay`, `sendVoiceWithDelay`, `getState`, DB queries.
+- Write `tryHandleScheduledMessageApproval` here (exported for messageHandler).
+
+**Step 6: Wire into `index.ts` and `messageHandler.ts`**
+- `index.ts`: one `initScheduledMessageSystem()` call in `onOpen`.
+- `messageHandler.ts`: one `tryHandleScheduledMessageApproval` call in self-chat chain.
+- Two-line changes each. Verifiable immediately after step 5.
+
+**Step 7: API routes** (`src/api/routes/scheduledMessages.ts`) + register in `server.ts`
+- Exposes CRUD to dashboard.
+- Depends on service (step 5) and DB queries (step 2).
+
+**Step 8: Dashboard**
+- `dashboard/src/api/scheduledMessages.ts` — API client functions.
+- `dashboard/src/hooks/useScheduledMessages.ts` — React Query hook.
+- `dashboard/src/pages/ScheduledMessages.tsx` — Build list view first (simpler, no new API needed), then create form.
+- `dashboard/src/router.tsx` — add route.
+- Fully unblocked once step 7 is done.
 
 ---
 
 ## Anti-Patterns to Avoid
 
-### Anti-Pattern 1: Running AI on Every Private Message
+### Re-implementing the Two-Tier Scheduler from Scratch
 
-**What:** Calling CommitmentDetector on every incoming private message.
-**Why bad:** Most messages don't contain commitments. At 50+ private messages/day, Gemini costs add up.
-**Instead:** Pre-filter before AI:
-- Skip messages under 15 characters
-- Skip messages without temporal markers (numbers, "tomorrow", "next week", Hebrew time words)
-- Skip messages without action verbs ("send", "call", "bring", "check")
-Only messages passing all filters go to Gemini.
+**What:** Writing new timer logic independently of `reminderScheduler.ts`.
+**Why wrong:** The existing implementation is clean and well-tested. The only additions needed are cron support alongside it.
+**Instead:** Copy `reminderScheduler.ts` structure, add `activeCrons` Map alongside `activeTimers`.
 
-### Anti-Pattern 2: Polling Microsoft Graph API
+### Pre-generating Voice Audio at Create Time
 
-**What:** Cron job to poll To Do for task completion.
-**Why bad:** API rate limits, unnecessary complexity, stale data.
-**Instead:** One-way push in v1. Webhooks in v2 if bidirectional sync is needed.
+**What:** TTS when the scheduled message is created, storing the audio buffer in DB.
+**Why wrong:** Audio is large, ElevenLabs voice output is for real-time delivery. Stale audio sounds fine but wastes storage and complicates the schema.
+**Instead:** Call `textToSpeech` at fire time. Voice generation is fast (< 2s).
 
-### Anti-Pattern 3: Storing MSAL Tokens in .env or Config File
+### Calling `generateReply` for AI Scheduled Messages
 
-**What:** Writing refresh tokens to `.env` or a config JSON file.
-**Why bad:** Tokens rotate on refresh. File-based storage requires file writes on every token refresh, which is error-prone and not atomic.
-**Instead:** Use MSAL's `CachePlugin` interface with SQLite as the backing store. Atomic writes, survives restarts, works with the existing DB infrastructure.
+**What:** Reusing the existing `generateReply(contactJid)` for AI message type.
+**Why wrong:** `generateReply` reads the last 50 messages and generates a reply in reply-to context. A scheduled "good morning" message doesn't have an inbound message context.
+**Instead:** New `generateScheduledContent(contactJid, promptHint)` that reuses style building but treats `promptHint` as the user message.
 
-### Anti-Pattern 4: Separate Reminder Cron Per Event
+### Global "yes/no" Matching for Approval
 
-**What:** Creating a `node-cron` schedule for every individual reminder.
-**Why bad:** 100+ reminders = 100+ cron jobs, each checking every minute. Wasteful.
-**Instead:** Use `setTimeout` for near-term reminders (< 24h) and a single hourly cron job that scans the DB for reminders entering the 24h window.
+**What:** Matching any "yes" or "no" in self-chat as approval for the most recent pending scheduled message.
+**Why wrong:** Owner has other approval flows (calendar events, tasks). Collisions are likely.
+**Instead:** Match via `quotedMsgId` (reply-to) matching `notificationMsgId` in DB — same pattern as `personalPendingEvents`.
 
----
+### Modifying `reminderScheduler.ts` to Handle Scheduled Messages
 
-## DB Schema Additions
-
-```typescript
-// src/db/schema.ts -- NEW tables
-
-export const reminders = sqliteTable(
-  'reminders',
-  {
-    id: text('id').primaryKey(),                    // UUID
-    type: text('type').notNull(),                   // 'event' | 'commitment' | 'custom' | 'recurring'
-    sourceId: text('source_id'),                    // calendarEvent.id or null
-    targetJid: text('target_jid').notNull(),        // Where to send (group JID or USER_JID)
-    message: text('message').notNull(),             // Reminder text to send
-    triggerAt: integer('trigger_at').notNull(),      // Unix ms
-    status: text('status').notNull().default('pending'), // 'pending' | 'fired' | 'cancelled'
-    recurCron: text('recur_cron'),                  // Cron expression for recurring, null for one-shot
-    createdAt: integer('created_at').notNull().$defaultFn(() => Date.now()),
-  },
-  (table) => [
-    index('idx_reminders_trigger_status').on(table.triggerAt, table.status),
-    index('idx_reminders_source').on(table.sourceId),
-  ],
-);
-
-export const todoAuth = sqliteTable('todo_auth', {
-  id: text('id').primaryKey().default('default'),   // Single-row table
-  tokenCache: text('token_cache').notNull(),         // MSAL serialized cache (encrypted with JWT_SECRET)
-  defaultListId: text('default_list_id'),            // User's chosen default To Do list
-  updatedAt: integer('updated_at').notNull().$defaultFn(() => Date.now()),
-});
-
-export const todoMappings = sqliteTable(
-  'todo_mappings',
-  {
-    id: text('id').primaryKey(),                     // UUID
-    localType: text('local_type').notNull(),          // 'calendar_event' | 'commitment' | 'custom_reminder'
-    localId: text('local_id').notNull(),
-    todoTaskId: text('todo_task_id').notNull(),
-    todoListId: text('todo_list_id').notNull(),
-    createdAt: integer('created_at').notNull().$defaultFn(() => Date.now()),
-  },
-  (table) => [
-    index('idx_todo_mappings_local').on(table.localType, table.localId),
-  ],
-);
-```
-
----
-
-## Build Order (Dependency-Driven)
-
-```
-Phase 1: CalendarDetectionService (refactor only)
-  Goal: Extract reusable calendar detection logic from groupMessagePipeline.ts
-  Files: NEW src/calendar/calendarDetection.ts
-         MODIFY src/groups/groupMessagePipeline.ts (delegate, no behavior change)
-  Risk: LOW -- pure refactor, no new features
-  Test: All existing group calendar detection works identically
-
-Phase 2: Universal Calendar Detection (private messages)
-  Goal: Detect dates in private messages, create events on owner's personal calendar
-  Files: MODIFY src/pipeline/messageHandler.ts (add detection hook)
-         MODIFY src/config.ts (add OWNER_CALENDAR_ID)
-         NEW migration for any schema additions
-  Depends on: Phase 1
-  Risk: MEDIUM -- new Gemini calls on private messages, need pre-filter tuning
-  Test: Send date-containing private messages, verify calendar events created
-
-Phase 3: Smart Reminders (core)
-  Goal: Reminder table, service, scheduling, event-triggered reminders, "remind me" command
-  Files: NEW src/reminders/reminderService.ts
-         NEW src/db/queries/reminders.ts
-         MODIFY src/db/schema.ts (add reminders table)
-         MODIFY src/pipeline/messageHandler.ts (add "remind me" command)
-         MODIFY src/groups/reminderScheduler.ts (load reminders on startup)
-         MODIFY src/index.ts (init ReminderService)
-  Depends on: Phase 1 (hooks into event creation)
-  Risk: MEDIUM -- timer management, DB scan cron, need to handle restart recovery
-  Test: Create reminders via command, verify they fire at correct times
-
-Phase 4: Commitment Detection
-  Goal: AI-powered detection of commitments in private messages, auto-create follow-up reminders
-  Files: NEW src/ai/commitmentDetector.ts
-         MODIFY src/pipeline/messageHandler.ts (add commitment detection hook)
-  Depends on: Phase 3 (uses ReminderService to schedule follow-ups)
-  Risk: MEDIUM -- AI false positive tuning, pre-filter design
-  Test: Send commitment-containing messages, verify reminders created
-
-Phase 5: Microsoft To Do Sync
-  Goal: OAuth flow, task creation, mapping persistence
-  Files: NEW src/todo/todoService.ts
-         NEW src/todo/authManager.ts
-         NEW src/api/routes/todo.ts
-         NEW src/db/queries/todoAuth.ts
-         NEW src/db/queries/todoMappings.ts
-         MODIFY src/db/schema.ts (add todoAuth, todoMappings tables)
-         MODIFY src/config.ts (add MS_CLIENT_ID, MS_CLIENT_SECRET, MS_REDIRECT_URI)
-         MODIFY src/api/server.ts (register routes)
-         MODIFY src/calendar/calendarDetection.ts (add TodoService hook)
-         MODIFY src/ai/commitmentDetector.ts (add TodoService hook)
-  Depends on: Phase 1-4 (plugs into existing hooks)
-  Risk: HIGH -- OAuth flow, external API, token persistence, Azure AD app registration
-  Test: OAuth flow end-to-end, task appears in Microsoft To Do app
-```
-
-**Phase ordering rationale:**
-- Phase 1 first: pure refactor, zero risk, enables all subsequent phases
-- Phase 2 before 3: calendar detection is the primary value -- reminders enhance it but aren't blocked
-- Phase 3 before 4: commitment detection needs the reminder service to schedule follow-ups
-- Phase 5 last: most external dependencies (Azure AD, Microsoft Graph), purely additive, graceful degradation if not configured
+**What:** Adding scheduled message logic into the existing reminder scheduler.
+**Why wrong:** These are separate features with separate schemas and fire logic. Coupling them creates a maintenance burden.
+**Instead:** New `src/scheduled/` directory with its own scheduler and service, mirroring the `src/reminders/` pattern.
 
 ---
 
 ## Scalability Considerations
 
-| Concern | At Current Scale (personal) | Notes |
-|---------|----------------------------|-------|
-| Gemini calls for private date extraction | ~20-30/day (after pre-filter) | Well within paid tier limits |
-| Gemini calls for commitment detection | ~10-20/day (after pre-filter) | Pre-filter eliminates most messages |
-| Microsoft Graph API calls | ~5-15/day | Way under 10,000/10min limit |
-| In-memory setTimeout reminders | ~20-50 active | Negligible memory |
-| SQLite reminder rows | ~500-2000 over months | Trivial for SQLite |
-| MSAL token refreshes | ~1/hour when active | MSAL handles this automatically |
+| Concern | At current scale (personal bot) | Notes |
+|---------|----------------------------------|-------|
+| Active timers | Dozens — fine in-memory | Map<id, Timeout> |
+| Active cron jobs | ~10s of recurring messages — fine | Map<id, ScheduledTask> |
+| AI calls (type='ai') | Per scheduled fire, no batch | ElevenLabs and Gemini fine for personal use |
+| SQLite rows | Hundreds over months | Trivial |
+| PM2 cluster | Single process assumed | node-cron jobs would duplicate in cluster mode — keep single worker |
 
-All well within limits for a personal bot.
+No scalability concerns at personal bot scale.
 
 ---
 
 ## Sources
 
-- Microsoft Graph To Do API: https://learn.microsoft.com/en-us/graph/todo-concept-overview
-- Microsoft Graph To Do REST API: https://learn.microsoft.com/en-us/graph/api/resources/todo-overview?view=graph-rest-1.0
-- Microsoft Graph Auth (delegated): https://learn.microsoft.com/en-us/graph/auth-v2-user
-- MSAL Node.js: https://www.npmjs.com/package/@azure/msal-node
-- Microsoft Graph TypeScript SDK: https://github.com/microsoftgraph/msgraph-sdk-typescript
-- Microsoft Graph Auth Concepts: https://learn.microsoft.com/en-us/graph/auth/auth-concepts
-- Direct codebase inspection: `src/pipeline/messageHandler.ts`, `src/groups/groupMessagePipeline.ts`, `src/calendar/calendarService.ts`, `src/groups/dateExtractor.ts`, `src/groups/suggestionTracker.ts`, `src/groups/reminderScheduler.ts`, `src/db/schema.ts`, `src/config.ts`, `src/ai/provider.ts`, `src/ai/gemini.ts`, `src/index.ts`
+- Direct codebase analysis: `src/reminders/reminderScheduler.ts` (two-tier pattern to mirror)
+- Direct codebase analysis: `src/reminders/reminderService.ts` (orchestrator pattern, fire logic, recovery)
+- Direct codebase analysis: `src/groups/reminderScheduler.ts` (node-cron pattern for recurring)
+- Direct codebase analysis: `src/db/schema.ts` (table structure conventions, index patterns)
+- Direct codebase analysis: `src/pipeline/messageHandler.ts` (self-chat handler chain, tryHandle* pattern)
+- Direct codebase analysis: `src/calendar/personalCalendarPipeline.ts` (notificationMsgId approval pattern)
+- Direct codebase analysis: `src/voice/tts.ts`, `src/whatsapp/sender.ts` (reuse as-is)
+- Direct codebase analysis: `src/ai/gemini.ts` (buildSystemPrompt, generateReply — identifies gap)
+- Direct codebase analysis: `src/api/server.ts`, `src/api/routes/reminders.ts` (route registration pattern)
+- Direct codebase analysis: `src/index.ts` (startup init sequence)
 
 ---
-*Architecture research for: Personal Assistant Features (v1.5) -- WhatsApp bot*
-*Researched: 2026-03-16*
+*Architecture research for: WhatsApp bot — scheduled message delivery milestone*
+*Researched: 2026-03-30*
