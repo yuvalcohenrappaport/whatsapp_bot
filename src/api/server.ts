@@ -13,6 +13,7 @@ import personalCalendarRoutes from './routes/personalCalendar.js';
 import reminderRoutes from './routes/reminders.js';
 import integrationsRoutes from './routes/integrations.js';
 import taskRoutes from './routes/tasks.js';
+import scheduledMessageRoutes from './routes/scheduledMessages.js';
 
 export async function createServer() {
   const fastify = Fastify({
@@ -45,6 +46,7 @@ export async function createServer() {
   await fastify.register(reminderRoutes);
   await fastify.register(integrationsRoutes);
   await fastify.register(taskRoutes);
+  await fastify.register(scheduledMessageRoutes);
 
   // 5. Static file serving (last — catch-all for SPA)
   await fastify.register(staticPlugin);
