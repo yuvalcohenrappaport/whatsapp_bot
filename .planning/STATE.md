@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-03-30)
 
 ## Current Position
 
-Phase: 31 of 32 (Voice and AI Content Types)
-Plan: 1 of 1 in current phase
-Status: Complete
-Last activity: 2026-03-30 — Phase 31 Plan 01 complete (voice TTS + AI content resolution wired into fire pipeline)
+Phase: 32 of 32 (Recurring Schedules)
+Plan: 1 of 2 in current phase
+Status: In Progress
+Last activity: 2026-03-30 — Phase 32 Plan 01 complete (recurring schedule backend: cron utils, re-arm, API cadence)
 
-Progress: [███░░░░░░░] 30% (v1.6)
+Progress: [████░░░░░░] 40% (v1.6)
 
 ## Performance Metrics
 
@@ -60,6 +60,10 @@ Recent decisions affecting v1.6:
 - resolveContent called once before recipient loop — single TTS buffer shared across all recipients (31-01)
 - ttsQueue is module-level singleton ensuring global concurrency:1 enforcement (31-01)
 - sendVoiceWithTimeout persists sourceText (not audio) to messages DB for AI context continuity (31-01)
+- Custom getNextOccurrence using Intl.DateTimeFormat loop — avoids node-cron v4.2.1 weekday bug (32-01)
+- Re-fetch message before re-arm to handle cancel race (Pitfall 3) (32-01)
+- Recovery re-arms recurring messages to next occurrence instead of expiring (32-01)
+- updateScheduledMessageContentAndTime extended with optional cronExpression for PATCH edits (32-01)
 
 ### Pending Todos
 
@@ -73,5 +77,5 @@ Recent decisions affecting v1.6:
 ## Session Continuity
 
 Last session: 2026-03-30
-Stopped at: Completed 31-01-PLAN.md — voice TTS + AI content types wired into scheduled message fire pipeline
-Resume with: /gsd:execute-phase 32 (next phase)
+Stopped at: Completed 32-01-PLAN.md — recurring schedule backend (cron utils, re-arm, recovery, API cadence)
+Resume with: /gsd:execute-phase 32 plan 02 (dashboard frontend for recurring schedules)
