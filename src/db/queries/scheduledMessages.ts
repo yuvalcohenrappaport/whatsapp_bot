@@ -72,7 +72,22 @@ export function updateScheduledMessageStatus(id: string, status: string) {
 export function markScheduledMessageCancelled(id: string) {
   return db
     .update(scheduledMessages)
-    .set({ status: 'cancelled', cancelRequestedAt: Date.now(), updatedAt: Date.now() })
+    .set({ status: 'cancelled', cronExpression: null, cancelRequestedAt: Date.now(), updatedAt: Date.now() })
+    .where(eq(scheduledMessages.id, id))
+    .run();
+}
+
+export function updateScheduledMessageForRearm(id: string, scheduledAt: number) {
+  return db
+    .update(scheduledMessages)
+    .set({
+      status: 'pending',
+      scheduledAt,
+      notificationMsgId: null,
+      cancelRequestedAt: null,
+      failCount: 0,
+      updatedAt: Date.now(),
+    })
     .where(eq(scheduledMessages.id, id))
     .run();
 }

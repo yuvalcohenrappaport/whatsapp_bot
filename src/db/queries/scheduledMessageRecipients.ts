@@ -46,6 +46,14 @@ export function incrementRecipientFailCount(id: string) {
     .run();
 }
 
+export function resetRecipientsForMessage(scheduledMessageId: string) {
+  return db
+    .update(scheduledMessageRecipients)
+    .set({ status: 'pending', sentAt: null, failCount: 0, sentContent: null })
+    .where(eq(scheduledMessageRecipients.scheduledMessageId, scheduledMessageId))
+    .run();
+}
+
 export function deleteRecipientsForMessages(messageIds: string[]) {
   if (messageIds.length === 0) return;
   return db
