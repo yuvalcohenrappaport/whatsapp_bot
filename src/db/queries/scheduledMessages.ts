@@ -53,6 +53,14 @@ export function getNotifiedScheduledMessages() {
     .all();
 }
 
+export function getScheduledMessageByNotificationMsgId(notificationMsgId: string) {
+  return db
+    .select()
+    .from(scheduledMessages)
+    .where(eq(scheduledMessages.notificationMsgId, notificationMsgId))
+    .get();
+}
+
 export function updateScheduledMessageStatus(id: string, status: string) {
   return db
     .update(scheduledMessages)
