@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-03-30)
 
 **Core value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
-**Current focus:** Phase 28 — Core Scheduler and Text Delivery (v1.6 Scheduled Replies)
+**Current focus:** Phase 29 — Pre-Send Safety (v1.6 Scheduled Replies)
 
 ## Current Position
 
-Phase: 28 of 32 (Core Scheduler and Text Delivery)
-Plan: 2 of 4 in current phase
+Phase: 29 of 32 (Pre-Send Safety)
+Plan: 1 of 2 in current phase
 Status: In Progress
-Last activity: 2026-03-30 — Phase 28 Plan 02 complete (service layer: fire, retry, recovery, init wiring)
+Last activity: 2026-03-30 — Phase 29 Plan 01 complete (notification pipeline, cancel handler, retry notifications)
 
 Progress: [██░░░░░░░░] 20% (v1.6)
 
@@ -49,6 +49,10 @@ Recent decisions affecting v1.6:
 - fireMessage sets status to 'sending' before send — prevents periodic scan from re-firing same message (28-02)
 - recoverMessages uses non-blocking setTimeout stagger — recovery returns immediately after scheduling timeouts (28-02)
 - 'expired' status for recovery messages older than 1 hour — distinct from 'failed' which implies attempted sends (28-02)
+- fireMessage gates on status!=='notified' (not 'pending') — only messages that went through notification are fired (29-01)
+- Retry reverts to 'notified' (not 'pending') — message already went through notification pipeline (29-01)
+- Recovery for 'notified' messages: re-arm fire timer only, never re-send notification — Pitfall 4 (29-01)
+- sendPreSendNotification falls back to scheduling send directly if sock is unavailable — send guaranteed, cancel window is best-effort (29-01)
 
 ### Pending Todos
 
@@ -63,5 +67,5 @@ Recent decisions affecting v1.6:
 ## Session Continuity
 
 Last session: 2026-03-30
-Stopped at: Completed 28-02-PLAN.md
-Resume with: /gsd:execute-phase 28
+Stopped at: Completed 29-01-PLAN.md
+Resume with: /gsd:execute-phase 29

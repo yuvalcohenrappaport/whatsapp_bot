@@ -23,9 +23,9 @@ Requirements for Scheduled Replies milestone. Each maps to roadmap phases.
 
 ### Pre-Send Safety
 
-- [ ] **SAFE-01**: Bot sends a self-chat notification before each scheduled send with a cancel option
-- [ ] **SAFE-02**: Cancel state is persisted in the database (survives PM2 reloads)
-- [ ] **SAFE-03**: Failed sends are tracked with status and retried automatically
+- [x] **SAFE-01**: Bot sends a self-chat notification before each scheduled send with a cancel option
+- [x] **SAFE-02**: Cancel state is persisted in the database (survives PM2 reloads)
+- [x] **SAFE-03**: Failed sends are tracked with status and retried automatically
 
 ### Dashboard Management
 
@@ -96,9 +96,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TYPE-01 | Phase 28 | Pending |
 | TYPE-02 | Phase 31 | Pending |
 | TYPE-03 | Phase 31 | Pending |
-| SAFE-01 | Phase 29 | Pending |
-| SAFE-02 | Phase 29 | Pending |
-| SAFE-03 | Phase 29 | Pending |
+| SAFE-01 | Phase 29 | Complete |
+| SAFE-02 | Phase 29 | Complete |
+| SAFE-03 | Phase 29 | Complete |
 | DASH-01 | Phase 30 | Pending |
 | DASH-02 | Phase 30 | Pending |
 | DASH-03 | Phase 30 | Pending |

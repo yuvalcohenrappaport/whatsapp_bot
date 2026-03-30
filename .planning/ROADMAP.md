@@ -125,7 +125,7 @@ Plans:
   4. A send that fails is retried automatically up to 3 times via the hourly scan, with failure status visible in the DB
 **Plans:** 2 plans
 Plans:
-- [ ] 29-01-PLAN.md — Notification pipeline, cancel handler, retry notifications in service layer
+- [x] 29-01-PLAN.md — Notification pipeline, cancel handler, retry notifications in service layer
 - [ ] 29-02-PLAN.md — Wire cancel handler into messageHandler.ts
 
 ### Phase 30: Dashboard CRUD
@@ -195,7 +195,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32
 | 26. Microsoft To Do Sync | v1.5 | 3/3 | Complete | 2026-03-16 |
 | 27. DB Foundation | 2/2 | Complete    | 2026-03-30 | - |
 | 28. Core Scheduler and Text Delivery | 2/2 | Complete    | 2026-03-30 | - |
-| 29. Pre-Send Safety | v1.6 | 0/2 | Not started | - |
+| 29. Pre-Send Safety | v1.6 | 1/2 | In Progress | - |
 | 30. Dashboard CRUD | v1.6 | 0/? | Not started | - |
 | 31. Voice and AI Content Types | v1.6 | 0/? | Not started | - |
 | 32. Recurring Schedules | v1.6 | 0/? | Not started | - |
