@@ -155,10 +155,15 @@ export function updateScheduledMessageContentAndTime(
   id: string,
   content: string,
   scheduledAt: number,
+  cronExpression?: string | null,
 ) {
+  const setFields: Record<string, unknown> = { content, scheduledAt, updatedAt: Date.now() };
+  if (cronExpression !== undefined) {
+    setFields.cronExpression = cronExpression;
+  }
   return db
     .update(scheduledMessages)
-    .set({ content, scheduledAt, updatedAt: Date.now() })
+    .set(setFields)
     .where(eq(scheduledMessages.id, id))
     .run();
 }

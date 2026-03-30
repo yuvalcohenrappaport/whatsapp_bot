@@ -13,6 +13,7 @@ import {
 import { getContact } from '../../db/queries/contacts.js';
 import { scheduleNewMessage } from '../../scheduler/scheduledMessageService.js';
 import { cancelScheduledMessage } from '../../scheduler/scheduledMessageScheduler.js';
+import { buildCronExpression } from '../../scheduler/cronUtils.js';
 
 export default async function scheduledMessageRoutes(fastify: FastifyInstance) {
   // GET /api/scheduled-messages?tab=pending|sent|failed|all
@@ -44,19 +45,25 @@ export default async function scheduledMessageRoutes(fastify: FastifyInstance) {
       content: string;
       scheduledAt: number;
       type?: string;
+      cadence?: 'daily' | 'weekly' | 'monthly';
     };
   }>(
     '/api/scheduled-messages',
     { onRequest: [fastify.authenticate] },
     async (request, reply) => {
-      const { recipientJid, recipientType, content, scheduledAt, type } = request.body;
+      const { recipientJid, recipientType, content, scheduledAt, type, cadence } = request.body;
       const id = crypto.randomUUID();
+
+      const cronExpression = cadence
+        ? buildCronExpression(cadence, scheduledAt)
+        : null;
 
       insertScheduledMessage({
         id,
         type: type ?? 'text',
         content,
         scheduledAt,
+        cronExpression,
       });
 
       insertScheduledMessageRecipient({
@@ -72,16 +79,16 @@ export default async function scheduledMessageRoutes(fastify: FastifyInstance) {
     },
   );
 
-  // PATCH /api/scheduled-messages/:id — edit content and/or scheduledAt for pending messages
+  // PATCH /api/scheduled-messages/:id — edit content, scheduledAt, and/or cadence for pending messages
   fastify.patch<{
     Params: { id: string };
-    Body: { content?: string; scheduledAt?: number };
+    Body: { content?: string; scheduledAt?: number; cadence?: 'daily' | 'weekly' | 'monthly' | null };
   }>(
     '/api/scheduled-messages/:id',
     { onRequest: [fastify.authenticate] },
     async (request, reply) => {
       const { id } = request.params;
-      const { content, scheduledAt } = request.body;
+      const { content, scheduledAt, cadence } = request.body;
 
       const msg = getScheduledMessageById(id);
       if (!msg) {
@@ -95,7 +102,19 @@ export default async function scheduledMessageRoutes(fastify: FastifyInstance) {
       const newContent = content ?? msg.content;
       const newScheduledAt = scheduledAt ?? msg.scheduledAt;
 
-      updateScheduledMessageContentAndTime(id, newContent, newScheduledAt);
+      // Determine cronExpression update
+      let newCronExpression: string | null | undefined;
+      if (cadence !== undefined) {
+        if (cadence === null) {
+          // Explicitly clearing recurrence
+          newCronExpression = null;
+        } else {
+          newCronExpression = buildCronExpression(cadence, newScheduledAt);
+        }
+      }
+      // cadence not in body → leave cronExpression unchanged (undefined = no update)
+
+      updateScheduledMessageContentAndTime(id, newContent, newScheduledAt, newCronExpression);
 
       if (scheduledAt !== undefined && scheduledAt !== msg.scheduledAt) {
         cancelScheduledMessage(id);

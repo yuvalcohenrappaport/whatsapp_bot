@@ -17,12 +17,15 @@ import {
   markScheduledMessageCancelled,
   incrementScheduledMessageFailCount,
   getScheduledMessageByNotificationMsgId,
+  updateScheduledMessageForRearm,
 } from '../db/queries/scheduledMessages.js';
 import {
   getRecipientsForMessage,
   updateRecipientStatus,
   incrementRecipientFailCount,
+  resetRecipientsForMessage,
 } from '../db/queries/scheduledMessageRecipients.js';
+import { getNextOccurrence } from './cronUtils.js';
 import { getContact } from '../db/queries/contacts.js';
 import { textToSpeech } from '../voice/tts.js';
 import { buildSystemPrompt } from '../ai/gemini.js';
@@ -437,8 +440,25 @@ async function fireMessage(id: string): Promise<void> {
     if (anyFailed) {
       await handleFailedMessage(id, msg);
     } else {
-      updateScheduledMessageStatus(id, 'sent');
-      logger.info({ id }, 'Scheduled message fully sent');
+      // Re-fetch to check if cancel arrived during send (Pitfall 3)
+      const fresh = getScheduledMessageById(id);
+      if (fresh?.cronExpression && fresh.status !== 'cancelled') {
+        // Recurring — re-arm for next occurrence
+        const nextMs = getNextOccurrence(fresh.cronExpression, 'Asia/Jerusalem');
+        if (nextMs) {
+          resetRecipientsForMessage(id);
+          updateScheduledMessageForRearm(id, nextMs);
+          scheduleNewMessage(id, nextMs);
+          logger.info({ id, nextMs, cronExpression: fresh.cronExpression }, 'Recurring message re-armed');
+        } else {
+          updateScheduledMessageStatus(id, 'sent');
+          logger.warn({ id }, 'getNextOccurrence returned null — marking recurring as sent');
+        }
+      } else {
+        // One-off — mark as sent
+        updateScheduledMessageStatus(id, 'sent');
+        logger.info({ id }, 'Scheduled message fully sent');
+      }
     }
   } catch (err) {
     logger.error({ err, id }, 'Unexpected error in fireMessage — marking as failed');
@@ -474,21 +494,42 @@ async function recoverMessages(): Promise<void> {
     const toFire = overdue.filter((m) => m.scheduledAt >= cutoffMs);
     const toExpire = overdue.filter((m) => m.scheduledAt < cutoffMs);
 
-    // Expire old messages
+    // Handle old messages: re-arm recurring, expire one-off
+    const reallyExpired: typeof toExpire = [];
+    const reArmed: typeof toExpire = [];
     for (const m of toExpire) {
-      updateScheduledMessageStatus(m.id, 'expired');
+      if (m.cronExpression) {
+        // Recurring — re-arm to next occurrence instead of expiring
+        const nextMs = getNextOccurrence(m.cronExpression, 'Asia/Jerusalem');
+        if (nextMs) {
+          resetRecipientsForMessage(m.id);
+          updateScheduledMessageForRearm(m.id, nextMs);
+          scheduleNewMessage(m.id, nextMs);
+          reArmed.push(m);
+        } else {
+          updateScheduledMessageStatus(m.id, 'expired');
+          reallyExpired.push(m);
+        }
+      } else {
+        updateScheduledMessageStatus(m.id, 'expired');
+        reallyExpired.push(m);
+      }
     }
 
-    if (toExpire.length > 0) {
-      logger.info({ expiredCount: toExpire.length }, 'Expired old scheduled messages during recovery');
+    if (reArmed.length > 0) {
+      logger.info({ reArmedCount: reArmed.length }, 'Re-armed recurring messages during recovery (skipped missed occurrence)');
+    }
+
+    if (reallyExpired.length > 0) {
+      logger.info({ expiredCount: reallyExpired.length }, 'Expired old scheduled messages during recovery');
       const sock = getState().sock;
       if (sock) {
         try {
-          const lines = toExpire.map(
+          const lines = reallyExpired.map(
             (m) => `- ID: ${m.id} (was due ${new Date(m.scheduledAt).toISOString()})`,
           );
           await sock.sendMessage(config.USER_JID, {
-            text: `Expired ${toExpire.length} scheduled message(s) missed while offline (older than 1 hour):\n${lines.join('\n')}`,
+            text: `Expired ${reallyExpired.length} scheduled message(s) missed while offline (older than 1 hour):\n${lines.join('\n')}`,
           });
         } catch (notifyErr) {
           logger.warn({ notifyErr }, 'Failed to send expired messages notification');
