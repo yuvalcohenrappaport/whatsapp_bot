@@ -58,5 +58,5 @@ Recent decisions affecting v1.6:
 ## Session Continuity
 
 Last session: 2026-03-30
-Stopped at: Completed 27-02-PLAN.md (Query layer for scheduled messages)
-Resume with: /gsd:execute-phase 28
+Stopped at: Phase 28 context gathered
+Resume with: /gsd:plan-phase 28
