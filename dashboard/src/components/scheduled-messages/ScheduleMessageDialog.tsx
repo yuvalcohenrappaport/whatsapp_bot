@@ -77,9 +77,9 @@ export function ScheduleMessageDialog({
     const errs: Record<string, string> = {};
     if (!recipientJid) errs.recipientJid = 'Recipient is required';
     if (!content.trim()) errs.content = 'Message content is required';
-    const minTime = Date.now() + 15 * 60 * 1000;
+    const minTime = Date.now() + 60 * 1000; // 1 minute minimum
     if (!scheduledAt || new Date(scheduledAt).getTime() < minTime) {
-      errs.scheduledAt = 'Must be at least 15 minutes in the future';
+      errs.scheduledAt = 'Must be in the future';
     }
     return errs;
   }
@@ -121,7 +121,7 @@ export function ScheduleMessageDialog({
     ai:    { label: 'Prompt for AI', placeholder: 'e.g., wish them happy birthday in a casual way' },
   };
 
-  const minDatetime = toDatetimeLocal(Date.now() + 15 * 60 * 1000);
+  const minDatetime = toDatetimeLocal(Date.now() + 60 * 1000);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
