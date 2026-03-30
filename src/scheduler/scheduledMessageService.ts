@@ -420,10 +420,9 @@ async function recoverMessages(): Promise<void> {
 
   if (notifiedMessages.length > 0) {
     for (const m of notifiedMessages) {
-      // Notification already sent — just re-arm fire timer
-      // If scheduledAt is past, fire after cancel window (now + 10min) per CONTEXT.md
-      const fireAt = Math.max(m.scheduledAt, Date.now() + NOTIFICATION_LEAD_MS);
-      scheduleMessage(m.id, fireAt, fireCallback);
+      // Notification already sent — just re-arm fire timer at scheduledAt
+      // If scheduledAt is past, fire immediately (message is overdue)
+      scheduleMessage(m.id, m.scheduledAt, fireCallback);
     }
     logger.info(
       { count: notifiedMessages.length },
@@ -469,7 +468,8 @@ export async function handleScheduledMessageCancel(
  * avoiding the need to export dispatchCallback directly.
  */
 export function scheduleNewMessage(id: string, scheduledAt: number): void {
-  scheduleMessage(id, scheduledAt, dispatchCallback);
+  // Schedule notification 10 minutes before send time
+  scheduleMessage(id, scheduledAt - NOTIFICATION_LEAD_MS, dispatchCallback);
 }
 
 // ─── Initialization ───────────────────────────────────────────────────────────
@@ -490,9 +490,9 @@ export async function initScheduledMessageScheduler(): Promise<void> {
   await recoverMessages();
 
   // Periodic scan is safe to restart (clears previous interval internally)
-  startPeriodicScan(dispatchCallback);
+  startPeriodicScan(dispatchCallback, NOTIFICATION_LEAD_MS);
 
-  scheduleAllUpcoming(dispatchCallback);
+  scheduleAllUpcoming(dispatchCallback, NOTIFICATION_LEAD_MS);
 
   if (!initialized) {
     logger.info('Scheduled message scheduler initialized');

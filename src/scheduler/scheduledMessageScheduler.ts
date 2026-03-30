@@ -66,7 +66,7 @@ let periodicScanTimer: NodeJS.Timeout | null = null;
  * into the <24h window to setTimeout.
  * Safe to call multiple times (e.g., on reconnect) — clears any previous interval.
  */
-export function startPeriodicScan(onFire: (id: string) => void): void {
+export function startPeriodicScan(onFire: (id: string) => void, notificationLeadMs: number = 0): void {
   if (periodicScanTimer) {
     clearInterval(periodicScanTimer);
   }
@@ -74,10 +74,10 @@ export function startPeriodicScan(onFire: (id: string) => void): void {
   periodicScanTimer = setInterval(() => {
     try {
       const now = Date.now();
-      const upcoming = getScheduledMessagesInWindow(now, now + 24 * 60 * 60 * 1000);
+      const upcoming = getScheduledMessagesInWindow(now, now + 24 * 60 * 60 * 1000 + notificationLeadMs);
       for (const m of upcoming) {
         if (!activeTimers.has(m.id)) {
-          scheduleMessage(m.id, m.scheduledAt, onFire);
+          scheduleMessage(m.id, m.scheduledAt - notificationLeadMs, onFire);
         }
       }
       logger.debug(
@@ -95,12 +95,12 @@ export function startPeriodicScan(onFire: (id: string) => void): void {
 /**
  * Schedule all upcoming messages within 24h window (used on startup).
  */
-export function scheduleAllUpcoming(onFire: (id: string) => void): void {
+export function scheduleAllUpcoming(onFire: (id: string) => void, notificationLeadMs: number = 0): void {
   const now = Date.now();
-  const upcoming = getScheduledMessagesInWindow(now, now + 24 * 60 * 60 * 1000);
+  const upcoming = getScheduledMessagesInWindow(now, now + 24 * 60 * 60 * 1000 + notificationLeadMs);
   for (const m of upcoming) {
     if (!activeTimers.has(m.id)) {
-      scheduleMessage(m.id, m.scheduledAt, onFire);
+      scheduleMessage(m.id, m.scheduledAt - notificationLeadMs, onFire);
     }
   }
   logger.info(
