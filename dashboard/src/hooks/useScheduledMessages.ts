@@ -16,6 +16,7 @@ export interface ScheduledMessage {
   status: 'pending' | 'notified' | 'sending' | 'sent' | 'failed' | 'cancelled' | 'expired';
   failCount: number;
   createdAt: number;
+  cronExpression: string | null;
   updatedAt: number;
   recipients: ScheduledMessageRecipient[];
 }
@@ -29,12 +30,14 @@ interface CreateScheduledMessageInput {
   content: string;
   scheduledAt: number;
   type: string;
+  cadence?: 'daily' | 'weekly' | 'monthly';
 }
 
 interface EditScheduledMessageInput {
   id: string;
   content: string;
   scheduledAt: number;
+  cadence?: 'daily' | 'weekly' | 'monthly' | null;
 }
 
 export function useScheduledMessages(tab?: string) {
@@ -65,10 +68,10 @@ export function useCreateScheduledMessage() {
 export function useEditScheduledMessage() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, content, scheduledAt }: EditScheduledMessageInput) =>
+    mutationFn: ({ id, content, scheduledAt, cadence }: EditScheduledMessageInput) =>
       apiFetch(`/api/scheduled-messages/${id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ content, scheduledAt }),
+        body: JSON.stringify({ content, scheduledAt, cadence }),
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['scheduled-messages'] });

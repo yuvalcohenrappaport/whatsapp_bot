@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
+import cronstrue from 'cronstrue';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -30,6 +31,43 @@ function toDatetimeLocal(ms: number): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+function buildCronExpression(
+  cadence: 'daily' | 'weekly' | 'monthly',
+  scheduledAtMs: number,
+): string {
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Jerusalem',
+    hour: 'numeric',
+    minute: 'numeric',
+    day: 'numeric',
+    weekday: 'short',
+    hour12: false,
+  });
+  const parts = fmt.formatToParts(new Date(scheduledAtMs));
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+  const minute = Number(get('minute'));
+  const hour = Number(get('hour'));
+  const day = Number(get('day'));
+  const weekdayMap: Record<string, number> = {
+    Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
+  };
+  const weekday = weekdayMap[get('weekday')] ?? 0;
+
+  if (cadence === 'daily') return `${minute} ${hour} * * *`;
+  if (cadence === 'weekly') return `${minute} ${hour} * * ${weekday}`;
+  return `${minute} ${hour} ${day} * *`;
+}
+
+function getCadenceFromCron(
+  cronExpression: string | null,
+): 'daily' | 'weekly' | 'monthly' | null {
+  if (!cronExpression) return null;
+  const parts = cronExpression.trim().split(/\s+/);
+  if (parts[2] !== '*') return 'monthly';
+  if (parts[4] !== '*') return 'weekly';
+  return 'daily';
+}
+
 interface ScheduleMessageDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -52,6 +90,7 @@ export function ScheduleMessageDialog({
   const [content, setContent] = useState('');
   const [scheduledAt, setScheduledAt] = useState('');
   const [type, setType] = useState<'text' | 'voice' | 'ai'>('text');
+  const [cadence, setCadence] = useState<'none' | 'daily' | 'weekly' | 'monthly'>('none');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Reset form when dialog opens or initialData changes
@@ -64,11 +103,13 @@ export function ScheduleMessageDialog({
       setContent(initialData.content);
       setScheduledAt(toDatetimeLocal(initialData.scheduledAt));
       setType(initialData.type);
+      setCadence(getCadenceFromCron(initialData.cronExpression) ?? 'none');
     } else {
       setRecipientJid('');
       setContent('');
       setScheduledAt(toDatetimeLocal(Date.now() + 60 * 60 * 1000));
       setType('text');
+      setCadence('none');
     }
     setErrors({});
   }, [open, initialData]);
@@ -98,6 +139,7 @@ export function ScheduleMessageDialog({
           id: initialData!.id,
           content,
           scheduledAt: new Date(scheduledAt).getTime(),
+          cadence: cadence !== 'none' ? cadence : null,
         });
         toast.success('Message updated');
       } else {
@@ -106,6 +148,7 @@ export function ScheduleMessageDialog({
           content,
           scheduledAt: new Date(scheduledAt).getTime(),
           type,
+          cadence: cadence !== 'none' ? cadence : undefined,
         });
         toast.success('Message scheduled');
       }
@@ -187,6 +230,34 @@ export function ScheduleMessageDialog({
             {errors.scheduledAt && (
               <p className="text-sm text-destructive">{errors.scheduledAt}</p>
             )}
+          </div>
+
+          {/* Repeat */}
+          <div className="space-y-1.5">
+            <Label>Repeat</Label>
+            <Select value={cadence} onValueChange={(v) => setCadence(v as typeof cadence)}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None (one-off)</SelectItem>
+                <SelectItem value="daily">Daily</SelectItem>
+                <SelectItem value="weekly">Weekly</SelectItem>
+                <SelectItem value="monthly">Monthly</SelectItem>
+              </SelectContent>
+            </Select>
+            {cadence !== 'none' && scheduledAt && (() => {
+              try {
+                const cron = buildCronExpression(cadence, new Date(scheduledAt).getTime());
+                return (
+                  <p className="text-xs text-muted-foreground">
+                    {cronstrue.toString(cron, { use24HourTimeFormat: true })}
+                  </p>
+                );
+              } catch {
+                return null;
+              }
+            })()}
           </div>
 
           {/* Type selector */}

@@ -60,6 +60,14 @@ const TYPE_LABELS: Record<string, string> = {
   ai: 'AI',
 };
 
+function getCadenceFromCron(cronExpression: string | null): string | null {
+  if (!cronExpression) return null;
+  const parts = cronExpression.trim().split(/\s+/);
+  if (parts[2] !== '*') return 'Monthly';
+  if (parts[4] !== '*') return 'Weekly';
+  return 'Daily';
+}
+
 function formatScheduledAt(timestamp: number): string {
   const date = new Date(timestamp);
   return date.toLocaleString('en-IL', {
@@ -110,6 +118,7 @@ export function ScheduledMessageCard({
     'Unknown';
   const statusStyle = STATUS_STYLES[message.status] ?? STATUS_STYLES.pending;
   const typeLabel = TYPE_LABELS[message.type] ?? message.type;
+  const cadenceLabel = getCadenceFromCron(message.cronExpression);
   const relative = getRelativeTime(message.scheduledAt);
 
   const canEdit = message.status === 'pending';
@@ -152,7 +161,7 @@ export function ScheduledMessageCard({
 
           <div className="flex flex-col items-end gap-2 shrink-0">
             <div className="flex items-center gap-2">
-              <Badge variant="outline">{typeLabel}</Badge>
+              <Badge variant="outline">{typeLabel}{cadenceLabel ? ` \u00b7 ${cadenceLabel}` : ''}</Badge>
               <Badge variant="outline" className={statusStyle.className}>
                 {statusStyle.label}
               </Badge>
