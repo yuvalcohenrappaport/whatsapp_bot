@@ -461,6 +461,17 @@ export async function handleScheduledMessageCancel(
   return true;
 }
 
+// ─── Public timer API ─────────────────────────────────────────────────────────
+
+/**
+ * Public wrapper for arming an in-memory timer for a newly created or rescheduled
+ * scheduled message. Calls scheduleMessage with the module-internal dispatchCallback,
+ * avoiding the need to export dispatchCallback directly.
+ */
+export function scheduleNewMessage(id: string, scheduledAt: number): void {
+  scheduleMessage(id, scheduledAt, dispatchCallback);
+}
+
 // ─── Initialization ───────────────────────────────────────────────────────────
 
 /**

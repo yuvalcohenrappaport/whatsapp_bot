@@ -107,3 +107,43 @@ export function deleteOldScheduledMessages(cutoffMs: number) {
     )
     .returning({ id: scheduledMessages.id });
 }
+
+export function getAllScheduledMessages(tab?: string) {
+  const query = db.select().from(scheduledMessages);
+
+  if (tab === 'pending') {
+    return query
+      .where(inArray(scheduledMessages.status, ['pending', 'notified', 'sending']))
+      .orderBy(asc(scheduledMessages.scheduledAt))
+      .all();
+  }
+
+  if (tab === 'sent') {
+    return query
+      .where(eq(scheduledMessages.status, 'sent'))
+      .orderBy(asc(scheduledMessages.scheduledAt))
+      .all();
+  }
+
+  if (tab === 'failed') {
+    return query
+      .where(inArray(scheduledMessages.status, ['failed', 'cancelled', 'expired']))
+      .orderBy(asc(scheduledMessages.scheduledAt))
+      .all();
+  }
+
+  // 'all' or undefined — no status filter
+  return query.orderBy(asc(scheduledMessages.scheduledAt)).all();
+}
+
+export function updateScheduledMessageContentAndTime(
+  id: string,
+  content: string,
+  scheduledAt: number,
+) {
+  return db
+    .update(scheduledMessages)
+    .set({ content, scheduledAt, updatedAt: Date.now() })
+    .where(eq(scheduledMessages.id, id))
+    .run();
+}
