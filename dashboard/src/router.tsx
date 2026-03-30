@@ -9,6 +9,7 @@ import Groups from '@/pages/Groups';
 import Events from '@/pages/Events';
 import Reminders from '@/pages/Reminders';
 import Tasks from '@/pages/Tasks';
+import ScheduledMessages from '@/pages/ScheduledMessages';
 import Integrations from '@/pages/Integrations';
 
 export const router = createBrowserRouter([
@@ -26,6 +27,7 @@ export const router = createBrowserRouter([
           { path: 'events', element: <Events /> },
           { path: 'reminders', element: <Reminders /> },
           { path: 'tasks', element: <Tasks /> },
+          { path: 'scheduled-messages', element: <ScheduledMessages /> },
           { path: 'groups', element: <Groups /> },
           { path: 'integrations', element: <Integrations /> },
         ],
