@@ -79,7 +79,7 @@
 - [x] **Phase 27: DB Foundation** - scheduled_messages table, migration, and query layer (completed 2026-03-29)
 - [x] **Phase 28: Core Scheduler and Text Delivery** - two-tier scheduler, one-time text send end-to-end, reconnect dedup (completed 2026-03-30)
 - [x] **Phase 29: Pre-Send Safety** - self-chat cancel notification with DB-persisted cancel state and retry (completed 2026-03-30)
-- [ ] **Phase 30: Dashboard CRUD** - list, create, edit, and cancel scheduled messages from the dashboard
+- [x] **Phase 30: Dashboard CRUD** - list, create, edit, and cancel scheduled messages from the dashboard (completed 2026-03-30)
 - [ ] **Phase 31: Voice and AI Content Types** - ElevenLabs TTS and Gemini generation at fire time
 - [ ] **Phase 32: Recurring Schedules** - daily/weekly/monthly cron recurrence with DST-safe next-fire computation
 
@@ -138,7 +138,7 @@ Plans:
   3. The owner can edit the content or time of a pending scheduled message from the dashboard
   4. The owner can cancel a scheduled message from the dashboard and it no longer fires
   5. When a cron expression is entered, a human-readable description appears live next to the field (via cronstrue)
-**Plans:** 0/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [ ] 30-01-PLAN.md — Fastify REST API (list, create, edit, cancel) + new DB queries + service export
 - [ ] 30-02-PLAN.md — Dashboard frontend (list page, tab filters, create/edit dialog, cancel, navigation)
@@ -154,8 +154,8 @@ Plans:
   4. Concurrent TTS fires do not exceed ElevenLabs concurrency limits (p-queue with concurrency:1)
 **Plans:** 2 plans
 Plans:
-- [ ] 30-01-PLAN.md — Fastify REST API (list, create, edit, cancel) + new DB queries + service export
-- [ ] 30-02-PLAN.md — Dashboard frontend (list page, tab filters, create/edit dialog, cancel, navigation)
+- [ ] 31-01-PLAN.md — Backend: resolveContent helper, sendVoiceWithTimeout, type-aware fireMessage dispatch, AI notification label
+- [ ] 31-02-PLAN.md — Dashboard: enable Voice/AI radio buttons with dynamic textarea labels
 
 ### Phase 32: Recurring Schedules
 **Goal**: The owner can schedule daily, weekly, or monthly recurring messages that re-arm automatically after each fire and survive DST transitions without drifting
@@ -168,8 +168,8 @@ Plans:
   4. The owner can cancel a recurring series from the dashboard and all future fires stop
 **Plans:** 2 plans
 Plans:
-- [ ] 30-01-PLAN.md — Fastify REST API (list, create, edit, cancel) + new DB queries + service export
-- [ ] 30-02-PLAN.md — Dashboard frontend (list page, tab filters, create/edit dialog, cancel, navigation)
+- [ ] 32-01-PLAN.md — [To be planned]
+- [ ] 32-02-PLAN.md — [To be planned]
 
 ## Progress
 
@@ -205,6 +205,6 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32
 | 27. DB Foundation | 2/2 | Complete    | 2026-03-30 | - |
 | 28. Core Scheduler and Text Delivery | 2/2 | Complete    | 2026-03-30 | - |
 | 29. Pre-Send Safety | v1.6 | Complete    | 2026-03-30 | 2026-03-30 |
-| 30. Dashboard CRUD | 1/2 | In Progress | 2026-03-30 | - |
-| 31. Voice and AI Content Types | v1.6 | 0/? | Not started | - |
+| 30. Dashboard CRUD | 1/2 | Complete    | 2026-03-30 | - |
+| 31. Voice and AI Content Types | v1.6 | 0/2 | Not started | - |
 | 32. Recurring Schedules | v1.6 | 0/? | Not started | - |
