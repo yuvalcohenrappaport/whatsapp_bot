@@ -13,7 +13,7 @@ Requirements for Scheduled Replies milestone. Each maps to roadmap phases.
 - [x] **SCHED-02**: Scheduled messages persist in the database and survive bot restarts
 - [x] **SCHED-03**: Scheduler uses two-tier pattern (setTimeout for near-term, periodic DB scan for distant)
 - [ ] **SCHED-04**: Reconnect dedup guard prevents double-fire after Baileys reconnection
-- [ ] **SCHED-05**: User can set recurring schedules (daily, weekly, monthly) stored as cron expressions for DST safety
+- [x] **SCHED-05**: User can set recurring schedules (daily, weekly, monthly) stored as cron expressions for DST safety
 
 ### Message Types
 
@@ -33,7 +33,7 @@ Requirements for Scheduled Replies milestone. Each maps to roadmap phases.
 - [ ] **DASH-02**: Dashboard form to create scheduled messages with recipient picker, content input, date/time picker, and recurrence options
 - [x] **DASH-03**: User can edit a pending scheduled message from the dashboard
 - [x] **DASH-04**: User can cancel/delete a scheduled message from the dashboard
-- [ ] **DASH-05**: Live cron expression preview via cronstrue shows human-readable schedule description
+- [x] **DASH-05**: Live cron expression preview via cronstrue shows human-readable schedule description
 
 ## Previous Milestones
 
@@ -92,7 +92,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SCHED-02 | Phase 27 | Complete |
 | SCHED-03 | Phase 28 | Complete |
 | SCHED-04 | Phase 28 | Pending |
-| SCHED-05 | Phase 32 | Pending |
+| SCHED-05 | Phase 32 | Complete |
 | TYPE-01 | Phase 28 | Pending |
 | TYPE-02 | Phase 31 | Pending |
 | TYPE-03 | Phase 31 | Pending |
@@ -103,7 +103,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DASH-02 | Phase 30 | Pending |
 | DASH-03 | Phase 30 | Complete |
 | DASH-04 | Phase 30 | Complete |
-| DASH-05 | Phase 30 | Pending |
+| DASH-05 | Phase 30 | Complete |
 
 **Coverage:**
 - v1.6 requirements: 16 total

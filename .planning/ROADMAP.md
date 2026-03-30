@@ -81,7 +81,7 @@
 - [x] **Phase 29: Pre-Send Safety** - self-chat cancel notification with DB-persisted cancel state and retry (completed 2026-03-30)
 - [x] **Phase 30: Dashboard CRUD** - list, create, edit, and cancel scheduled messages from the dashboard (completed 2026-03-30)
 - [x] **Phase 31: Voice and AI Content Types** - ElevenLabs TTS and Gemini generation at fire time (completed 2026-03-30)
-- [ ] **Phase 32: Recurring Schedules** - daily/weekly/monthly cron recurrence with DST-safe next-fire computation
+- [x] **Phase 32: Recurring Schedules** - daily/weekly/monthly cron recurrence with DST-safe next-fire computation (completed 2026-03-30)
 
 ## Phase Details
 
@@ -168,8 +168,8 @@ Plans:
   4. The owner can cancel a recurring series from the dashboard and all future fires stop
 **Plans:** 2 plans
 Plans:
-- [ ] 32-01-PLAN.md — Backend: cronUtils, re-arm logic, recovery fix, API cadence support
-- [ ] 32-02-PLAN.md — Dashboard: Repeat dropdown, cronstrue preview, cadence badge
+- [x] 32-01-PLAN.md — Backend: cronUtils, re-arm logic, recovery fix, API cadence support
+- [x] 32-02-PLAN.md — Dashboard: Repeat dropdown, cronstrue preview, cadence badge
 
 ## Progress
 
@@ -207,4 +207,4 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32
 | 29. Pre-Send Safety | v1.6 | Complete    | 2026-03-30 | 2026-03-30 |
 | 30. Dashboard CRUD | 1/2 | Complete    | 2026-03-30 | - |
 | 31. Voice and AI Content Types | 1/2 | Complete    | 2026-03-30 | - |
-| 32. Recurring Schedules | v1.6 | 0/? | Not started | - |
+| 32. Recurring Schedules | v1.6 | 2/2 | Complete    | 2026-03-30 | - |

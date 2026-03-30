@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-30)
 ## Current Position
 
 Phase: 32 of 32 (Recurring Schedules)
-Plan: 1 of 2 in current phase
-Status: In Progress
-Last activity: 2026-03-30 — Phase 32 Plan 01 complete (recurring schedule backend: cron utils, re-arm, API cadence)
+Plan: 2 of 2 in current phase
+Status: Phase 32 Complete
+Last activity: 2026-03-30 — Phase 32 Plan 02 complete (recurring schedule dashboard UI: repeat dropdown, cronstrue preview, cadence badge)
 
-Progress: [████░░░░░░] 40% (v1.6)
+Progress: [██████████] 100% (v1.6)
 
 ## Performance Metrics
 
@@ -64,6 +64,8 @@ Recent decisions affecting v1.6:
 - Re-fetch message before re-arm to handle cancel race (Pitfall 3) (32-01)
 - Recovery re-arms recurring messages to next occurrence instead of expiring (32-01)
 - updateScheduledMessageContentAndTime extended with optional cronExpression for PATCH edits (32-01)
+- Client-side buildCronExpression mirrors backend for cronstrue preview (32-02)
+- getCadenceFromCron inline in both dialog and card -- 2 usages don't warrant shared module (32-02)
 
 ### Pending Todos
 
@@ -77,5 +79,5 @@ Recent decisions affecting v1.6:
 ## Session Continuity
 
 Last session: 2026-03-30
-Stopped at: Completed 32-01-PLAN.md — recurring schedule backend (cron utils, re-arm, recovery, API cadence)
-Resume with: /gsd:execute-phase 32 plan 02 (dashboard frontend for recurring schedules)
+Stopped at: Completed 32-02-PLAN.md — recurring schedule dashboard UI (repeat dropdown, cronstrue preview, cadence badge)
+Resume with: v1.6 complete — all phases (27-32) shipped. Human verify checkpoint pending for 32-02.
