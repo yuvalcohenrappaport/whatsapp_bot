@@ -77,7 +77,7 @@
 **Milestone Goal:** Let the owner schedule messages to any contact or group from the dashboard, with support for text, voice, and AI-generated content on one-off or recurring schedules.
 
 - [x] **Phase 27: DB Foundation** - scheduled_messages table, migration, and query layer (completed 2026-03-29)
-- [ ] **Phase 28: Core Scheduler and Text Delivery** - two-tier scheduler, one-time text send end-to-end, reconnect dedup
+- [x] **Phase 28: Core Scheduler and Text Delivery** - two-tier scheduler, one-time text send end-to-end, reconnect dedup (completed 2026-03-30)
 - [ ] **Phase 29: Pre-Send Safety** - self-chat cancel notification with DB-persisted cancel state and retry
 - [ ] **Phase 30: Dashboard CRUD** - list, create, edit, and cancel scheduled messages from the dashboard
 - [ ] **Phase 31: Voice and AI Content Types** - ElevenLabs TTS and Gemini generation at fire time
@@ -109,7 +109,7 @@ Plans:
   3. When Baileys reconnects, no scheduled message fires twice (dedup guard via activeTimers Map)
   4. A hung sendMessage call does not block the scheduler indefinitely (Promise.race timeout guard)
   5. A failed send writes status='failed' to the DB rather than silently dropping the message
-**Plans:** 2/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [x] 28-01-PLAN.md — Window query + timer engine (scheduledMessageScheduler.ts)
 - [x] 28-02-PLAN.md — Service layer, retry/recovery, and index.ts wiring
@@ -191,7 +191,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32
 | 25. Commitment Detection | v1.5 | 2/2 | Complete | 2026-03-16 |
 | 26. Microsoft To Do Sync | v1.5 | 3/3 | Complete | 2026-03-16 |
 | 27. DB Foundation | 2/2 | Complete    | 2026-03-30 | - |
-| 28. Core Scheduler and Text Delivery | 2/2 | Complete | 2026-03-30 | - |
+| 28. Core Scheduler and Text Delivery | 2/2 | Complete    | 2026-03-30 | - |
 | 29. Pre-Send Safety | v1.6 | 0/? | Not started | - |
 | 30. Dashboard CRUD | v1.6 | 0/? | Not started | - |
 | 31. Voice and AI Content Types | v1.6 | 0/? | Not started | - |
