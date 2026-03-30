@@ -123,7 +123,7 @@ Plans:
   2. Replying to the notification with the cancel command stops the send
   3. A PM2 reload between the notification and the send does not lose the cancel state (cancel is DB-persisted, not in-memory)
   4. A send that fails is retried automatically up to 3 times via the hourly scan, with failure status visible in the DB
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 Plans:
 - [x] 29-01-PLAN.md — Notification pipeline, cancel handler, retry notifications in service layer
 - [x] 29-02-PLAN.md — Wire cancel handler into messageHandler.ts
@@ -138,7 +138,10 @@ Plans:
   3. The owner can edit the content or time of a pending scheduled message from the dashboard
   4. The owner can cancel a scheduled message from the dashboard and it no longer fires
   5. When a cron expression is entered, a human-readable description appears live next to the field (via cronstrue)
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 30-01-PLAN.md — Fastify REST API (list, create, edit, cancel) + new DB queries + service export
+- [ ] 30-02-PLAN.md — Dashboard frontend (list page, tab filters, create/edit dialog, cancel, navigation)
 
 ### Phase 31: Voice and AI Content Types
 **Goal**: The owner can schedule voice notes and AI-generated messages, with content resolved at fire time rather than schedule time
@@ -149,7 +152,10 @@ Plans:
   2. A scheduled message with type=ai generates content via Gemini from the owner's prompt at fire time, using the contact's style context
   3. A TTS or Gemini timeout does not permanently block the fire callback (Promise.race with 30s limit)
   4. Concurrent TTS fires do not exceed ElevenLabs concurrency limits (p-queue with concurrency:1)
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 30-01-PLAN.md — Fastify REST API (list, create, edit, cancel) + new DB queries + service export
+- [ ] 30-02-PLAN.md — Dashboard frontend (list page, tab filters, create/edit dialog, cancel, navigation)
 
 ### Phase 32: Recurring Schedules
 **Goal**: The owner can schedule daily, weekly, or monthly recurring messages that re-arm automatically after each fire and survive DST transitions without drifting
@@ -160,7 +166,10 @@ Plans:
   2. The schedule does not drift by an hour across Israel's daylight saving time transitions in March and October
   3. If the bot is down during a recurring fire, the next occurrence is computed correctly on startup
   4. The owner can cancel a recurring series from the dashboard and all future fires stop
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 30-01-PLAN.md — Fastify REST API (list, create, edit, cancel) + new DB queries + service export
+- [ ] 30-02-PLAN.md — Dashboard frontend (list page, tab filters, create/edit dialog, cancel, navigation)
 
 ## Progress
 
@@ -195,7 +204,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32
 | 26. Microsoft To Do Sync | v1.5 | 3/3 | Complete | 2026-03-16 |
 | 27. DB Foundation | 2/2 | Complete    | 2026-03-30 | - |
 | 28. Core Scheduler and Text Delivery | 2/2 | Complete    | 2026-03-30 | - |
-| 29. Pre-Send Safety | v1.6 | 2/2 | Complete | 2026-03-30 |
+| 29. Pre-Send Safety | v1.6 | Complete    | 2026-03-30 | 2026-03-30 |
 | 30. Dashboard CRUD | v1.6 | 0/? | Not started | - |
 | 31. Voice and AI Content Types | v1.6 | 0/? | Not started | - |
 | 32. Recurring Schedules | v1.6 | 0/? | Not started | - |
