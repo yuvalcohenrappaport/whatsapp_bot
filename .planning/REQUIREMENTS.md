@@ -9,7 +9,7 @@ Requirements for Scheduled Replies milestone. Each maps to roadmap phases.
 
 ### Scheduling Core
 
-- [ ] **SCHED-01**: User can create a scheduled message with a recipient, content, and future date/time from the dashboard
+- [x] **SCHED-01**: User can create a scheduled message with a recipient, content, and future date/time from the dashboard
 - [x] **SCHED-02**: Scheduled messages persist in the database and survive bot restarts
 - [x] **SCHED-03**: Scheduler uses two-tier pattern (setTimeout for near-term, periodic DB scan for distant)
 - [ ] **SCHED-04**: Reconnect dedup guard prevents double-fire after Baileys reconnection
@@ -29,10 +29,10 @@ Requirements for Scheduled Replies milestone. Each maps to roadmap phases.
 
 ### Dashboard Management
 
-- [ ] **DASH-01**: Dashboard page lists all scheduled messages with status indicators
+- [x] **DASH-01**: Dashboard page lists all scheduled messages with status indicators
 - [ ] **DASH-02**: Dashboard form to create scheduled messages with recipient picker, content input, date/time picker, and recurrence options
-- [ ] **DASH-03**: User can edit a pending scheduled message from the dashboard
-- [ ] **DASH-04**: User can cancel/delete a scheduled message from the dashboard
+- [x] **DASH-03**: User can edit a pending scheduled message from the dashboard
+- [x] **DASH-04**: User can cancel/delete a scheduled message from the dashboard
 - [ ] **DASH-05**: Live cron expression preview via cronstrue shows human-readable schedule description
 
 ## Previous Milestones
@@ -88,7 +88,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SCHED-01 | Phase 30 | Pending |
+| SCHED-01 | Phase 30 | Complete |
 | SCHED-02 | Phase 27 | Complete |
 | SCHED-03 | Phase 28 | Complete |
 | SCHED-04 | Phase 28 | Pending |
@@ -99,10 +99,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SAFE-01 | Phase 29 | Complete |
 | SAFE-02 | Phase 29 | Complete |
 | SAFE-03 | Phase 29 | Complete |
-| DASH-01 | Phase 30 | Pending |
+| DASH-01 | Phase 30 | Complete |
 | DASH-02 | Phase 30 | Pending |
-| DASH-03 | Phase 30 | Pending |
-| DASH-04 | Phase 30 | Pending |
+| DASH-03 | Phase 30 | Complete |
+| DASH-04 | Phase 30 | Complete |
 | DASH-05 | Phase 30 | Pending |
 
 **Coverage:**

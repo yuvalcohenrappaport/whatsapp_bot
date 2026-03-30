@@ -138,7 +138,7 @@ Plans:
   3. The owner can edit the content or time of a pending scheduled message from the dashboard
   4. The owner can cancel a scheduled message from the dashboard and it no longer fires
   5. When a cron expression is entered, a human-readable description appears live next to the field (via cronstrue)
-**Plans:** 2 plans
+**Plans:** 0/2 plans executed
 Plans:
 - [ ] 30-01-PLAN.md — Fastify REST API (list, create, edit, cancel) + new DB queries + service export
 - [ ] 30-02-PLAN.md — Dashboard frontend (list page, tab filters, create/edit dialog, cancel, navigation)
@@ -205,6 +205,6 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32
 | 27. DB Foundation | 2/2 | Complete    | 2026-03-30 | - |
 | 28. Core Scheduler and Text Delivery | 2/2 | Complete    | 2026-03-30 | - |
 | 29. Pre-Send Safety | v1.6 | Complete    | 2026-03-30 | 2026-03-30 |
-| 30. Dashboard CRUD | v1.6 | 0/? | Not started | - |
+| 30. Dashboard CRUD | 1/2 | In Progress | 2026-03-30 | - |
 | 31. Voice and AI Content Types | v1.6 | 0/? | Not started | - |
 | 32. Recurring Schedules | v1.6 | 0/? | Not started | - |
