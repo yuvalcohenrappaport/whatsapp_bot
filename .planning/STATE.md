@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-03-30)
 
 **Core value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
-**Current focus:** Phase 27 — DB Foundation (v1.6 Scheduled Replies)
+**Current focus:** Phase 28 — Core Scheduler and Text Delivery (v1.6 Scheduled Replies)
 
 ## Current Position
 
-Phase: 27 of 32 (DB Foundation)
-Plan: 2 of 2 in current phase
-Status: Complete
-Last activity: 2026-03-30 — Phase 27 Plan 02 complete (query layer for scheduled_messages and scheduled_message_recipients)
+Phase: 28 of 32 (Core Scheduler and Text Delivery)
+Plan: 1 of 4 in current phase
+Status: In Progress
+Last activity: 2026-03-30 — Phase 28 Plan 01 complete (timer engine and getScheduledMessagesInWindow query)
 
 Progress: [█░░░░░░░░░] 10% (v1.6)
 
@@ -44,6 +44,8 @@ Recent decisions affecting v1.6:
 - Migration applied directly to live DB; hash inserted into __drizzle_migrations to prevent double-run (27-01)
 - getPending and getNotified are separate functions — Phase 29 uses notified independently for cancel window expiry (27-02)
 - deleteOldScheduledMessages uses .returning() to pass deleted IDs to deleteRecipientsForMessages — avoids secondary lookup (27-02)
+- 15-minute periodic scan interval for scheduled messages (not hourly like reminders) — finer-grained promotion needed (28-01)
+- activeTimers Map is module-private in scheduledMessageScheduler — callers use functional API only (28-01)
 
 ### Pending Todos
 
@@ -58,5 +60,5 @@ Recent decisions affecting v1.6:
 ## Session Continuity
 
 Last session: 2026-03-30
-Stopped at: Phase 28 context gathered
-Resume with: /gsd:plan-phase 28
+Stopped at: Completed 28-01-PLAN.md
+Resume with: /gsd:execute-phase 28
