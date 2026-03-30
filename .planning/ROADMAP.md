@@ -109,7 +109,10 @@ Plans:
   3. When Baileys reconnects, no scheduled message fires twice (dedup guard via activeTimers Map)
   4. A hung sendMessage call does not block the scheduler indefinitely (Promise.race timeout guard)
   5. A failed send writes status='failed' to the DB rather than silently dropping the message
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 28-01-PLAN.md — Window query + timer engine (scheduledMessageScheduler.ts)
+- [ ] 28-02-PLAN.md — Service layer, retry/recovery, and index.ts wiring
 
 ### Phase 29: Pre-Send Safety
 **Goal**: The owner receives a self-chat warning before every scheduled send and can cancel it, even if PM2 restarts between the warning and the send
