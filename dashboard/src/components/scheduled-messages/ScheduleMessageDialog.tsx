@@ -67,7 +67,7 @@ export function ScheduleMessageDialog({
     } else {
       setRecipientJid('');
       setContent('');
-      setScheduledAt('');
+      setScheduledAt(toDatetimeLocal(Date.now() + 60 * 60 * 1000));
       setType('text');
     }
     setErrors({});
