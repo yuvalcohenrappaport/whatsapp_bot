@@ -115,6 +115,12 @@ export function ScheduleMessageDialog({
     }
   }
 
+  const contentConfig: Record<'text' | 'voice' | 'ai', { label: string; placeholder: string }> = {
+    text:  { label: 'Message',       placeholder: 'Type your message\u2026' },
+    voice: { label: 'Text to speak', placeholder: 'Type what should be spoken\u2026' },
+    ai:    { label: 'Prompt for AI', placeholder: 'e.g., wish them happy birthday in a casual way' },
+  };
+
   const minDatetime = toDatetimeLocal(Date.now() + 15 * 60 * 1000);
 
   return (
@@ -153,10 +159,10 @@ export function ScheduleMessageDialog({
 
           {/* Content */}
           <div className="space-y-1.5">
-            <Label htmlFor="content">Message</Label>
+            <Label htmlFor="content">{contentConfig[type].label}</Label>
             <Textarea
               id="content"
-              placeholder="Type your message…"
+              placeholder={contentConfig[type].placeholder}
               value={content}
               onChange={(e) => setContent(e.target.value)}
               rows={4}
@@ -190,17 +196,13 @@ export function ScheduleMessageDialog({
               {(['text', 'voice', 'ai'] as const).map((t) => (
                 <label
                   key={t}
-                  title={
-                    t !== 'text' ? 'Coming in v1.6.1' : undefined
-                  }
-                  className={`flex items-center gap-2 text-sm cursor-pointer ${t !== 'text' ? 'opacity-40 cursor-not-allowed' : ''}`}
+                  className="flex items-center gap-2 text-sm cursor-pointer"
                 >
                   <input
                     type="radio"
                     name="type"
                     value={t}
                     checked={type === t}
-                    disabled={t !== 'text'}
                     onChange={() => setType(t)}
                     className="accent-emerald-600"
                   />
