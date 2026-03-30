@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-03-30)
 
 **Core value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
-**Current focus:** Phase 30 — Dashboard CRUD (v1.6 Scheduled Replies)
+**Current focus:** Phase 31 — Voice and AI Content Types (v1.6 Scheduled Replies)
 
 ## Current Position
 
-Phase: 30 of 32 (Dashboard CRUD)
-Plan: 2 of 2 in current phase
-Status: In Progress (awaiting human verification)
-Last activity: 2026-03-30 — Phase 30 Plan 02 tasks 1-2 complete (dashboard frontend built, checkpoint pending)
+Phase: 31 of 32 (Voice and AI Content Types)
+Plan: 1 of 1 in current phase
+Status: Complete
+Last activity: 2026-03-30 — Phase 31 Plan 01 complete (voice TTS + AI content resolution wired into fire pipeline)
 
 Progress: [███░░░░░░░] 30% (v1.6)
 
@@ -57,6 +57,9 @@ Recent decisions affecting v1.6:
 - scheduleNewMessage wraps dispatchCallback (not fireCallback) — new messages go through full notification pipeline (30-01)
 - Tab 'pending' maps to status IN (pending, notified, sending); 'failed' maps to (failed, cancelled, expired) (30-01)
 - PATCH edits restricted to status='pending' only — notified messages have active cancel windows (30-01)
+- resolveContent called once before recipient loop — single TTS buffer shared across all recipients (31-01)
+- ttsQueue is module-level singleton ensuring global concurrency:1 enforcement (31-01)
+- sendVoiceWithTimeout persists sourceText (not audio) to messages DB for AI context continuity (31-01)
 
 ### Pending Todos
 
@@ -65,11 +68,10 @@ Recent decisions affecting v1.6:
 ### Blockers/Concerns
 
 - Baileys v7.0.0-rc.9 stale-socket bug (issue #2132) — Promise.race mitigation required regardless of fix
-- buildSystemPrompt in gemini.ts is currently non-exported — needs export or extraction before Phase 31
-- ElevenLabs plan tier determines p-queue concurrency ceiling — verify at Phase 31 planning time
+- ElevenLabs plan tier determines p-queue concurrency ceiling — currently :1 (conservative), verify if higher is needed
 
 ## Session Continuity
 
 Last session: 2026-03-30
-Stopped at: 30-02-PLAN.md Task 3 checkpoint:human-verify — dashboard UI built, awaiting owner verification
-Resume with: /gsd:execute-phase 30 (continuation after verification)
+Stopped at: Completed 31-01-PLAN.md — voice TTS + AI content types wired into scheduled message fire pipeline
+Resume with: /gsd:execute-phase 32 (next phase)
