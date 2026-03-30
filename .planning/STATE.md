@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-30)
 ## Current Position
 
 Phase: 29 of 32 (Pre-Send Safety)
-Plan: 1 of 2 in current phase
-Status: In Progress
-Last activity: 2026-03-30 — Phase 29 Plan 01 complete (notification pipeline, cancel handler, retry notifications)
+Plan: 2 of 2 in current phase
+Status: Complete
+Last activity: 2026-03-30 — Phase 29 Plan 02 complete (cancel handler wired into messageHandler.ts)
 
-Progress: [██░░░░░░░░] 20% (v1.6)
+Progress: [███░░░░░░░] 30% (v1.6)
 
 ## Performance Metrics
 
@@ -53,6 +53,7 @@ Recent decisions affecting v1.6:
 - Retry reverts to 'notified' (not 'pending') — message already went through notification pipeline (29-01)
 - Recovery for 'notified' messages: re-arm fire timer only, never re-send notification — Pitfall 4 (29-01)
 - sendPreSendNotification falls back to scheduling send directly if sock is unavailable — send guaranteed, cancel window is best-effort (29-01)
+- Scheduled message cancel placed after task cancel in handleOwnerCommand — both use same stanzaId guard, task cancel tries first (29-02)
 
 ### Pending Todos
 
@@ -67,5 +68,5 @@ Recent decisions affecting v1.6:
 ## Session Continuity
 
 Last session: 2026-03-30
-Stopped at: Completed 29-01-PLAN.md
-Resume with: /gsd:execute-phase 29
+Stopped at: Completed 29-02-PLAN.md (Phase 29 complete)
+Resume with: /gsd:execute-phase 30

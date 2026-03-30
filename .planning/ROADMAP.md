@@ -78,7 +78,7 @@
 
 - [x] **Phase 27: DB Foundation** - scheduled_messages table, migration, and query layer (completed 2026-03-29)
 - [x] **Phase 28: Core Scheduler and Text Delivery** - two-tier scheduler, one-time text send end-to-end, reconnect dedup (completed 2026-03-30)
-- [ ] **Phase 29: Pre-Send Safety** - self-chat cancel notification with DB-persisted cancel state and retry
+- [x] **Phase 29: Pre-Send Safety** - self-chat cancel notification with DB-persisted cancel state and retry (completed 2026-03-30)
 - [ ] **Phase 30: Dashboard CRUD** - list, create, edit, and cancel scheduled messages from the dashboard
 - [ ] **Phase 31: Voice and AI Content Types** - ElevenLabs TTS and Gemini generation at fire time
 - [ ] **Phase 32: Recurring Schedules** - daily/weekly/monthly cron recurrence with DST-safe next-fire computation
@@ -126,7 +126,7 @@ Plans:
 **Plans:** 2 plans
 Plans:
 - [x] 29-01-PLAN.md — Notification pipeline, cancel handler, retry notifications in service layer
-- [ ] 29-02-PLAN.md — Wire cancel handler into messageHandler.ts
+- [x] 29-02-PLAN.md — Wire cancel handler into messageHandler.ts
 
 ### Phase 30: Dashboard CRUD
 **Goal**: The owner can create, view, edit, and cancel scheduled messages entirely from the dashboard without touching the DB or CLI
@@ -195,7 +195,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32
 | 26. Microsoft To Do Sync | v1.5 | 3/3 | Complete | 2026-03-16 |
 | 27. DB Foundation | 2/2 | Complete    | 2026-03-30 | - |
 | 28. Core Scheduler and Text Delivery | 2/2 | Complete    | 2026-03-30 | - |
-| 29. Pre-Send Safety | v1.6 | 1/2 | In Progress | - |
+| 29. Pre-Send Safety | v1.6 | 2/2 | Complete | 2026-03-30 |
 | 30. Dashboard CRUD | v1.6 | 0/? | Not started | - |
 | 31. Voice and AI Content Types | v1.6 | 0/? | Not started | - |
 | 32. Recurring Schedules | v1.6 | 0/? | Not started | - |
