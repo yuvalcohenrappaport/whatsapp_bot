@@ -190,7 +190,8 @@ async function sendPreSendNotification(id: string): Promise<void> {
 
   // First 20 words, truncated
   const words = msg.content.split(/\s+/);
-  const preview = words.length > 20 ? words.slice(0, 20).join(' ') + '...' : msg.content;
+  const truncated = words.length > 20 ? words.slice(0, 20).join(' ') + '...' : msg.content;
+  const preview = msg.type === 'ai' ? `[AI Prompt] ${truncated}` : truncated;
 
   // Type label
   const typeLabel = msg.type === 'text' ? 'Text' : msg.type === 'voice' ? 'Voice' : 'AI';
@@ -396,11 +397,27 @@ async function fireMessage(id: string): Promise<void> {
       return;
     }
 
+    // Resolve content once before recipient loop (voice generates one buffer for all recipients)
+    // For AI type, use the first recipient's JID for style context
+    const primaryRecipientJid = recipients[0].recipientJid;
+    let resolved: ResolvedContent;
+    try {
+      resolved = await resolveContent(msg.type, msg.content, primaryRecipientJid);
+    } catch (resolveErr) {
+      logger.error({ resolveErr, id, type: msg.type }, 'Content resolution failed');
+      await handleFailedMessage(id, msg);
+      return;
+    }
+
     let anyFailed = false;
 
     for (const recipient of recipients) {
       try {
-        await sendWithTimeout(sock, recipient.recipientJid, { text: msg.content });
+        if (resolved.kind === 'audio') {
+          await sendVoiceWithTimeout(sock, recipient.recipientJid, resolved.buffer, resolved.sourceText);
+        } else {
+          await sendWithTimeout(sock, recipient.recipientJid, { text: resolved.text });
+        }
         updateRecipientStatus(recipient.id, 'sent');
         logger.info(
           { id, recipientJid: recipient.recipientJid },
