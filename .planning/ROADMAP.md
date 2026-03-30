@@ -187,7 +187,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32
 | 24. Smart Reminders | v1.5 | 3/3 | Complete | 2026-03-16 |
 | 25. Commitment Detection | v1.5 | 2/2 | Complete | 2026-03-16 |
 | 26. Microsoft To Do Sync | v1.5 | 3/3 | Complete | 2026-03-16 |
-| 27. DB Foundation | 2/2 | Complete   | 2026-03-29 | - |
+| 27. DB Foundation | 2/2 | Complete    | 2026-03-30 | - |
 | 28. Core Scheduler and Text Delivery | v1.6 | 0/? | Not started | - |
 | 29. Pre-Send Safety | v1.6 | 0/? | Not started | - |
 | 30. Dashboard CRUD | v1.6 | 0/? | Not started | - |
