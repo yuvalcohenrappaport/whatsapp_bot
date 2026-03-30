@@ -31,6 +31,7 @@ import { handleCalendarApproval } from '../calendar/calendarApproval.js';
 import { tryHandleReminder } from '../reminders/reminderService.js';
 import { processCommitment } from '../commitments/commitmentPipeline.js';
 import { handleTaskCancel } from '../todo/todoPipeline.js';
+import { handleScheduledMessageCancel } from '../scheduler/scheduledMessageService.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
 
@@ -156,6 +157,12 @@ async function handleOwnerCommand(
       await sock.sendMessage(config.USER_JID, { text: 'Task cancelled.' });
       return true;
     }
+  }
+
+  // --- Scheduled message cancel (reply "cancel" to pre-send notification) ---
+  if (stanzaId && trimmed === 'cancel') {
+    const scheduledCancelled = await handleScheduledMessageCancel(sock, stanzaId);
+    if (scheduledCancelled) return true;
   }
 
   // --- Snooze command ---
