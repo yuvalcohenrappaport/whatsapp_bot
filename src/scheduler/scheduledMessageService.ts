@@ -1,4 +1,5 @@
 import pino from 'pino';
+import PQueue from 'p-queue';
 import { config } from '../config.js';
 import { getState } from '../api/state.js';
 import {
@@ -23,6 +24,10 @@ import {
   incrementRecipientFailCount,
 } from '../db/queries/scheduledMessageRecipients.js';
 import { getContact } from '../db/queries/contacts.js';
+import { textToSpeech } from '../voice/tts.js';
+import { buildSystemPrompt } from '../ai/gemini.js';
+import { generateText } from '../ai/provider.js';
+import { insertMessage } from '../db/queries/messages.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
 
@@ -31,6 +36,8 @@ const logger = pino({ level: config.LOG_LEVEL });
 const BACKOFF_DELAYS_MS = [60_000, 300_000, 1_800_000, 1_800_000, 1_800_000]; // 1m, 5m, 30m, 30m, 30m
 const MAX_ATTEMPTS = 5;
 const SEND_TIMEOUT_MS = 15_000;
+const TTS_TIMEOUT_MS = 30_000;
+const AI_TIMEOUT_MS = 30_000;
 const RECOVERY_MAX_AGE_MS = 3_600_000; // 1 hour
 const RECOVERY_STAGGER_MS = 5_000;
 const NOTIFICATION_LEAD_MS = 10 * 60 * 1000; // 10 minutes
@@ -38,6 +45,7 @@ const NOTIFICATION_LEAD_MS = 10 * 60 * 1000; // 10 minutes
 // ─── Module-level state ───────────────────────────────────────────────────────
 
 let initialized = false;
+const ttsQueue = new PQueue({ concurrency: 1 });
 
 // ─── Time formatter ───────────────────────────────────────────────────────────
 
@@ -64,6 +72,80 @@ async function sendWithTimeout(
     setTimeout(() => reject(new Error('sendMessage timeout')), timeoutMs),
   );
   await Promise.race([sock.sendMessage(jid, content), timeout]);
+}
+
+// ─── Content resolution ───────────────────────────────────────────────────────
+
+type ResolvedContent =
+  | { kind: 'text'; text: string }
+  | { kind: 'audio'; buffer: Buffer; sourceText: string };
+
+async function resolveContent(
+  type: string,
+  content: string,
+  recipientJid: string,
+): Promise<ResolvedContent> {
+  if (type === 'voice') {
+    const buffer = await ttsQueue.add(() => {
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('TTS timeout')), TTS_TIMEOUT_MS),
+      );
+      return Promise.race([textToSpeech(content, logger), timeout]);
+    });
+    if (!buffer) throw new Error('TTS returned undefined');
+    return { kind: 'audio', buffer, sourceText: content };
+  }
+
+  if (type === 'ai') {
+    const contact = getContact(recipientJid);
+    const systemPrompt = await buildSystemPrompt(
+      recipientJid,
+      contact ?? { name: null, relationship: null, customInstructions: null, styleSummary: null },
+    );
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('AI generation timeout')), AI_TIMEOUT_MS),
+    );
+    const generated = await Promise.race([
+      generateText({
+        systemPrompt,
+        messages: [{ role: 'user', content }],
+      }),
+      timeout,
+    ]);
+    if (!generated) throw new Error('AI generation returned empty');
+    return { kind: 'text', text: generated };
+  }
+
+  return { kind: 'text', text: content };
+}
+
+async function sendVoiceWithTimeout(
+  sock: NonNullable<ReturnType<typeof getState>['sock']>,
+  jid: string,
+  buffer: Buffer,
+  sourceText: string,
+  timeoutMs: number = SEND_TIMEOUT_MS,
+): Promise<void> {
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error('sendMessage timeout')), timeoutMs),
+  );
+  const sent = await Promise.race([
+    sock.sendMessage(jid, {
+      audio: buffer,
+      mimetype: 'audio/ogg; codecs=opus',
+      ptt: true,
+    }),
+    timeout,
+  ]);
+  if (sent?.key?.id) {
+    insertMessage({
+      id: sent.key.id,
+      contactJid: jid,
+      fromMe: true,
+      body: sourceText,
+      timestamp: Date.now(),
+    }).run();
+  }
 }
 
 // ─── Pre-send notification ────────────────────────────────────────────────────

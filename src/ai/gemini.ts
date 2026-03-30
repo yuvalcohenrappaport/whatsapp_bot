@@ -1,5 +1,6 @@
-import { getRecentMessages, getStyleExamples } from '../db/queries/messages.js';
+import { getRecentMessages, getStyleExamples, getPairedExamples, getAllFromMeMessages } from '../db/queries/messages.js';
 import { getContact } from '../db/queries/contacts.js';
+import { getSetting, setSetting } from '../db/queries/settings.js';
 import { generateText } from './provider.js';
 
 /**
@@ -16,14 +17,108 @@ function sampleN<T>(arr: T[], n: number): T[] {
   return copy.slice(0, n);
 }
 
-async function buildSystemPrompt(
+/**
+ * Extracts keywords from text for relevance matching.
+ * Unicode-aware, skips short words (<=2 chars).
+ */
+export function extractKeywords(text: string): Set<string> {
+  // Split on non-word characters (Unicode-aware)
+  const words = text.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  return new Set(words.filter((w) => w.length > 2));
+}
+
+/**
+ * Scores and selects keyword-relevant single-message examples.
+ * Top half by relevance, remaining filled with random for diversity.
+ */
+export function selectRelevantExamples(
+  recentIncoming: string[],
+  allExamples: string[],
+  count: number,
+): string[] {
+  if (allExamples.length <= count) return [...allExamples];
+
+  const incomingKeywords = new Set<string>();
+  for (const msg of recentIncoming) {
+    for (const kw of extractKeywords(msg)) incomingKeywords.add(kw);
+  }
+
+  if (incomingKeywords.size === 0) return sampleN(allExamples, count);
+
+  // Score each example by keyword overlap
+  const scored = allExamples.map((ex) => {
+    const exKeywords = extractKeywords(ex);
+    let score = 0;
+    for (const kw of exKeywords) {
+      if (incomingKeywords.has(kw)) score++;
+    }
+    return { ex, score };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+
+  const relevantCount = Math.ceil(count / 2);
+  const relevant = scored.slice(0, relevantCount).map((s) => s.ex);
+  const remaining = scored.slice(relevantCount).map((s) => s.ex);
+  const randomFill = sampleN(remaining, count - relevant.length);
+
+  return [...relevant, ...randomFill];
+}
+
+/**
+ * Scores and selects keyword-relevant paired examples.
+ */
+export function selectRelevantPairs(
+  recentIncoming: string[],
+  allPairs: { incoming: string; reply: string }[],
+  count: number,
+): { incoming: string; reply: string }[] {
+  if (allPairs.length <= count) return [...allPairs];
+
+  const incomingKeywords = new Set<string>();
+  for (const msg of recentIncoming) {
+    for (const kw of extractKeywords(msg)) incomingKeywords.add(kw);
+  }
+
+  if (incomingKeywords.size === 0) return sampleN(allPairs, count);
+
+  const scored = allPairs.map((pair) => {
+    const keywords = extractKeywords(pair.incoming + ' ' + pair.reply);
+    let score = 0;
+    for (const kw of keywords) {
+      if (incomingKeywords.has(kw)) score++;
+    }
+    return { pair, score };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+
+  const relevantCount = Math.ceil(count / 2);
+  const relevant = scored.slice(0, relevantCount).map((s) => s.pair);
+  const remaining = scored.slice(relevantCount).map((s) => s.pair);
+  const randomFill = sampleN(remaining, count - relevant.length);
+
+  return [...relevant, ...randomFill];
+}
+
+export async function buildSystemPrompt(
   contactJid: string,
   contact: { name?: string | null; relationship?: string | null; customInstructions?: string | null; styleSummary?: string | null },
 ): Promise<string> {
-  const parts = [
-    `You are Yuval Cohen Rappaport (יובל כהן רפפורט), responding on WhatsApp. Write exactly as Yuval would — casual, warm, and friendly. Output ONLY the reply message itself — no thinking, no analysis, no explanation, no preamble. CRITICAL RULES: 1) Always reply in the SAME LANGUAGE as the last message from the other person. If they write in Hebrew, reply in Hebrew. If in English, reply in English. 2) Keep your reply to a SINGLE short sentence with proper punctuation. Never send multiple lines or paragraphs. 3) Be genuinely friendly and warm — show interest in the other person, be supportive and positive. Use emojis sparingly when they feel natural. Match the energy of the conversation but lean towards being upbeat.`,
-    `You're chatting with ${contact.name ?? 'someone'}.`,
-  ];
+  const parts: string[] = [];
+
+  // 1. Relaxed base — let style data drive the output
+  parts.push(
+    `You are Yuval Cohen Rappaport (יובל כהן רפפורט), responding on WhatsApp. ` +
+    `Output ONLY the reply message itself — no thinking, no analysis, no explanation, no preamble. ` +
+    `CRITICAL RULES: ` +
+    `1) Always reply in the SAME LANGUAGE as the last message from the other person. If they write in Hebrew, reply in Hebrew. If in English, reply in English. ` +
+    `2) Match the length, format, and energy of Yuval's example messages below. ` +
+    `3) Use emojis only when Yuval's examples show emoji usage.`,
+  );
+
+  // 2. Contact name + relationship + custom instructions
+  parts.push(`You're chatting with ${contact.name ?? 'someone'}.`);
 
   if (contact.relationship) {
     parts.push(`Your relationship: ${contact.relationship}.`);
@@ -33,16 +128,41 @@ async function buildSystemPrompt(
     parts.push(contact.customInstructions);
   }
 
-  // Style summary injected from chat import
+  // 3. Global persona
+  const globalPersona = getSetting('global_persona');
+  if (globalPersona) {
+    parts.push(`## Yuval's Global Communication Style\n${globalPersona}`);
+  }
+
+  // 4. Per-contact style summary
   if (contact.styleSummary) {
     parts.push(`## Yuval's Writing Style for This Contact\n${contact.styleSummary}`);
   }
 
-  // Few-shot examples: fetch up to 200, sample 15 randomly
-  const examples = await getStyleExamples(contactJid, 200);
-  if (examples.length > 0) {
-    const sampled = sampleN(examples, 15);
-    const bulletList = sampled.map((ex) => `- ${ex}`).join('\n');
+  // Collect recent incoming messages for keyword relevance
+  const recentMessages = await getRecentMessages(contactJid, 20);
+  const recentIncoming = recentMessages
+    .filter((m) => !m.fromMe)
+    .map((m) => m.body);
+
+  // 5. Paired examples (up to 8, keyword-relevant)
+  const allPairs = await getPairedExamples(contactJid, 50);
+  const hasPairs = allPairs.length > 0;
+
+  if (hasPairs) {
+    const selectedPairs = selectRelevantPairs(recentIncoming, allPairs, 8);
+    const pairList = selectedPairs
+      .map((p) => `Them: "${p.incoming}" → Yuval: "${p.reply}"`)
+      .join('\n');
+    parts.push(`## Example Conversations\n${pairList}`);
+  }
+
+  // 6. Single-message examples — 7 if pairs exist, 15 if no pairs
+  const singleCount = hasPairs ? 7 : 15;
+  const allExamples = await getStyleExamples(contactJid, 200);
+  if (allExamples.length > 0) {
+    const selected = selectRelevantExamples(recentIncoming, allExamples, singleCount);
+    const bulletList = selected.map((ex) => `- ${ex}`).join('\n');
     parts.push(`## Example Messages Yuval Has Sent This Person\n${bulletList}`);
   }
 
@@ -51,7 +171,7 @@ async function buildSystemPrompt(
 
 /**
  * Generates a reply using the active AI provider based on recent chat history.
- * System prompt includes style summary and few-shot examples when available.
+ * System prompt includes global persona, style summary, paired examples, and keyword-relevant few-shot examples.
  */
 export async function generateReply(contactJid: string): Promise<string | null> {
   const contact = getContact(contactJid);
@@ -113,4 +233,45 @@ export async function generateStyleSummary(contactJid: string, messages: string[
   });
 
   return (result ?? '').trim();
+}
+
+/**
+ * Generates a global persona profile from messages across all contacts.
+ * Samples ~300 fromMe messages, sends to AI for analysis, stores in settings table.
+ */
+export async function generateGlobalPersona(): Promise<string> {
+  const allMessages = await getAllFromMeMessages(300);
+
+  if (allMessages.length < 10) {
+    throw new Error('Not enough messages to generate persona (need at least 10)');
+  }
+
+  const sample = sampleN(allMessages, Math.min(allMessages.length, 200));
+  const messageList = sample.map((m, i) => `${i + 1}. ${m}`).join('\n');
+
+  const prompt = `Analyze these WhatsApp messages sent by Yuval across different conversations and write a comprehensive persona profile (5-8 sentences). Cover:
+- Default message length and structure (short vs long, single line vs multi-line)
+- Language patterns (Hebrew, English, code-switching habits)
+- Formality level and tone
+- Common expressions, filler words, slang
+- Emoji and punctuation habits
+- How they open and close conversations
+- Any distinctive quirks or patterns
+
+Be very specific and descriptive — this profile will guide an AI to write messages indistinguishable from Yuval's real ones.
+
+Messages:
+${messageList}`;
+
+  const result = await generateText({
+    systemPrompt: 'You are a communication style analyst. Be extremely specific and descriptive. Output only the persona profile, no preamble.',
+    messages: [{ role: 'user', content: prompt }],
+  });
+
+  const persona = (result ?? '').trim();
+  if (persona) {
+    setSetting('global_persona', persona);
+  }
+
+  return persona;
 }
