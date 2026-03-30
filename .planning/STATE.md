@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-30)
 ## Current Position
 
 Phase: 28 of 32 (Core Scheduler and Text Delivery)
-Plan: 1 of 4 in current phase
+Plan: 2 of 4 in current phase
 Status: In Progress
-Last activity: 2026-03-30 — Phase 28 Plan 01 complete (timer engine and getScheduledMessagesInWindow query)
+Last activity: 2026-03-30 — Phase 28 Plan 02 complete (service layer: fire, retry, recovery, init wiring)
 
-Progress: [█░░░░░░░░░] 10% (v1.6)
+Progress: [██░░░░░░░░] 20% (v1.6)
 
 ## Performance Metrics
 
@@ -46,6 +46,9 @@ Recent decisions affecting v1.6:
 - deleteOldScheduledMessages uses .returning() to pass deleted IDs to deleteRecipientsForMessages — avoids secondary lookup (27-02)
 - 15-minute periodic scan interval for scheduled messages (not hourly like reminders) — finer-grained promotion needed (28-01)
 - activeTimers Map is module-private in scheduledMessageScheduler — callers use functional API only (28-01)
+- fireMessage sets status to 'sending' before send — prevents periodic scan from re-firing same message (28-02)
+- recoverMessages uses non-blocking setTimeout stagger — recovery returns immediately after scheduling timeouts (28-02)
+- 'expired' status for recovery messages older than 1 hour — distinct from 'failed' which implies attempted sends (28-02)
 
 ### Pending Todos
 
@@ -60,5 +63,5 @@ Recent decisions affecting v1.6:
 ## Session Continuity
 
 Last session: 2026-03-30
-Stopped at: Completed 28-01-PLAN.md
+Stopped at: Completed 28-02-PLAN.md
 Resume with: /gsd:execute-phase 28
