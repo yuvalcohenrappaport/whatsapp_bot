@@ -1,4 +1,4 @@
-import { eq, and, lte, asc, inArray, sql } from 'drizzle-orm';
+import { eq, and, lte, gte, asc, inArray, sql } from 'drizzle-orm';
 import { db } from '../client.js';
 import { scheduledMessages } from '../schema.js';
 
@@ -18,6 +18,16 @@ export function getScheduledMessageById(id: string) {
     .from(scheduledMessages)
     .where(eq(scheduledMessages.id, id))
     .get();
+}
+
+export function getScheduledMessagesInWindow(fromMs: number, toMs: number) {
+  return db.select().from(scheduledMessages).where(
+    and(
+      eq(scheduledMessages.status, 'pending'),
+      gte(scheduledMessages.scheduledAt, fromMs),
+      lte(scheduledMessages.scheduledAt, toMs),
+    )
+  ).orderBy(asc(scheduledMessages.scheduledAt)).all();
 }
 
 export function getPendingScheduledMessages(nowMs: number) {
