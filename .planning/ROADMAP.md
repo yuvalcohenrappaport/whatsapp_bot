@@ -168,8 +168,8 @@ Plans:
   4. The owner can cancel a recurring series from the dashboard and all future fires stop
 **Plans:** 2 plans
 Plans:
-- [ ] 32-01-PLAN.md — [To be planned]
-- [ ] 32-02-PLAN.md — [To be planned]
+- [ ] 32-01-PLAN.md — Backend: cronUtils, re-arm logic, recovery fix, API cadence support
+- [ ] 32-02-PLAN.md — Dashboard: Repeat dropdown, cronstrue preview, cadence badge
 
 ## Progress
 
@@ -206,5 +206,5 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32
 | 28. Core Scheduler and Text Delivery | 2/2 | Complete    | 2026-03-30 | - |
 | 29. Pre-Send Safety | v1.6 | Complete    | 2026-03-30 | 2026-03-30 |
 | 30. Dashboard CRUD | 1/2 | Complete    | 2026-03-30 | - |
-| 31. Voice and AI Content Types | v1.6 | 1/2 | In Progress | - |
+| 31. Voice and AI Content Types | 1/2 | Complete    | 2026-03-30 | - |
 | 32. Recurring Schedules | v1.6 | 0/? | Not started | - |
