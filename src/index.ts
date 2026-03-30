@@ -18,6 +18,7 @@ import { initReminderScheduler } from './groups/reminderScheduler.js';
 import { validateElevenLabsConnection } from './voice/client.js';
 import { initPersonalCalendarAuth } from './calendar/personalCalendarService.js';
 import { initReminderSystem } from './reminders/reminderService.js';
+import { initScheduledMessageScheduler } from './scheduler/scheduledMessageService.js';
 
 const logger = pino({
   level: config.LOG_LEVEL,
@@ -92,6 +93,10 @@ async function startSocket(): Promise<void> {
       // Initialize reminder system after connection (needs sock for recovery messages)
       initReminderSystem().catch((err) => {
         logger.error(err, 'Failed to initialize reminder system');
+      });
+
+      initScheduledMessageScheduler().catch((err) => {
+        logger.error(err, 'Failed to initialize scheduled message scheduler');
       });
     },
 
