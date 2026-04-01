@@ -9,4 +9,9 @@ logs/
 !README.md
 !docs/**/*.md
 test-output-*.ogg
+test-output-tts.ogg
+test-reply.ts
+test-stats.ts
+VISUALIZATION.html
+WhatsApp Chat with *.txt
 .planning/
