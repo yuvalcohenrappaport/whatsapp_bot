@@ -341,7 +341,9 @@ export async function tryHandleReminder(
     insertReminder({ id, task, fireAt });
 
     // Sync to Google Tasks (fire-and-forget)
-    syncReminderToTasks(id, task, fireAt).catch(() => {});
+    syncReminderToTasks(id, task, fireAt).catch((error) => {
+      console.error('Failed to sync reminder to tasks:', error);
+    });
 
     // Smart routing based on time distance
     const hoursUntil = (fireAt - Date.now()) / 3_600_000;
