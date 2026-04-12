@@ -8,7 +8,8 @@
 - [x] **v1.3 Voice Responses** — Phases 12-16 (shipped 2026-03-02)
 - [x] **v1.4 Travel Agent** — Phases 17-21 (shipped 2026-03-02) — [archive](milestones/v1.4-ROADMAP.md)
 - [x] **v1.5 Personal Assistant** — Phases 22-26 (shipped 2026-03-16)
-- [ ] **v1.6 Scheduled Replies** — Phases 27-32 (in progress)
+- [x] **v1.6 Scheduled Replies** — Phases 27-32 (shipped 2026-03-30)
+- [ ] **v1.7 LinkedIn Bot Dashboard Integration** — Phases 33-38 (in progress)
 
 ## Phases
 
@@ -72,16 +73,28 @@
 
 </details>
 
-### v1.6 Scheduled Replies (In Progress)
+<details>
+<summary>v1.6 Scheduled Replies (Phases 27-32) — SHIPPED 2026-03-30</summary>
 
-**Milestone Goal:** Let the owner schedule messages to any contact or group from the dashboard, with support for text, voice, and AI-generated content on one-off or recurring schedules.
+- [x] Phase 27: DB Foundation (2/2 plans) — completed 2026-03-29
+- [x] Phase 28: Core Scheduler and Text Delivery (2/2 plans) — completed 2026-03-30
+- [x] Phase 29: Pre-Send Safety (2/2 plans) — completed 2026-03-30
+- [x] Phase 30: Dashboard CRUD (2/2 plans) — completed 2026-03-30
+- [x] Phase 31: Voice and AI Content Types (2/2 plans) — completed 2026-03-30
+- [x] Phase 32: Recurring Schedules (2/2 plans) — completed 2026-03-30
 
-- [x] **Phase 27: DB Foundation** - scheduled_messages table, migration, and query layer (completed 2026-03-29)
-- [x] **Phase 28: Core Scheduler and Text Delivery** - two-tier scheduler, one-time text send end-to-end, reconnect dedup (completed 2026-03-30)
-- [x] **Phase 29: Pre-Send Safety** - self-chat cancel notification with DB-persisted cancel state and retry (completed 2026-03-30)
-- [x] **Phase 30: Dashboard CRUD** - list, create, edit, and cancel scheduled messages from the dashboard (completed 2026-03-30)
-- [x] **Phase 31: Voice and AI Content Types** - ElevenLabs TTS and Gemini generation at fire time (completed 2026-03-30)
-- [x] **Phase 32: Recurring Schedules** - daily/weekly/monthly cron recurrence with DST-safe next-fire computation (completed 2026-03-30)
+</details>
+
+### v1.7 LinkedIn Bot Dashboard Integration (In Progress)
+
+**Milestone Goal:** Surface pm-authority's LinkedIn content pipeline inside the whatsapp-bot dashboard so review, approve, reject, edit, regenerate, lesson-mode pick flows, queue status, and publish history can be driven from the web UI instead of Telegram — with the Telegram bot remaining as an untouched fallback.
+
+- [ ] **Phase 33: pm-authority HTTP Service** — FastAPI sidecar binding 127.0.0.1 exposing post/variant/lesson state + mutations over localhost
+- [ ] **Phase 34: Fastify Proxy Layer** — Typed Zod-validated proxy routes in whatsapp-bot forwarding dashboard calls to the FastAPI service
+- [ ] **Phase 35: LinkedIn Queue Read-Side UI** — `/linkedin/queue` page with list, status strip, recent-published tab, and SSE auto-refresh
+- [ ] **Phase 36: Review Actions (Write)** — Approve/reject/edit/regenerate/replace-image per-post controls wired end-to-end
+- [ ] **Phase 37: Lesson Mode UX** — Two-phase lesson picker (4 candidates → 2 variants) with inline generated fal.ai images
+- [ ] **Phase 38: New Lesson Run Form** — Dashboard form to start a lesson-mode generation run, replacing the SSH + `generate.py --mode lesson` CLI workflow
 
 ## Phase Details
 
@@ -171,10 +184,76 @@ Plans:
 - [x] 32-01-PLAN.md — Backend: cronUtils, re-arm logic, recovery fix, API cadence support
 - [x] 32-02-PLAN.md — Dashboard: Repeat dropdown, cronstrue preview, cadence badge
 
+### Phase 33: pm-authority HTTP Service
+**Goal**: A long-running FastAPI sidecar inside pm-authority exposes read + mutate endpoints for post state, variants, and lesson candidates over 127.0.0.1, giving whatsapp-bot a stable HTTP contract to consume without ever importing Python code or touching state.db directly
+**Depends on**: Phase 32 (v1.6 complete)
+**Requirements**: LIN-01
+**Success Criteria** (what must be TRUE):
+  1. A FastAPI service in pm-authority can be started as a long-running process and binds to 127.0.0.1 only (never reachable off-box)
+  2. A local HTTP GET returns posts filterable by status (DRAFT, PENDING_VARIANT, PENDING_LESSON_SELECTION, PENDING_PII_REVIEW, APPROVED, PUBLISHED) with content, variants, lesson candidates, image paths, and timestamps
+  3. Local HTTP mutation endpoints (approve, reject, edit, regenerate, replace-image, pick-lesson, pick-variant, start-lesson-run) call through to pm-authority's existing ReviewManager / generate_lesson_variants / handle_select_lesson_sync / post_variant_and_generate_image_sync and return a consistent JSON result
+  4. An unauthenticated request from any non-loopback origin is refused at the socket layer (binding, not middleware)
+  5. Errors from pm-authority (validation, regen cap, state-machine violations) surface as structured JSON with an HTTP status code the TypeScript client can discriminate
+**Plans:** TBD
+
+### Phase 34: Fastify Proxy Layer
+**Goal**: whatsapp-bot's Fastify server exposes a typed, Zod-validated proxy surface that forwards every LinkedIn dashboard request to the pm-authority FastAPI service, so the frontend only ever talks to its own origin and no dashboard code has to know the Python service exists
+**Depends on**: Phase 33
+**Requirements**: LIN-02
+**Success Criteria** (what must be TRUE):
+  1. Hitting a `/api/linkedin/*` route on the whatsapp-bot server returns data sourced from the pm-authority FastAPI service with no direct SQLite access
+  2. Every proxy route has a Zod request schema and a Zod response schema, and a schema mismatch produces a 500 with a descriptive error instead of leaking malformed data to the client
+  3. Errors from the upstream FastAPI service (4xx, 5xx, timeouts, connection refused) are passed through to the dashboard with status code and message preserved
+  4. When the FastAPI service is down, `/api/linkedin/health` returns a clear "upstream unavailable" state so the dashboard can render a degraded banner instead of spinning forever
+**Plans:** TBD
+
+### Phase 35: LinkedIn Queue Read-Side UI
+**Goal**: The owner can open the dashboard, navigate to `/linkedin/queue`, and see every pending-review post, the current publish queue status, and the recent-published history, all auto-refreshing as state changes — giving a complete read-only picture of the pm-authority pipeline before any write actions are wired up
+**Depends on**: Phase 34
+**Requirements**: LIN-03, LIN-04, LIN-05, LIN-06
+**Success Criteria** (what must be TRUE):
+  1. A `/linkedin/queue` page lists every post in DRAFT, PENDING_VARIANT, PENDING_LESSON_SELECTION, and PENDING_PII_REVIEW with a status badge, content preview, and image thumbnail
+  2. A status strip on the queue page shows the next publish slot (Tue/Wed/Thu 06:30 IDT), pending count, approved count, and a preview of the last published post
+  3. A recent-published history tab lists the last N published posts with published_at timestamp, clickable LinkedIn permalink, content preview, and any basic metrics available from pm-authority
+  4. When a post's state changes in pm-authority (e.g. a regen completes, a variant is generated), the queue updates live over SSE without a manual page reload
+**Plans:** TBD
+
+### Phase 36: Review Actions (Write)
+**Goal**: Every per-post action the Telegram bot can perform — approve, reject, edit, regenerate, replace image — is available as a control on the dashboard queue and produces the same state transitions in pm-authority's state machine, so the owner can drive a full review cycle from the web UI end-to-end
+**Depends on**: Phase 35
+**Requirements**: LIN-07, LIN-08, LIN-09, LIN-10
+**Success Criteria** (what must be TRUE):
+  1. Per-post Approve and Reject buttons transition the post through pm-authority's state machine and the new state is reflected in the dashboard without a manual reload
+  2. The owner can edit a post's content inline, with Hebrew and English sides editable separately for bilingual posts, and the edit persists across reloads
+  3. Clicking Regenerate shows a live status indicator while Claude CLI runs, refuses once the existing 5-regeneration cap is reached, and replaces the preview with the new content when the run finishes
+  4. The owner can drag-and-drop a replacement image onto a post card, the upload passes through the existing PENDING_PII_REVIEW gate, and the post cannot advance to APPROVED until PII review clears
+**Plans:** TBD
+
+### Phase 37: Lesson Mode UX
+**Goal**: The owner can complete the two-phase lesson-mode review (pick 1 of 4 candidate lessons, then pick 1 of 2 full-post variants) entirely in the dashboard, with the generated fal.ai image rendered inline on variant cards — replacing the Telegram-only UX for the existing lesson-mode generation flow
+**Depends on**: Phase 36
+**Requirements**: LIN-11, LIN-12, LIN-13
+**Success Criteria** (what must be TRUE):
+  1. A PENDING_LESSON_SELECTION post shows a card list of the 4 candidate lessons with lesson text and rationale, and clicking one advances the post into the next generation step
+  2. A PENDING_VARIANT post shows a side-by-side view of the 2 full-post variants with content and image prompt, and clicking one finalizes it as the chosen variant
+  3. Once fal.ai image generation completes for a variant, the generated image renders inline on the variant card (replacing any earlier "file path only" placeholder) without a manual reload
+**Plans:** TBD
+
+### Phase 38: New Lesson Run Form
+**Goal**: The owner can start a brand-new lesson-mode generation run entirely from the dashboard via a form with a project-picker, perspective, and language fields — eliminating the need to SSH into the server and run `generate.py --mode lesson` by hand
+**Depends on**: Phase 37
+**Requirements**: LIN-14
+**Success Criteria** (what must be TRUE):
+  1. A dashboard form lists all pm-authority projects in a dropdown, accepts perspective and language inputs, and submits to a proxy route that kicks off a lesson-mode run in pm-authority
+  2. After submission, the new run appears in the queue in its initial state within seconds and progresses through PENDING_LESSON_SELECTION as generation advances
+  3. Validation errors (missing project, unsupported language, generator busy) are surfaced inline on the form instead of as opaque 500s
+  4. The SSH + `generate.py --mode lesson` CLI workflow is no longer required for the owner's normal lesson-mode usage (CLI still works as an escape hatch)
+**Plans:** TBD
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32
+Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 → 34 → 35 → 36 → 37 → 38
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -202,9 +281,15 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32
 | 24. Smart Reminders | v1.5 | 3/3 | Complete | 2026-03-16 |
 | 25. Commitment Detection | v1.5 | 2/2 | Complete | 2026-03-16 |
 | 26. Microsoft To Do Sync | v1.5 | 3/3 | Complete | 2026-03-16 |
-| 27. DB Foundation | 2/2 | Complete    | 2026-03-30 | - |
-| 28. Core Scheduler and Text Delivery | 2/2 | Complete    | 2026-03-30 | - |
-| 29. Pre-Send Safety | v1.6 | Complete    | 2026-03-30 | 2026-03-30 |
-| 30. Dashboard CRUD | 1/2 | Complete    | 2026-03-30 | - |
-| 31. Voice and AI Content Types | 1/2 | Complete    | 2026-03-30 | - |
-| 32. Recurring Schedules | v1.6 | 2/2 | Complete    | 2026-03-30 | - |
+| 27. DB Foundation | v1.6 | 2/2 | Complete | 2026-03-30 |
+| 28. Core Scheduler and Text Delivery | v1.6 | 2/2 | Complete | 2026-03-30 |
+| 29. Pre-Send Safety | v1.6 | 2/2 | Complete | 2026-03-30 |
+| 30. Dashboard CRUD | v1.6 | 2/2 | Complete | 2026-03-30 |
+| 31. Voice and AI Content Types | v1.6 | 2/2 | Complete | 2026-03-30 |
+| 32. Recurring Schedules | v1.6 | 2/2 | Complete | 2026-03-30 |
+| 33. pm-authority HTTP Service | v1.7 | 0/? | Not started | — |
+| 34. Fastify Proxy Layer | v1.7 | 0/? | Not started | — |
+| 35. LinkedIn Queue Read-Side UI | v1.7 | 0/? | Not started | — |
+| 36. Review Actions (Write) | v1.7 | 0/? | Not started | — |
+| 37. Lesson Mode UX | v1.7 | 0/? | Not started | — |
+| 38. New Lesson Run Form | v1.7 | 0/? | Not started | — |

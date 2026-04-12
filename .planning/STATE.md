@@ -5,28 +5,29 @@
 See: .planning/PROJECT.md (updated 2026-04-12)
 
 **Core value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
-**Current focus:** Milestone v1.7 LinkedIn Bot Dashboard Integration — defining requirements
+**Current focus:** Milestone v1.7 LinkedIn Bot Dashboard Integration — roadmap defined, ready to plan Phase 33
 
 ## Current Position
 
 Milestone: v1.7 LinkedIn Bot Dashboard Integration
-Phase: Not started (defining requirements)
+Phase: 33 — pm-authority HTTP Service
 Plan: —
-Status: Defining requirements
-Last activity: 2026-04-12 — Milestone v1.7 started (integration owner repo: whatsapp-bot; scope: full control + status; integration: pm-authority HTTP API)
+Status: Roadmap complete, awaiting plan-phase for Phase 33
+Last activity: 2026-04-12 — ROADMAP.md updated with phases 33-38, all 14 LIN-* requirements mapped, REQUIREMENTS.md traceability table filled
 
-Progress: [          ] 0% (v1.7)
+Progress: [          ] 0% (v1.7: 0/6 phases)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 57 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 9, v1.4: 12, v1.5: 12)
+- Total plans completed: 69 (v1.0: 9, v1.1: 13, v1.2: 4, v1.3: 9, v1.4: 12, v1.5: 12, v1.6: 12)
+- v1.6 shipped in 1 day (12 plans, 6 phases)
 - v1.4 shipped in 1 day (12 plans, 5 phases)
 - v1.3 shipped in 1 day (9 plans, 5 phases)
 
 **Cumulative (all milestones):**
-- 6 milestones shipped (v1.0 through v1.5)
-- 26 phases complete, 57 plans complete
+- 7 milestones shipped (v1.0 through v1.6)
+- 32 phases complete, 69 plans complete
 
 ## Accumulated Context
 
@@ -34,39 +35,26 @@ Progress: [          ] 0% (v1.7)
 
 Full decision log in PROJECT.md Key Decisions table.
 
-Recent decisions affecting v1.6:
+Recent decisions affecting v1.7:
+- Owner repo is whatsapp-bot — roadmap lives here, pm-authority gets a new sidecar service as cross-repo side work
+- pm-authority exposes a new FastAPI sidecar service binding 127.0.0.1 — binding is the security boundary, no bearer tokens or JWT (out of scope)
+- whatsapp-bot never imports Python directly — only talks to pm-authority via HTTP over localhost through Fastify proxy routes
+- All dashboard requests go to whatsapp-bot's own origin; `/api/linkedin/*` routes proxy to the FastAPI service with Zod request and response schemas
+- Zod schemas maintained manually — OpenAPI codegen is out of scope for v1.7 (14 endpoints, codegen pipeline is overhead)
+- Telegram bot is additive fallback — nothing removed, dashboard is strictly additive
+- SSE infra already exists in whatsapp-bot for WhatsApp connection state — reused in Phase 35 for live queue updates
+- pm-authority state.db remains source of truth — the FastAPI service is the single reader/mutator, dashboard never reaches around it
+- Existing ReviewManager CRUD and generate_lesson_variants / handle_select_lesson_sync / post_variant_and_generate_image_sync functions power the mutate endpoints — no rewriting pm-authority internals
+
+Legacy decisions from v1.6 (see phase 27-32 archive):
 - DB schema is unconditional root blocker — Phase 27 must complete before any other phase starts
 - Cancel state must be DB-persisted (cancelRequestedAt column), never in-memory — survives PM2 reloads
 - Voice/AI content resolves at fire time, not schedule time — no pre-generation
 - Cron strings (not ms intervals) stored for recurrence — DST-safe via node-cron Asia/Jerusalem
 - Promise.race timeout on every Baileys send (15s) and every TTS/Gemini call (30s)
 - p-queue concurrency:1 for TTS to respect ElevenLabs limits
-- Plain text FK for scheduledMessageId (no drizzle references()) — consistent with project convention (27-01)
-- Migration applied directly to live DB; hash inserted into __drizzle_migrations to prevent double-run (27-01)
-- getPending and getNotified are separate functions — Phase 29 uses notified independently for cancel window expiry (27-02)
-- deleteOldScheduledMessages uses .returning() to pass deleted IDs to deleteRecipientsForMessages — avoids secondary lookup (27-02)
-- 15-minute periodic scan interval for scheduled messages (not hourly like reminders) — finer-grained promotion needed (28-01)
-- activeTimers Map is module-private in scheduledMessageScheduler — callers use functional API only (28-01)
-- fireMessage sets status to 'sending' before send — prevents periodic scan from re-firing same message (28-02)
-- recoverMessages uses non-blocking setTimeout stagger — recovery returns immediately after scheduling timeouts (28-02)
-- 'expired' status for recovery messages older than 1 hour — distinct from 'failed' which implies attempted sends (28-02)
-- fireMessage gates on status!=='notified' (not 'pending') — only messages that went through notification are fired (29-01)
-- Retry reverts to 'notified' (not 'pending') — message already went through notification pipeline (29-01)
-- Recovery for 'notified' messages: re-arm fire timer only, never re-send notification — Pitfall 4 (29-01)
-- sendPreSendNotification falls back to scheduling send directly if sock is unavailable — send guaranteed, cancel window is best-effort (29-01)
-- Scheduled message cancel placed after task cancel in handleOwnerCommand — both use same stanzaId guard, task cancel tries first (29-02)
-- scheduleNewMessage wraps dispatchCallback (not fireCallback) — new messages go through full notification pipeline (30-01)
-- Tab 'pending' maps to status IN (pending, notified, sending); 'failed' maps to (failed, cancelled, expired) (30-01)
-- PATCH edits restricted to status='pending' only — notified messages have active cancel windows (30-01)
-- resolveContent called once before recipient loop — single TTS buffer shared across all recipients (31-01)
-- ttsQueue is module-level singleton ensuring global concurrency:1 enforcement (31-01)
-- sendVoiceWithTimeout persists sourceText (not audio) to messages DB for AI context continuity (31-01)
-- Custom getNextOccurrence using Intl.DateTimeFormat loop — avoids node-cron v4.2.1 weekday bug (32-01)
-- Re-fetch message before re-arm to handle cancel race (Pitfall 3) (32-01)
-- Recovery re-arms recurring messages to next occurrence instead of expiring (32-01)
-- updateScheduledMessageContentAndTime extended with optional cronExpression for PATCH edits (32-01)
-- Client-side buildCronExpression mirrors backend for cronstrue preview (32-02)
-- getCadenceFromCron inline in both dialog and card -- 2 usages don't warrant shared module (32-02)
+- Plain text FK for scheduledMessageId (no drizzle references()) — consistent with project convention
+- Hand-written migrations after 0010 — FTS5 virtual tables incompatible with drizzle-kit
 
 ### Pending Todos
 
@@ -76,9 +64,11 @@ Recent decisions affecting v1.6:
 
 - Baileys v7.0.0-rc.9 stale-socket bug (issue #2132) — Promise.race mitigation required regardless of fix
 - ElevenLabs plan tier determines p-queue concurrency ceiling — currently :1 (conservative), verify if higher is needed
+- Phase 38 (new lesson run form) is the highest-risk dependency in v1.7 — depends on the long-running generator pipeline working cleanly over HTTP; kept as the final phase so any issues surface late without blocking the rest of the queue UX
+- pm-authority FastAPI service adds a new side process to yuval-server — needs process supervision (PM2 or systemd) to stay up alongside whatsapp-bot
 
 ## Session Continuity
 
 Last session: 2026-04-12
-Stopped at: Milestone v1.7 kickoff — PROJECT.md + STATE.md updated, awaiting research decision and requirements gathering.
-Resume with: `/gsd:new-milestone` workflow at Step 8 (Research Decision). Owner repo decided (whatsapp-bot). Scope: full control + status. Integration: pm-authority HTTP API.
+Stopped at: Milestone v1.7 roadmap complete — phases 33-38 defined, all 14 LIN-* reqs mapped, ROADMAP.md + STATE.md + REQUIREMENTS.md updated.
+Resume with: `/gsd:plan-phase 33` to decompose the pm-authority HTTP service phase into plans.

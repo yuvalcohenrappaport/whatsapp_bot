@@ -121,25 +121,25 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LIN-01 | — | Unmapped |
-| LIN-02 | — | Unmapped |
-| LIN-03 | — | Unmapped |
-| LIN-04 | — | Unmapped |
-| LIN-05 | — | Unmapped |
-| LIN-06 | — | Unmapped |
-| LIN-07 | — | Unmapped |
-| LIN-08 | — | Unmapped |
-| LIN-09 | — | Unmapped |
-| LIN-10 | — | Unmapped |
-| LIN-11 | — | Unmapped |
-| LIN-12 | — | Unmapped |
-| LIN-13 | — | Unmapped |
-| LIN-14 | — | Unmapped |
+| LIN-01 | Phase 33 | Pending |
+| LIN-02 | Phase 34 | Pending |
+| LIN-03 | Phase 35 | Pending |
+| LIN-04 | Phase 35 | Pending |
+| LIN-05 | Phase 35 | Pending |
+| LIN-06 | Phase 35 | Pending |
+| LIN-07 | Phase 36 | Pending |
+| LIN-08 | Phase 36 | Pending |
+| LIN-09 | Phase 36 | Pending |
+| LIN-10 | Phase 36 | Pending |
+| LIN-11 | Phase 37 | Pending |
+| LIN-12 | Phase 37 | Pending |
+| LIN-13 | Phase 37 | Pending |
+| LIN-14 | Phase 38 | Pending |
 
 **Coverage:**
 - v1.7 requirements: 14 total
-- Mapped to phases: 0 (awaiting roadmap)
-- Unmapped: 14
+- Mapped to phases: 14 (Phases 33-38)
+- Unmapped: 0
 
 ### v1.6 Traceability (Complete)
 
@@ -164,4 +164,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-30 (v1.6)*
-*Last updated: 2026-04-12 — v1.7 requirements defined*
+*Last updated: 2026-04-12 — v1.7 requirements mapped to Phases 33-38*
