@@ -8,22 +8,24 @@ An AI-powered WhatsApp bot that impersonates the user in private conversations a
 
 The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
 
-## Current Milestone: v1.6 Scheduled Replies
+## Current Milestone: v1.7 LinkedIn Bot Dashboard Integration
 
-**Goal:** Let the owner schedule messages to any contact or group from the dashboard, with support for text, voice, and AI-generated content on one-off or recurring schedules.
+**Goal:** Surface the pm-authority LinkedIn content pipeline inside the whatsapp-bot dashboard so review, approve, reject, edit, and regenerate actions — plus queue status and publish history — can be driven from the web UI instead of Telegram.
 
 **Target features:**
-- Dashboard form to schedule messages (pick recipient, write content, set date/time)
-- Three message types: plain text, voice note (ElevenLabs TTS), AI-generated (Gemini prompt at send time)
-- Recurring schedules (daily/weekly/monthly)
-- Dashboard management page to view, edit, and cancel scheduled messages
-- WhatsApp self-chat notification before each send with cancel option
+- New dashboard page listing all pm-authority posts pending review (DRAFT, PENDING_VARIANT, PENDING_LESSON_SELECTION, PENDING_PII_REVIEW)
+- Approve / reject / edit / regenerate controls per post, mirroring the Telegram review UX
+- Lesson-mode two-phase picker UI (pick lesson candidate → pick variant) inside the dashboard
+- Post-queue status strip: next publish slot, pending count, approved queue, recently published
+- pm-authority HTTP API service (new, Python) exposing state + mutations over localhost
+- whatsapp-bot Fastify proxy routes that forward to the pm-authority API (no direct SQLite coupling)
+- Telegram bot remains a working fallback — nothing removed, the dashboard is additive
 
 ## Current State
 
-**Shipped:** v1.0 Foundation + v1.1 Dashboard & Groups + v1.2 Group Auto-Response + v1.3 Voice Responses + v1.4 Travel Agent + v1.5 Personal Assistant
-**Codebase:** ~6,500 LOC TypeScript (src/)
-**Tech stack:** Baileys v7 + Gemini 2.5 Flash + Fastify 5 + React 19 + shadcn/ui + Drizzle/SQLite + Commander.js/Ink + googleapis + ElevenLabs
+**Shipped:** v1.0 Foundation + v1.1 Dashboard & Groups + v1.2 Group Auto-Response + v1.3 Voice Responses + v1.4 Travel Agent + v1.5 Personal Assistant + v1.6 Scheduled Replies
+**Codebase:** ~6,500 LOC TypeScript (src/) + small Python service arriving in v1.7
+**Tech stack:** Baileys v7 + Gemini 2.5 Flash + Fastify 5 + React 19 + shadcn/ui + Drizzle/SQLite + Commander.js/Ink + googleapis + ElevenLabs + (new in v1.7) pm-authority FastAPI service consumed via Fastify proxy
 
 ## Requirements
 
@@ -65,17 +67,26 @@ The bot replies to WhatsApp messages in the user's authentic voice, so contacts 
 - ✓ Smart reminders via WhatsApp messages and calendar events — v1.5
 - ✓ Commitment detection with proactive follow-up reminders — v1.5
 - ✓ Microsoft To Do sync via Graph API with auto-detected tasks — v1.5
+- ✓ Dashboard form to create scheduled messages with recipient, content, and date/time — v1.6
+- ✓ Plain text scheduled message delivery at specified time — v1.6
+- ✓ Voice note scheduled messages via ElevenLabs TTS — v1.6
+- ✓ AI-generated scheduled messages (Gemini generates from prompt at send time) — v1.6
+- ✓ Recurring schedule support (daily/weekly/monthly) — v1.6
+- ✓ Dashboard page to view, edit, and cancel scheduled messages — v1.6
+- ✓ WhatsApp self-chat pre-send notification with cancel option — v1.6
+- ✓ Restart-safe persistence (DB-backed scheduling) — v1.6
 
 ### Active
 
-- [ ] Dashboard form to create scheduled messages with recipient, content, and date/time
-- [ ] Plain text scheduled message delivery at specified time
-- [ ] Voice note scheduled messages via ElevenLabs TTS
-- [ ] AI-generated scheduled messages (Gemini generates from prompt at send time)
-- [ ] Recurring schedule support (daily/weekly/monthly)
-- [ ] Dashboard page to view, edit, and cancel scheduled messages
-- [ ] WhatsApp self-chat pre-send notification with cancel option
-- [ ] Restart-safe persistence (DB-backed scheduling)
+- [ ] pm-authority HTTP API service exposing post state, variants, lesson candidates, and mutations — v1.7
+- [ ] Fastify proxy routes in whatsapp-bot forwarding to the pm-authority API over localhost — v1.7
+- [ ] Dashboard page listing pm-authority posts pending review (all PENDING_* statuses + DRAFT) — v1.7
+- [ ] Approve / reject / edit controls per post wired through the proxy API — v1.7
+- [ ] Regenerate action with live status feedback while Claude CLI runs — v1.7
+- [ ] Lesson-mode phase-1 UI: 4 candidate lesson picker surfaced from the dashboard — v1.7
+- [ ] Lesson-mode phase-2 UI: 2 variant picker with image prompt previews — v1.7
+- [ ] Post-queue status strip: next publish slot, pending count, approved queue, last N published — v1.7
+- [ ] Telegram bot continues to work unchanged as a fallback review UX — v1.7
 
 ### Out of Scope
 
@@ -144,4 +155,4 @@ The bot replies to WhatsApp messages in the user's authentic voice, so contacts 
 | Hand-written migrations after 0010 | FTS5 virtual tables incompatible with drizzle-kit | ✓ Good — never run db:generate after 0010 |
 
 ---
-*Last updated: 2026-03-30 after v1.6 Scheduled Replies milestone started*
+*Last updated: 2026-04-12 — milestone v1.7 LinkedIn Bot Dashboard Integration started*

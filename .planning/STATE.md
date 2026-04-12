@@ -2,19 +2,20 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-30)
+See: .planning/PROJECT.md (updated 2026-04-12)
 
 **Core value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
-**Current focus:** Phase 31 — Voice and AI Content Types (v1.6 Scheduled Replies)
+**Current focus:** Milestone v1.7 LinkedIn Bot Dashboard Integration — defining requirements
 
 ## Current Position
 
-Phase: 32 of 32 (Recurring Schedules)
-Plan: 2 of 2 in current phase
-Status: Phase 32 Complete
-Last activity: 2026-03-30 — Phase 32 Plan 02 complete (recurring schedule dashboard UI: repeat dropdown, cronstrue preview, cadence badge)
+Milestone: v1.7 LinkedIn Bot Dashboard Integration
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-04-12 — Milestone v1.7 started (integration owner repo: whatsapp-bot; scope: full control + status; integration: pm-authority HTTP API)
 
-Progress: [██████████] 100% (v1.6)
+Progress: [          ] 0% (v1.7)
 
 ## Performance Metrics
 
@@ -78,6 +79,6 @@ Recent decisions affecting v1.6:
 
 ## Session Continuity
 
-Last session: 2026-03-30
-Stopped at: Completed 32-02-PLAN.md — recurring schedule dashboard UI (repeat dropdown, cronstrue preview, cadence badge)
-Resume with: v1.6 complete — all phases (27-32) shipped. Human verify checkpoint pending for 32-02.
+Last session: 2026-04-12
+Stopped at: Milestone v1.7 kickoff — PROJECT.md + STATE.md updated, awaiting research decision and requirements gathering.
+Resume with: `/gsd:new-milestone` workflow at Step 8 (Research Decision). Owner repo decided (whatsapp-bot). Scope: full control + status. Integration: pm-authority HTTP API.
