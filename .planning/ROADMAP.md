@@ -196,7 +196,7 @@ Plans:
   5. Errors from pm-authority (validation, regen cap, state-machine violations) surface as structured JSON with an HTTP status code the TypeScript client can discriminate
 **Plans:**
 - [x] 33-01-PLAN.md — Scaffold services.http package: FastAPI app + /v1/health + Pydantic schemas + error envelope + state.db WAL retry + six pre-wired empty routers + PM2 ecosystem entry (see `.planning/phases/33-pm-authority-http-service/33-01-SUMMARY.md`)
-- [ ] 33-02-PLAN.md — Read endpoints: GET /v1/posts list/filter + GET /v1/posts/{id} + image streaming (appends to routers/posts.py + routers/images.py)
+- [x] 33-02-PLAN.md — Read endpoints: GET /v1/posts list/filter + GET /v1/posts/{id} + image streaming with path-traversal guard + canonical dto_mapper.py + 13-test TestClient suite (see `.planning/phases/33-pm-authority-http-service/33-02-SUMMARY.md`)
 - [ ] 33-03-PLAN.md — JobTracker + fast mutations (approve/reject/edit) (appends to routers/jobs.py + routers/mutations_fast.py; fills in start_gc_task body)
 - [ ] 33-04-PLAN.md — Slow mutations (regenerate, pick-variant, pick-lesson, replace-image) + lesson-runs (appends to routers/mutations_slow.py + routers/lesson_runs.py)
 - [ ] 33-05-PLAN.md — Integration test + PM2 start + cross-repo verification checkpoint
@@ -292,7 +292,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 30. Dashboard CRUD | v1.6 | 2/2 | Complete | 2026-03-30 |
 | 31. Voice and AI Content Types | v1.6 | 2/2 | Complete | 2026-03-30 |
 | 32. Recurring Schedules | v1.6 | 2/2 | Complete | 2026-03-30 |
-| 33. pm-authority HTTP Service | v1.7 | 0/? | Not started | — |
+| 33. pm-authority HTTP Service | v1.7 | 2/5 | In progress (wave 2 partial — 33-02 done, 33-03 parallel) | 33-02 |
 | 34. Fastify Proxy Layer | v1.7 | 0/? | Not started | — |
 | 35. LinkedIn Queue Read-Side UI | v1.7 | 0/? | Not started | — |
 | 36. Review Actions (Write) | v1.7 | 0/? | Not started | — |

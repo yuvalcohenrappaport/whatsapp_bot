@@ -121,7 +121,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LIN-01 | Phase 33 | In Progress (33-01 done: scaffold + /v1/health) |
+| LIN-01 | Phase 33 | In Progress (33-01 done: scaffold + /v1/health; 33-02 done: read endpoints + image streaming) |
 | LIN-02 | Phase 34 | Pending |
 | LIN-03 | Phase 35 | Pending |
 | LIN-04 | Phase 35 | Pending |
