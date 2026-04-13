@@ -194,7 +194,12 @@ Plans:
   3. Local HTTP mutation endpoints (approve, reject, edit, regenerate, replace-image, pick-lesson, pick-variant, start-lesson-run) call through to pm-authority's existing ReviewManager / generate_lesson_variants / handle_select_lesson_sync / post_variant_and_generate_image_sync and return a consistent JSON result
   4. An unauthenticated request from any non-loopback origin is refused at the socket layer (binding, not middleware)
   5. Errors from pm-authority (validation, regen cap, state-machine violations) surface as structured JSON with an HTTP status code the TypeScript client can discriminate
-**Plans:** TBD
+**Plans:**
+- [x] 33-01-PLAN.md — Scaffold services.http package: FastAPI app + /v1/health + Pydantic schemas + error envelope + state.db WAL retry + six pre-wired empty routers + PM2 ecosystem entry (see `.planning/phases/33-pm-authority-http-service/33-01-SUMMARY.md`)
+- [ ] 33-02-PLAN.md — Read endpoints: GET /v1/posts list/filter + GET /v1/posts/{id} + image streaming (appends to routers/posts.py + routers/images.py)
+- [ ] 33-03-PLAN.md — JobTracker + fast mutations (approve/reject/edit) (appends to routers/jobs.py + routers/mutations_fast.py; fills in start_gc_task body)
+- [ ] 33-04-PLAN.md — Slow mutations (regenerate, pick-variant, pick-lesson, replace-image) + lesson-runs (appends to routers/mutations_slow.py + routers/lesson_runs.py)
+- [ ] 33-05-PLAN.md — Integration test + PM2 start + cross-repo verification checkpoint
 
 ### Phase 34: Fastify Proxy Layer
 **Goal**: whatsapp-bot's Fastify server exposes a typed, Zod-validated proxy surface that forwards every LinkedIn dashboard request to the pm-authority FastAPI service, so the frontend only ever talks to its own origin and no dashboard code has to know the Python service exists
