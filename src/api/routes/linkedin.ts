@@ -14,6 +14,7 @@ import {
   UpstreamError,
 } from '../linkedin/client.js';
 import { registerReadRoutes } from '../linkedin/routes/reads.js';
+import { registerWriteRoutes } from '../linkedin/routes/writes.js';
 import {
   HealthUpstreamSchema,
   ProxyHealthResponseSchema,
@@ -88,5 +89,8 @@ export default async function linkedinRoutes(
   // /posts/:id/lesson-candidates/:cid/image, /jobs/:jobId.
   await registerReadRoutes(fastify);
 
-  // ─── Plan 34-03: write-side proxy routes will be registered below ──────
+  // ─── Plan 34-03: write-side proxy routes ───────────────────────────────
+  // Registers POST /posts/:id/{approve,reject,edit,regenerate,pick-variant,
+  // pick-lesson,replace-image} and POST /lesson-runs.
+  await registerWriteRoutes(fastify);
 }
