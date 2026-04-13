@@ -13,6 +13,7 @@ import {
   SchemaMismatchError,
   UpstreamError,
 } from '../linkedin/client.js';
+import { registerReadRoutes } from '../linkedin/routes/reads.js';
 import {
   HealthUpstreamSchema,
   ProxyHealthResponseSchema,
@@ -81,4 +82,11 @@ export default async function linkedinRoutes(
       }
     },
   );
+
+  // ─── Plan 34-02: read-side proxy routes ─────────────────────────────────
+  // Registers GET /posts, /posts/:id, /posts/:id/image,
+  // /posts/:id/lesson-candidates/:cid/image, /jobs/:jobId.
+  await registerReadRoutes(fastify);
+
+  // ─── Plan 34-03: write-side proxy routes will be registered below ──────
 }
