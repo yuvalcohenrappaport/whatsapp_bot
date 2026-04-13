@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-04-12)
 
 **Core value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
-**Current focus:** Milestone v1.7 LinkedIn Bot Dashboard Integration — Phase 33 in progress (plans 01 + 02 done; 33-03 running in parallel)
+**Current focus:** Milestone v1.7 LinkedIn Bot Dashboard Integration — Phase 33 in progress (plans 01-03 complete; 33-04 slow mutations next)
 
 ## Current Position
 
 Milestone: v1.7 LinkedIn Bot Dashboard Integration
 Phase: 33 — pm-authority HTTP Service
-Plan: 33-02 complete (read endpoints + canonical dto_mapper + 13-test TestClient suite); 33-03 (fast mutations + JobTracker) running in parallel in pm-authority
-Status: GET /v1/posts list/filter, GET /v1/posts/{id} fat DTO, and both image streaming endpoints live and verified against real state.db. Ready for 33-04 (slow mutations) once 33-03 completes.
-Last activity: 2026-04-13 — Plan 33-02 shipped: dto_mapper.py (single SoT for PostDTO assembly), list_posts + get_post appended to posts.py router, image endpoints with path-traversal guard appended to images.py router, 13 TestClient tests passing over seeded temp state.db. main.py untouched — disjoint file ownership held up against parallel 33-03.
+Plan: 33-03 complete (JobTracker + state_guard + fast mutations + /v1/jobs/{id}); next = 33-04 slow mutations (regenerate, pick-variant, pick-lesson, replace-image)
+Status: Full read side (33-02) + full fast-mutation side (33-03) live on the pm-authority sidecar. POST /v1/posts/{id}/approve | /reject | /edit enforce the state machine via state_guard.check_transition and return refreshed PostDTO via dto_mapper.build_post_dto. GET /v1/jobs/{id} polling endpoint ready. In-memory JobTracker with 15-min GC and Semaphore(1) for slow-worker serialization is in place — Plan 33-04 only needs to wire BackgroundTasks workers around it. main.py still untouched since Plan 33-01.
+Last activity: 2026-04-13 — Plan 33-03 shipped: services/http/jobs.py (JobTracker + Job + get_tracker), services/http/state_guard.py (ALLOWED_TRANSITIONS + check_transition), upgraded routers/jobs.py start_gc_task shim to real JobTracker lifecycle, appended approve/reject/edit routes to mutations_fast.py, 22 new tests (8 JobTracker unit + 14 TestClient integration), all passing. Plan 33-02 landed mid-execution (commit 6251e0c) — lazy-import + pytest.importorskip design meant zero coordination overhead and the success-path tests ran unconditionally once dto_mapper was available.
 
-Progress: [==        ] 7% (v1.7: 0/6 phases complete; phase 33 = 2/5 plans done)
+Progress: [===       ] 10% (v1.7: 0/6 phases complete; phase 33 = 3/5 plans done)
 
 ## Performance Metrics
 
@@ -66,6 +66,15 @@ Plan 33-02 decisions (2026-04-13):
 - TestClient fixture must rewrite get_conn.__wrapped__.__defaults__ (not just DEFAULT_DB_PATH module attr) because @contextmanager captures the default db_path at function-definition time
 - pii_reviewed is computed at DTO-build time as (post.status != 'PENDING_PII_REVIEW'), not stored in the DB — anything past the PII gate is considered reviewed
 
+Plan 33-03 decisions (2026-04-13):
+- JobTracker.semaphore is a public asyncio.Semaphore(1) on the tracker instance — Plan 33-04 workers acquire it around any Claude-CLI / fal.ai subprocess to serialize global slow work; single-slot matches pm-authority's single-user design
+- services/http/state_guard.py is the SINGLE source of truth for post status transitions — ALLOWED_TRANSITIONS dict covers approve/reject/edit/regenerate/replace_image/pick_variant/pick_lesson; Plan 33-04 imports check_transition directly, no duplication
+- State guard is status-string based (not enum-based) — posts.status is TEXT in pm-authority and the wire format is a string; enum conversion is pure overhead
+- Whitespace-only edit is 422 UNPROCESSABLE (handler check), empty-string edit is 400 VALIDATION_ERROR (Pydantic min_length=1 + global handler); matches CONTEXT.md §4 taxonomy
+- Fast mutation handlers import dto_mapper.build_post_dto LAZILY inside the handler body — lets the module load cleanly even while the parallel Plan 33-02 is in flight; pytest.importorskip in the test file mirrors the same contract
+- routers/jobs.py start_gc_task is idempotent: if app.state.job_tracker is already set (test fixture injects one) it only calls .start_gc() rather than rebuilding; matches the shim signature Plan 33-01 committed to
+- get_tracker(request) is a plain helper, not a FastAPI Depends — keeps the APIError-raising style uniform with every other error site in the service
+
 Legacy decisions from v1.6 (see phase 27-32 archive):
 - DB schema is unconditional root blocker — Phase 27 must complete before any other phase starts
 - Cancel state must be DB-persisted (cancelRequestedAt column), never in-memory — survives PM2 reloads
@@ -90,5 +99,5 @@ Legacy decisions from v1.6 (see phase 27-32 archive):
 ## Session Continuity
 
 Last session: 2026-04-13
-Stopped at: Phase 33 Plan 02 complete — services/http/dto_mapper.py canonical builder shipped, GET /v1/posts list/filter + GET /v1/posts/{id} + both image streaming endpoints live on the pm-authority sidecar, 13-test TestClient suite passing over seeded temp state.db, live uvicorn smoke test against real state.db returns real posts and proper 404 envelopes. Code committed in pm-authority repo (f561671, 56b440d, 6251e0c); Plan 33-03 (JobTracker + fast mutations) committed in parallel (d617195, 0a2c12b) without conflict.
-Resume with: `/gsd:execute-phase 33` to kick off Plan 33-04 (slow mutations: regenerate, pick-variant, pick-lesson, replace-image) once 33-03 finishes. Plans 33-04/05 must NOT edit services/http/main.py — only append to their respective router files. Downstream mutation plans MUST import build_post_dto from services.http.dto_mapper to return the refreshed post DTO, never duplicate the SQL.
+Stopped at: Phase 33 Plan 03 complete — services/http/jobs.py (JobTracker + Semaphore(1) + 15-min GC + get_tracker helper), services/http/state_guard.py (ALLOWED_TRANSITIONS + check_transition), routers/jobs.py start_gc_task shim upgraded to real JobTracker lifecycle + GET /v1/jobs/{id} appended, routers/mutations_fast.py approve/reject/edit routes appended — all live on the pm-authority sidecar. 22-test suite passing (8 JobTracker unit + 14 fast-mutation TestClient). Live uvicorn smoke test confirms state.db opens cleanly, JobTracker GC task starts and cancels cleanly on shutdown, 404 envelopes on unknown post and unknown job match the contract. Plans 33-02 and 33-03 landed in the same wave without touching main.py. pm-authority commits: d617195 (Task 1: jobs + state_guard + routers upgrade), 0a2c12b (Task 2: fast routes), 86ce40a (Task 3: tests). Also 33-02 landed mid-execution (6251e0c). Plan 33-03 SUMMARY.md committed in whatsapp-bot.
+Resume with: `/gsd:execute-phase 33` to kick off Plan 33-04 (slow mutations: regenerate, pick-variant with image gen, pick-lesson, replace-image). Plan 33-04 must NOT edit services/http/main.py — only append to routers/mutations_slow.py. Plan 33-04 MUST import get_tracker from services.http.jobs and check_transition from services.http.state_guard, and MUST acquire tracker.semaphore around any Claude-CLI / fal.ai subprocess to keep single-slot serialization honest. Plan 33-04 MUST import build_post_dto from services.http.dto_mapper to return the refreshed post DTO after mutation, never duplicate the SQL.
