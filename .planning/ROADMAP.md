@@ -90,7 +90,7 @@
 **Milestone Goal:** Surface pm-authority's LinkedIn content pipeline inside the whatsapp-bot dashboard so review, approve, reject, edit, regenerate, lesson-mode pick flows, queue status, and publish history can be driven from the web UI instead of Telegram — with the Telegram bot remaining as an untouched fallback.
 
 - [x] **Phase 33: pm-authority HTTP Service** — FastAPI sidecar binding 127.0.0.1 exposing post/variant/lesson state + mutations over localhost (completed 2026-04-13)
-- [ ] **Phase 34: Fastify Proxy Layer** — Typed Zod-validated proxy routes in whatsapp-bot forwarding dashboard calls to the FastAPI service
+- [x] **Phase 34: Fastify Proxy Layer** — Typed Zod-validated proxy routes in whatsapp-bot forwarding dashboard calls to the FastAPI service (completed 2026-04-13)
 - [ ] **Phase 35: LinkedIn Queue Read-Side UI** — `/linkedin/queue` page with list, status strip, recent-published tab, and SSE auto-refresh
 - [ ] **Phase 36: Review Actions (Write)** — Approve/reject/edit/regenerate/replace-image per-post controls wired end-to-end
 - [ ] **Phase 37: Lesson Mode UX** — Two-phase lesson picker (4 candidates → 2 variants) with inline generated fal.ai images
@@ -210,12 +210,12 @@ Plans:
   2. Every proxy route has a Zod request schema and a Zod response schema, and a schema mismatch produces a 500 with a descriptive error instead of leaking malformed data to the client
   3. Errors from the upstream FastAPI service (4xx, 5xx, timeouts, connection refused) are passed through to the dashboard with status code and message preserved
   4. When the FastAPI service is down, `/api/linkedin/health` returns a clear "upstream unavailable" state so the dashboard can render a degraded banner instead of spinning forever
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 complete
 Plans:
-- [x] 34-01-PLAN.md — Foundation: Zod schemas + upstream client + error mapper + Fastify plugin scaffold + /api/linkedin/health (degraded state, SC#4)
+- [x] 34-01-PLAN.md — Foundation: Zod schemas + upstream client + error mapper + Fastify plugin scaffold + /api/linkedin/health (degraded state, SC#4) (see `.planning/phases/34-fastify-proxy-layer/34-01-SUMMARY.md`)
 - [x] 34-02-PLAN.md — Read routes: posts list/get + image streaming + jobs polling (5 GET routes) (see `.planning/phases/34-fastify-proxy-layer/34-02-SUMMARY.md`)
 - [x] 34-03-PLAN.md — Write routes: approve/reject/edit + regenerate/pick-variant (mixed 200/202)/pick-lesson/replace-image/lesson-runs (8 POST routes) (see `.planning/phases/34-fastify-proxy-layer/34-03-SUMMARY.md`)
-- [ ] 34-04-PLAN.md — Live integration smoke test against PM2-running pm-authority (auto-skip when upstream down)
+- [x] 34-04-PLAN.md — Live integration smoke test against PM2-running pm-authority (auto-skip when upstream down) (see `.planning/phases/34-fastify-proxy-layer/34-04-SUMMARY.md`)
 
 ### Phase 35: LinkedIn Queue Read-Side UI
 **Goal**: The owner can open the dashboard, navigate to `/linkedin/queue`, and see every pending-review post, the current publish queue status, and the recent-published history, all auto-refreshing as state changes — giving a complete read-only picture of the pm-authority pipeline before any write actions are wired up
@@ -298,7 +298,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 31. Voice and AI Content Types | v1.6 | 2/2 | Complete | 2026-03-30 |
 | 32. Recurring Schedules | v1.6 | 2/2 | Complete | 2026-03-30 |
 | 33. pm-authority HTTP Service | v1.7 | 5/5 | Complete | 2026-04-13 |
-| 34. Fastify Proxy Layer | 2/4 | In Progress|  | — |
+| 34. Fastify Proxy Layer | v1.7 | 4/4 | Complete | 2026-04-13 |
 | 35. LinkedIn Queue Read-Side UI | v1.7 | 0/? | Not started | — |
 | 36. Review Actions (Write) | v1.7 | 0/? | Not started | — |
 | 37. Lesson Mode UX | v1.7 | 0/? | Not started | — |
