@@ -242,6 +242,97 @@ describe('linkedin read routes (plan 34-02)', () => {
     expect(calledUrl.pathname).toBe('/v1/jobs/job-xyz');
   });
 
+  // ─── 10. GET /posts/:id/image → upstream 200 binary ──────────────────
+  // (test 9 "no auth → 401" runs on a separate server below)
+  it('GET /posts/:id/image streams binary body with upstream content-type preserved', async () => {
+    const pngBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    fetchMock.mockResolvedValueOnce(
+      new Response(pngBytes, {
+        status: 200,
+        headers: {
+          'content-type': 'image/png',
+          'content-length': String(pngBytes.byteLength),
+        },
+      }),
+    );
+
+    const res = await server.inject({
+      method: 'GET',
+      url: '/api/linkedin/posts/post-abc/image',
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['content-type']).toBe('image/png');
+    expect(res.headers['content-length']).toBe(String(pngBytes.byteLength));
+    // Body bytes must match upstream exactly (not JSON-wrapped).
+    const bodyBytes = new Uint8Array(res.rawPayload);
+    expect(Array.from(bodyBytes)).toEqual(Array.from(pngBytes));
+
+    const calledUrl = fetchMock.mock.calls[0][0] as URL;
+    expect(calledUrl.pathname).toBe('/v1/posts/post-abc/image');
+  });
+
+  // ─── 11. GET /posts/:id/image → upstream 404 JSON envelope ───────────
+  it('GET /posts/:id/image on upstream 404 → 404 with JSON error envelope (not binary)', async () => {
+    const envelope = {
+      error: {
+        code: 'NOT_FOUND',
+        message: 'post has no image',
+        details: {},
+      },
+    };
+    fetchMock.mockResolvedValueOnce(jsonResponse(envelope, 404));
+
+    const res = await server.inject({
+      method: 'GET',
+      url: '/api/linkedin/posts/post-abc/image',
+    });
+
+    expect(res.statusCode).toBe(404);
+    expect(res.json()).toEqual(envelope);
+  });
+
+  // ─── 12. GET /posts/:id/lesson-candidates/:cid/image ──────────────────
+  it('GET /posts/:id/lesson-candidates/:cid/image uses both params in upstream URL and preserves content-type', async () => {
+    const jpegBytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0]);
+    fetchMock.mockResolvedValueOnce(
+      new Response(jpegBytes, {
+        status: 200,
+        headers: { 'content-type': 'image/jpeg' },
+      }),
+    );
+
+    const res = await server.inject({
+      method: 'GET',
+      url: '/api/linkedin/posts/post-abc/lesson-candidates/42/image',
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['content-type']).toBe('image/jpeg');
+
+    const calledUrl = fetchMock.mock.calls[0][0] as URL;
+    expect(calledUrl.pathname).toBe('/v1/posts/post-abc/lesson-candidates/42/image');
+  });
+
+  // ─── 13. Path param encoding prevents traversal ───────────────────────
+  it('GET /posts/:id URL-encodes unsafe path params (prevents traversal via percent)', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(fixturePost()));
+
+    // Note: Fastify's router strips literal slashes inside a param, so the
+    // value that actually reaches the handler will NOT itself contain a
+    // slash. What we're testing here is that whatever raw value Fastify
+    // gives us, we encodeURIComponent-escape it before interpolating into
+    // the upstream URL. Use a value with `%` which Fastify passes through.
+    await server.inject({
+      method: 'GET',
+      // `%25` decodes to `%`, which encodeURIComponent re-escapes to `%25`.
+      url: '/api/linkedin/posts/weird%25id',
+    });
+
+    const calledUrl = fetchMock.mock.calls[0][0] as URL;
+    // Encoded in the pathname — not a raw `%` that could confuse the server.
+    expect(calledUrl.pathname).toBe('/v1/posts/weird%25id');
+  });
 });
 
 // ─── Auth gate test (separate server with rejecting authenticate) ───────

@@ -23,8 +23,9 @@
  * This file is consumed by src/api/routes/linkedin.ts via registerReadRoutes().
  */
 import type { FastifyInstance } from 'fastify';
+import { Readable } from 'node:stream';
 import { z } from 'zod';
-import { callUpstream } from '../client.js';
+import { callUpstream, streamUpstream } from '../client.js';
 import { mapUpstreamErrorToReply } from '../errors.js';
 import {
   JobSchema,
@@ -32,8 +33,9 @@ import {
   PostSchema,
 } from '../schemas.js';
 
-/** Timeout tier (ms). JSON reads are fast; image streams (task 2) get 30s. */
+/** Timeout tiers (ms). JSON reads are fast; image streams get 30s. */
 const JSON_READ_TIMEOUT_MS = 3_000;
+const IMAGE_STREAM_TIMEOUT_MS = 30_000;
 
 const PostArraySchema = z.array(PostSchema);
 
@@ -90,6 +92,44 @@ export async function registerReadRoutes(
     },
   );
 
+  // ─── Route 3: stream a post image ───────────────────────────────────────
+  fastify.get<{ Params: { id: string } }>(
+    '/api/linkedin/posts/:id/image',
+    { onRequest: [fastify.authenticate] },
+    async (request, reply) => {
+      const { id } = request.params;
+      try {
+        const upstream = await streamUpstream(
+          'GET',
+          `/v1/posts/${encodeURIComponent(id)}/image`,
+          { timeoutMs: IMAGE_STREAM_TIMEOUT_MS },
+        );
+        return sendBinaryStream(reply, upstream);
+      } catch (err) {
+        return mapUpstreamErrorToReply(err, reply);
+      }
+    },
+  );
+
+  // ─── Route 4: stream a lesson-candidate image ───────────────────────────
+  fastify.get<{ Params: { id: string; cid: string } }>(
+    '/api/linkedin/posts/:id/lesson-candidates/:cid/image',
+    { onRequest: [fastify.authenticate] },
+    async (request, reply) => {
+      const { id, cid } = request.params;
+      try {
+        const upstream = await streamUpstream(
+          'GET',
+          `/v1/posts/${encodeURIComponent(id)}/lesson-candidates/${encodeURIComponent(cid)}/image`,
+          { timeoutMs: IMAGE_STREAM_TIMEOUT_MS },
+        );
+        return sendBinaryStream(reply, upstream);
+      } catch (err) {
+        return mapUpstreamErrorToReply(err, reply);
+      }
+    },
+  );
+
   // ─── Route 5: poll a job ────────────────────────────────────────────────
   fastify.get<{ Params: { jobId: string } }>(
     '/api/linkedin/jobs/:jobId',
@@ -111,3 +151,29 @@ export async function registerReadRoutes(
   );
 }
 
+/**
+ * Pipe a successful upstream Response (image/binary) to a Fastify reply
+ * without buffering. Forwards content-type and content-length headers from
+ * the upstream so the dashboard can render the image and show progress.
+ *
+ * Uses Readable.fromWeb() to bridge undici's Web ReadableStream → Node
+ * Readable — Fastify 5 accepts Node streams directly via reply.send(stream).
+ */
+function sendBinaryStream(
+  reply: import('fastify').FastifyReply,
+  upstream: Response,
+): import('fastify').FastifyReply {
+  const contentType =
+    upstream.headers.get('content-type') ?? 'application/octet-stream';
+  reply.header('content-type', contentType);
+  const contentLength = upstream.headers.get('content-length');
+  if (contentLength) reply.header('content-length', contentLength);
+
+  if (!upstream.body) {
+    // Shouldn't happen for a 2xx binary response, but guard the nullable.
+    return reply.send(Buffer.alloc(0));
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const nodeStream = Readable.fromWeb(upstream.body as any);
+  return reply.send(nodeStream);
+}
