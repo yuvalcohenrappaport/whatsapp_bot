@@ -194,7 +194,7 @@ Plans:
   3. Local HTTP mutation endpoints (approve, reject, edit, regenerate, replace-image, pick-lesson, pick-variant, start-lesson-run) call through to pm-authority's existing ReviewManager / generate_lesson_variants / handle_select_lesson_sync / post_variant_and_generate_image_sync and return a consistent JSON result
   4. An unauthenticated request from any non-loopback origin is refused at the socket layer (binding, not middleware)
   5. Errors from pm-authority (validation, regen cap, state-machine violations) surface as structured JSON with an HTTP status code the TypeScript client can discriminate
-**Plans:**
+**Plans:** 5/5 complete
 - [x] 33-01-PLAN.md — Scaffold services.http package: FastAPI app + /v1/health + Pydantic schemas + error envelope + state.db WAL retry + six pre-wired empty routers + PM2 ecosystem entry (see `.planning/phases/33-pm-authority-http-service/33-01-SUMMARY.md`)
 - [x] 33-02-PLAN.md — Read endpoints: GET /v1/posts list/filter + GET /v1/posts/{id} + image streaming with path-traversal guard + canonical dto_mapper.py + 13-test TestClient suite (see `.planning/phases/33-pm-authority-http-service/33-02-SUMMARY.md`)
 - [x] 33-03-PLAN.md — JobTracker + state_guard + fast mutations (approve/reject/edit) + /v1/jobs/{id} polling — 22 new tests passing (see `.planning/phases/33-pm-authority-http-service/33-03-SUMMARY.md`)
