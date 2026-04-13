@@ -210,7 +210,7 @@ Plans:
   2. Every proxy route has a Zod request schema and a Zod response schema, and a schema mismatch produces a 500 with a descriptive error instead of leaking malformed data to the client
   3. Errors from the upstream FastAPI service (4xx, 5xx, timeouts, connection refused) are passed through to the dashboard with status code and message preserved
   4. When the FastAPI service is down, `/api/linkedin/health` returns a clear "upstream unavailable" state so the dashboard can render a degraded banner instead of spinning forever
-**Plans:** 4/4 complete
+**Plans:** 4/4 plans complete
 Plans:
 - [x] 34-01-PLAN.md — Foundation: Zod schemas + upstream client + error mapper + Fastify plugin scaffold + /api/linkedin/health (degraded state, SC#4) (see `.planning/phases/34-fastify-proxy-layer/34-01-SUMMARY.md`)
 - [x] 34-02-PLAN.md — Read routes: posts list/get + image streaming + jobs polling (5 GET routes) (see `.planning/phases/34-fastify-proxy-layer/34-02-SUMMARY.md`)
