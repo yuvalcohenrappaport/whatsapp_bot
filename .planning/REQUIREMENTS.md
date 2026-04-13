@@ -9,7 +9,7 @@ Requirements for the LinkedIn Bot Dashboard Integration milestone. Each maps to 
 
 ### API & Proxy
 
-- [ ] **LIN-01**: User can start a long-running pm-authority HTTP service exposing read + mutate endpoints for post state, variants, and lesson candidates over localhost (127.0.0.1 only, no auth — local binding is the security boundary)
+- [x] **LIN-01**: User can start a long-running pm-authority HTTP service exposing read + mutate endpoints for post state, variants, and lesson candidates over localhost (127.0.0.1 only, no auth — local binding is the security boundary)
 - [ ] **LIN-02**: User can open the whatsapp-bot dashboard and it fetches LinkedIn post data via Fastify proxy routes forwarding to the pm-authority HTTP service, with typed Zod schemas and error pass-through
 
 ### Queue & Status (Read)
@@ -121,7 +121,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LIN-01 | Phase 33 | In Progress (33-01 done: scaffold + /v1/health; 33-02 done: read endpoints + image streaming; 33-03 done: JobTracker + state_guard + fast mutations + /v1/jobs; 33-04 done: slow mutations + REAL /v1/lesson-runs call-through; 33-05 e2e walkthrough remaining) |
+| LIN-01 | Phase 33 | Complete (2026-04-13 — 52/52 HTTP tests passing, service live on PM2 at 127.0.0.1:8765) |
 | LIN-02 | Phase 34 | Pending |
 | LIN-03 | Phase 35 | Pending |
 | LIN-04 | Phase 35 | Pending |

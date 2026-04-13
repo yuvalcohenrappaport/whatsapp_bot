@@ -89,7 +89,7 @@
 
 **Milestone Goal:** Surface pm-authority's LinkedIn content pipeline inside the whatsapp-bot dashboard so review, approve, reject, edit, regenerate, lesson-mode pick flows, queue status, and publish history can be driven from the web UI instead of Telegram — with the Telegram bot remaining as an untouched fallback.
 
-- [ ] **Phase 33: pm-authority HTTP Service** — FastAPI sidecar binding 127.0.0.1 exposing post/variant/lesson state + mutations over localhost
+- [x] **Phase 33: pm-authority HTTP Service** — FastAPI sidecar binding 127.0.0.1 exposing post/variant/lesson state + mutations over localhost (completed 2026-04-13)
 - [ ] **Phase 34: Fastify Proxy Layer** — Typed Zod-validated proxy routes in whatsapp-bot forwarding dashboard calls to the FastAPI service
 - [ ] **Phase 35: LinkedIn Queue Read-Side UI** — `/linkedin/queue` page with list, status strip, recent-published tab, and SSE auto-refresh
 - [ ] **Phase 36: Review Actions (Write)** — Approve/reject/edit/regenerate/replace-image per-post controls wired end-to-end
@@ -199,7 +199,7 @@ Plans:
 - [x] 33-02-PLAN.md — Read endpoints: GET /v1/posts list/filter + GET /v1/posts/{id} + image streaming with path-traversal guard + canonical dto_mapper.py + 13-test TestClient suite (see `.planning/phases/33-pm-authority-http-service/33-02-SUMMARY.md`)
 - [x] 33-03-PLAN.md — JobTracker + state_guard + fast mutations (approve/reject/edit) + /v1/jobs/{id} polling — 22 new tests passing (see `.planning/phases/33-pm-authority-http-service/33-03-SUMMARY.md`)
 - [x] 33-04-PLAN.md — Slow mutations (regenerate, pick-variant, pick-lesson, replace-image) + REAL /v1/lesson-runs call-through to PostGenerator.generate_lesson_variants — 16 new TestClient tests, 51/51 HTTP suite green, main.py untouched (see `.planning/phases/33-pm-authority-http-service/33-04-SUMMARY.md`)
-- [ ] 33-05-PLAN.md — Integration test + PM2 start + cross-repo verification checkpoint
+- [x] 33-05-PLAN.md — End-to-end TestClient walkthrough (52/52 HTTP tests) + smoke script + README v1 route table + PM2 boot verification (live: pid 1875924, /v1/health green, 127.0.0.1:8765 loopback-only) (see `.planning/phases/33-pm-authority-http-service/33-05-SUMMARY.md`)
 
 ### Phase 34: Fastify Proxy Layer
 **Goal**: whatsapp-bot's Fastify server exposes a typed, Zod-validated proxy surface that forwards every LinkedIn dashboard request to the pm-authority FastAPI service, so the frontend only ever talks to its own origin and no dashboard code has to know the Python service exists
@@ -292,7 +292,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 30. Dashboard CRUD | v1.6 | 2/2 | Complete | 2026-03-30 |
 | 31. Voice and AI Content Types | v1.6 | 2/2 | Complete | 2026-03-30 |
 | 32. Recurring Schedules | v1.6 | 2/2 | Complete | 2026-03-30 |
-| 33. pm-authority HTTP Service | v1.7 | 4/5 | In progress (wave 3 complete — 33-04 slow mutations + REAL /v1/lesson-runs, main.py untouched) | 33-04 |
+| 33. pm-authority HTTP Service | v1.7 | 5/5 | Complete | 2026-04-13 |
 | 34. Fastify Proxy Layer | v1.7 | 0/? | Not started | — |
 | 35. LinkedIn Queue Read-Side UI | v1.7 | 0/? | Not started | — |
 | 36. Review Actions (Write) | v1.7 | 0/? | Not started | — |

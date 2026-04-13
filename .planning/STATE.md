@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-04-12)
 
 **Core value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
-**Current focus:** Milestone v1.7 LinkedIn Bot Dashboard Integration — Phase 33 in progress (plans 01-04 complete; 33-05 e2e walkthrough next)
+**Current focus:** Milestone v1.7 LinkedIn Bot Dashboard Integration — Phase 33 complete (5/5 plans); next = Phase 34 Fastify Proxy Layer
 
 ## Current Position
 
 Milestone: v1.7 LinkedIn Bot Dashboard Integration
-Phase: 33 — pm-authority HTTP Service
-Plan: 33-04 complete (slow mutations + REAL /v1/lesson-runs call-through); next = 33-05 e2e walkthrough
-Status: All 14 endpoints from CONTEXT.md §1 are now live on the pm-authority sidecar. Slow mutations (regenerate, pick-variant slow branch, pick-lesson) enqueue jobs that run under the global JobTracker.semaphore and return 202 + JobAccepted; pick-variant fast branch and replace-image are sync 200 PostDTO. POST /v1/lesson-runs is a REAL call-through to PostGenerator.generate_lesson_variants — not a stub: the worker reconstructs ProjectContext from the source sequence's context_json, calls the generator, persists a brand-new lesson-mode sequence + post + two variants via insert_lesson_variants, and returns {sequence_id, post_id, variant_ids} in the job result. exception_map.py translates ValueError / RuntimeError / TimeoutExpired / OperationalError into the 10-code taxonomy. main.py STILL untouched since Plan 33-01 (verified via `git log --follow services/http/main.py`).
-Last activity: 2026-04-13 — Plan 33-04 shipped: services/http/exception_map.py, services/http/workers.py (run_regenerate / run_pick_variant / run_pick_lesson / run_lesson_run, all under tracker.semaphore via _run_with_semaphore + run_in_threadpool), routers/mutations_slow.py + routers/lesson_runs.py routes appended (no main.py edit), 16 new TestClient tests with the real-path lesson-runs assertion that proves PostGenerator.generate_lesson_variants is actually invoked AND the variants land in the DB. Full HTTP suite (test_http_reads + test_http_fast_mutations + test_http_jobs + test_http_slow_mutations) is 51/51 green. pm-authority commits: 3133d91 (workers + exception_map), 5b60aeb (slow + lesson-runs routes), 3b06b97 (test suite).
+Phase: 33 — pm-authority HTTP Service — **COMPLETE** (5/5 plans)
+Plan: 33-05 complete (e2e walkthrough + smoke script + README v1 contract + PM2 live verification); next = Phase 34 Plan 01
+Status: Phase 33 closed. pm-authority HTTP service is live on PM2 — process `pm-authority-http` online (pid 1875924, 0 restarts, 57.8mb), `/v1/health` returns `{status:ok, db_ready:true}`, socket bound 127.0.0.1:8765 only (verified via `ss -tlnH`, no 0.0.0.0 bind, no Tailscale interface). 52/52 HTTP TestClient tests pass in one pytest run (13 reads + 13 fast mutations + 9 jobs + 16 slow mutations + 1 end-to-end walkthrough). All 14 v1 endpoints live and documented in pm-authority/README.md with full Route Table, error envelope, security note, and concurrency model. LIN-01 satisfied. Phase 34 (Fastify proxy) unblocked — Zod schemas should derive directly from the pm-authority README v1 Route Table.
+Last activity: 2026-04-13 — Phase 33 complete — pm-authority HTTP service live on PM2. Plan 33-05 shipped: `pm-authority/tests/test_http_end_to_end.py` (single-file walkthrough of all 14 endpoints including REAL `/v1/lesson-runs` call-through via class-level monkeypatch of `PostGenerator.generate_lesson_variants`), `pm-authority/scripts/http_smoke.sh` (curl-based smoke test with `ss -tlnp` loopback assertion), `pm-authority/README.md` (complete v1 Route Table section). Task 3 was a human-verify checkpoint: operator confirmed PM2 online, /v1/health green, loopback-only bind, whatsapp-bot PM2 process unaffected. pm-authority commits: f5b2174 (e2e test), 6d03883 (smoke + README).
 
-Progress: [====      ] 13% (v1.7: 0/6 phases complete; phase 33 = 4/5 plans done)
+Progress: [==        ] 17% (v1.7: 1/6 phases complete — Phase 33 done; Phases 34, 35, 36, 37, 38 pending)
 
 ## Performance Metrics
 
