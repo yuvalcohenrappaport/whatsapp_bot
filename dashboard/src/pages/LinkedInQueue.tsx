@@ -10,7 +10,7 @@
  *   - tab bar: "Queue" (default) | "Recent Published"
  *   - card feed below the active tab (or skeleton/empty state)
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -26,6 +26,9 @@ import {
   isPending,
   type LinkedInPost,
 } from '@/components/linkedin';
+import { useLinkedInQueueStream } from '@/hooks/useLinkedInQueueStream';
+import { useLinkedInPublishedHistory } from '@/hooks/useLinkedInPublishedHistory';
+import { useLinkedInHealth } from '@/hooks/useLinkedInHealth';
 
 type TabValue = 'queue' | 'published';
 
@@ -184,114 +187,54 @@ export function LinkedInQueuePage({
 }
 
 /**
- * Default export is a dev-only wrapper that feeds mock data to the page —
- * used by Plan 35-03's visual verification. Plan 35-04 REPLACES this
- * default export with a real-data wrapper.
+ * Real-data wrapper for LinkedInQueuePage. Wires:
+ *   - useLinkedInQueueStream → live non-terminal posts via SSE
+ *   - useLinkedInPublishedHistory → one-shot PUBLISHED list (refreshed
+ *     whenever the SSE delivers a new post count)
+ *   - useLinkedInHealth → polls /api/linkedin/health every 30s for the
+ *     degraded banner branch
+ *
+ * When health reports `upstream !== 'ok'`, we pass a `degraded` prop to
+ * LinkedInQueuePage which renders the warning banner in place of the
+ * 4 status mini-cards.
+ *
+ * Type note: the hooks return `DashboardPost[]` (Zod-inferred from
+ * `linkedinSchemas.ts`), while `LinkedInQueuePage` expects the richer
+ * `LinkedInPost[]` type defined in `@/components/linkedin/postStatus.ts`.
+ * The runtime shape is guaranteed structurally compatible by the passthrough
+ * schema — the extra fields (perspective, language, regeneration_*, etc.)
+ * are passed through untouched from pm-authority. A single `as unknown as`
+ * cast at the call-site boundary is the cleanest reconciliation since the
+ * Zod schema already enforces the runtime contract.
  */
-const MOCK_QUEUE: LinkedInPost[] = [
-  {
-    id: 'mock-1',
-    sequence_id: 'mock-seq-1',
-    position: 1,
-    status: 'PENDING_VARIANT',
-    perspective: 'yuval',
-    language: 'bilingual',
-    content:
-      'Here is a long English post preview that should be truncated cleanly by line-clamp-3. ' +
-      'Lorem ipsum dolor sit amet consectetur adipiscing elit. Sed do eiusmod tempor incididunt.',
-    content_he:
-      'זהו טקסט עברית לבדיקת תצוגה דו-כיוונית שמופיע בראש התצוגה, לפני הגרסה האנגלית, ומסתיים עם מפריד.',
-    image: { source: 'ai', url: '/v1/posts/mock-1/image', pii_reviewed: true },
-    variants: [],
-    lesson_candidates: [],
-    regeneration_count: 0,
-    regeneration_capped: false,
-    share_urn: null,
-    scheduled_at: null,
-    published_at: null,
-    created_at: new Date(Date.now() - 2 * 3_600_000).toISOString(),
-    updated_at: null,
-  },
-  {
-    id: 'mock-2',
-    sequence_id: 'mock-seq-1',
-    position: 2,
-    status: 'APPROVED',
-    perspective: 'yuval',
-    language: 'en',
-    content: 'An approved English-only post awaiting the next publish slot.',
-    content_he: null,
-    image: { source: 'screenshot', url: null, pii_reviewed: true },
-    variants: [],
-    lesson_candidates: [],
-    regeneration_count: 0,
-    regeneration_capped: false,
-    share_urn: null,
-    scheduled_at: null,
-    published_at: null,
-    created_at: new Date(Date.now() - 5 * 3_600_000).toISOString(),
-    updated_at: null,
-  },
-];
+export default function LinkedInQueueRoute() {
+  const { posts: queue, status: streamStatus } = useLinkedInQueueStream();
+  const { posts: published, refresh: refreshPublished } =
+    useLinkedInPublishedHistory();
+  const { health, refresh: refreshHealth } = useLinkedInHealth();
 
-const MOCK_PUBLISHED: LinkedInPost[] = [
-  {
-    id: 'mock-pub-1',
-    sequence_id: 'mock-seq-0',
-    position: 1,
-    status: 'PUBLISHED',
-    perspective: 'yuval',
-    language: 'en',
-    content: 'A published post with full metrics available from post_analytics.',
-    content_he: null,
-    image: { source: 'ai', url: '/v1/posts/mock-pub-1/image', pii_reviewed: true },
-    variants: [],
-    lesson_candidates: [],
-    regeneration_count: 0,
-    regeneration_capped: false,
-    share_urn: 'urn:li:share:7325786486870552578',
-    scheduled_at: null,
-    published_at: new Date(Date.now() - 3 * 86_400_000).toISOString(),
-    created_at: new Date(Date.now() - 5 * 86_400_000).toISOString(),
-    updated_at: null,
-    analytics: {
-      impressions: 1243,
-      reactions: 87,
-      comments: 12,
-      reshares: 3,
-      members_reached: 980,
-    },
-  },
-  {
-    id: 'mock-pub-2',
-    sequence_id: 'mock-seq-0',
-    position: 2,
-    status: 'PUBLISHED',
-    perspective: 'yuval',
-    language: 'en',
-    content: 'A recently published post where analytics are not yet available.',
-    content_he: null,
-    image: { source: 'ai', url: null, pii_reviewed: true },
-    variants: [],
-    lesson_candidates: [],
-    regeneration_count: 0,
-    regeneration_capped: false,
-    share_urn: 'urn:li:share:7325786486870552579',
-    scheduled_at: null,
-    published_at: new Date(Date.now() - 10 * 3_600_000).toISOString(),
-    created_at: new Date(Date.now() - 12 * 3_600_000).toISOString(),
-    updated_at: null,
-    analytics: null,
-  },
-];
+  // Whenever a new queue state arrives (e.g. a post transitioned to
+  // PUBLISHED), re-fetch the published history so the Recent tab stays
+  // fresh without its own SSE.
+  useEffect(() => {
+    if (queue === null) return;
+    void refreshPublished();
+  }, [queue, refreshPublished]);
 
-export default function LinkedInQueueMockPage() {
+  const degraded =
+    health?.upstream === 'unavailable'
+      ? {
+          reason: health.reason,
+          onRetry: () => void refreshHealth(),
+        }
+      : null;
+
   return (
     <LinkedInQueuePage
-      queue={MOCK_QUEUE}
-      published={MOCK_PUBLISHED}
-      streamStatus="open"
-      degraded={null}
+      queue={queue as unknown as LinkedInPost[] | null}
+      published={published as unknown as LinkedInPost[] | null}
+      streamStatus={streamStatus}
+      degraded={degraded}
     />
   );
 }
