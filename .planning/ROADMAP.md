@@ -226,7 +226,7 @@ Plans:
   2. A status strip on the queue page shows the next publish slot (Tue/Wed/Thu 06:30 IDT), pending count, approved count, and a preview of the last published post
   3. A recent-published history tab lists the last N published posts with published_at timestamp, clickable LinkedIn permalink, content preview, and any basic metrics available from pm-authority
   4. When a post's state changes in pm-authority (e.g. a regen completes, a variant is generated), the queue updates live over SSE without a manual page reload
-**Plans:** 4/4 complete
+**Plans:** 4/4 plans complete
 - [x] 35-01-PLAN.md — Cross-repo PostDTO.analytics embed + PM2 whatsapp-bot unblocker (see `.planning/phases/35-linkedin-queue-read-side-ui/35-01-SUMMARY.md`)
 - [x] 35-02-PLAN.md — Server-side SSE stream route with 3s upstream poll + sha1 dedup + 15s heartbeat + JWT-in-query-string (11 new vitest cases; 84/84 linkedin suite green) (see `.planning/phases/35-linkedin-queue-read-side-ui/35-02-SUMMARY.md`)
 - [x] 35-03-PLAN.md — Dashboard primitives: LinkedInPostCard + StatusStrip + nextPublishSlot + LinkedInQueue page shell with mock wrapper (see `.planning/phases/35-linkedin-queue-read-side-ui/35-03-SUMMARY.md`)
