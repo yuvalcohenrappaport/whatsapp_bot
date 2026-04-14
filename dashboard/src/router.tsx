@@ -11,6 +11,7 @@ import Reminders from '@/pages/Reminders';
 import Tasks from '@/pages/Tasks';
 import ScheduledMessages from '@/pages/ScheduledMessages';
 import Integrations from '@/pages/Integrations';
+import LinkedInQueue from '@/pages/LinkedInQueue';
 
 export const router = createBrowserRouter([
   { path: '/login', element: <Login /> },
@@ -28,6 +29,7 @@ export const router = createBrowserRouter([
           { path: 'reminders', element: <Reminders /> },
           { path: 'tasks', element: <Tasks /> },
           { path: 'scheduled-messages', element: <ScheduledMessages /> },
+          { path: 'linkedin/queue', element: <LinkedInQueue /> },
           { path: 'groups', element: <Groups /> },
           { path: 'integrations', element: <Integrations /> },
         ],
