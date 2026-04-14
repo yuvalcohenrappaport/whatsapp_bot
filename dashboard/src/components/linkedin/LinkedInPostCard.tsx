@@ -8,7 +8,7 @@
  * Hebrew-above-English content rendering with "—" separator, and the
  * line-clamp-3 content compression.
  */
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   ExternalLink,
   FileText,
@@ -17,6 +17,7 @@ import {
   MessageSquare,
   Repeat,
   Heart,
+  Loader2,
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -29,6 +30,36 @@ export interface LinkedInPostCardProps {
   post: LinkedInPost;
   variant: CardVariant;
   className?: string;
+  /**
+   * Plan 36-02: rendered in the top-right of the queue card header row.
+   * Ignored on the 'published' variant.
+   */
+  actionsSlot?: ReactNode;
+  /**
+   * Plan 36-03: when true, applies `ring-2 ring-blue-400 animate-pulse`,
+   * swaps the status pill for a "Regenerating…" badge, and renders a
+   * `Loader2` inline spinner next to that badge. Queue variant only.
+   */
+  isRegenerating?: boolean;
+  /**
+   * Plan 36-03: when true, briefly applies `bg-emerald-50` with
+   * `transition-colors duration-[400ms]` to signal a just-completed
+   * regeneration. The CALLER is responsible for clearing this prop via
+   * setTimeout after ~400ms so the flash is one-shot. No toast is used
+   * — this emerald flash IS the success feedback (CONTEXT §3 lock).
+   * Queue variant only.
+   */
+  justRegenerated?: boolean;
+  /**
+   * Plan 36-04: rendered as a drop-zone overlay on top of the thumbnail.
+   * Positioned absolutely inside a `relative` wrapper around <Thumbnail>.
+   */
+  thumbnailOverlay?: ReactNode;
+  /**
+   * Plan 36-04: rendered below the content preview for the
+   * "Mark PII Reviewed" affordance. Queue variant only.
+   */
+  piiGateSlot?: ReactNode;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -178,9 +209,24 @@ export function LinkedInPostCard({
   post,
   variant,
   className,
+  actionsSlot,
+  isRegenerating,
+  justRegenerated,
+  thumbnailOverlay,
+  piiGateSlot,
 }: LinkedInPostCardProps) {
   if (variant === 'queue') {
-    return <QueueCard post={post} className={className} />;
+    return (
+      <QueueCard
+        post={post}
+        className={className}
+        actionsSlot={actionsSlot}
+        isRegenerating={isRegenerating}
+        justRegenerated={justRegenerated}
+        thumbnailOverlay={thumbnailOverlay}
+        piiGateSlot={piiGateSlot}
+      />
+    );
   }
   return <PublishedCard post={post} className={className} />;
 }
@@ -188,30 +234,80 @@ export function LinkedInPostCard({
 function QueueCard({
   post,
   className,
+  actionsSlot,
+  isRegenerating = false,
+  justRegenerated = false,
+  thumbnailOverlay,
+  piiGateSlot,
 }: {
   post: LinkedInPost;
   className?: string;
+  actionsSlot?: ReactNode;
+  isRegenerating?: boolean;
+  justRegenerated?: boolean;
+  thumbnailOverlay?: ReactNode;
+  piiGateSlot?: ReactNode;
 }) {
   const style = statusStyle(post.status);
   const relative = formatRelative(post.created_at);
+  // Ring goes on while regen is in flight; emerald flash goes on for the
+  // ~400ms window AFTER regen completes. CONTEXT §3 locks both visuals.
+  const ringClass = isRegenerating ? 'ring-2 ring-blue-400 animate-pulse' : '';
+  const flashClass = justRegenerated
+    ? 'bg-emerald-50 dark:bg-emerald-950/30'
+    : '';
 
   return (
-    <Card className={cn('p-4 md:p-5', className)}>
+    <Card
+      className={cn(
+        'p-4 md:p-5 transition-colors duration-[400ms]',
+        ringClass,
+        flashClass,
+        className,
+      )}
+    >
       <div className="flex items-start gap-3 md:gap-4">
-        <Thumbnail post={post} />
+        <div className="relative shrink-0">
+          <Thumbnail post={post} />
+          {thumbnailOverlay}
+        </div>
         <div className="min-w-0 flex-1 space-y-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            <Badge variant="outline" className={style.className}>
-              {style.label}
-            </Badge>
-            <QueueMeta post={post} />
-            {relative && (
-              <span className="text-xs text-muted-foreground">
-                · {relative}
-              </span>
+          <div className="flex items-start gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
+              {isRegenerating ? (
+                <>
+                  <Badge
+                    variant="outline"
+                    className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                  >
+                    Regenerating…
+                  </Badge>
+                  {/* CONTEXT §3: inline Loader2 spinner next to the badge. */}
+                  <Loader2
+                    className="size-3.5 animate-spin text-blue-600 dark:text-blue-400"
+                    aria-hidden="true"
+                  />
+                </>
+              ) : (
+                <Badge variant="outline" className={style.className}>
+                  {style.label}
+                </Badge>
+              )}
+              <QueueMeta post={post} />
+              {relative && (
+                <span className="text-xs text-muted-foreground">
+                  · {relative}
+                </span>
+              )}
+            </div>
+            {actionsSlot && (
+              <div className="shrink-0 ml-auto flex items-center gap-1">
+                {actionsSlot}
+              </div>
             )}
           </div>
           <ContentPreview post={post} maxLines={3} />
+          {piiGateSlot}
         </div>
       </div>
     </Card>
