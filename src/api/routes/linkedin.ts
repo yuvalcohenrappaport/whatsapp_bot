@@ -14,6 +14,7 @@ import {
   UpstreamError,
 } from '../linkedin/client.js';
 import { registerReadRoutes } from '../linkedin/routes/reads.js';
+import { registerStreamRoutes } from '../linkedin/routes/stream.js';
 import { registerWriteRoutes } from '../linkedin/routes/writes.js';
 import {
   HealthUpstreamSchema,
@@ -93,4 +94,10 @@ export default async function linkedinRoutes(
   // Registers POST /posts/:id/{approve,reject,edit,regenerate,pick-variant,
   // pick-lesson,replace-image} and POST /lesson-runs.
   await registerWriteRoutes(fastify);
+
+  // ─── Plan 35-02: SSE stream route ─────────────────────────────────────
+  // Registers GET /api/linkedin/queue/stream — JWT-guarded via query-string
+  // token (EventSource can't send headers). Polls pm-authority every 3s
+  // and emits `queue.updated` events on content changes.
+  await registerStreamRoutes(fastify);
 }
