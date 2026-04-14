@@ -84,6 +84,26 @@ export const ImageInfoSchema = z.object({
 export type ImageInfo = z.infer<typeof ImageInfoSchema>;
 
 /**
+ * Mirrors Pydantic PostAnalyticsDTO (Plan 35-01). Every field is nullable
+ * because pm-authority's analytics fetcher persists whichever metrics
+ * LinkedIn returns — partial rows are valid. The PostSchema.analytics
+ * field itself is `.nullable().optional()` so it accepts three shapes:
+ *
+ *   - absent (older pm-authority builds during the deploy window)
+ *   - null (no row in post_analytics; the default for freshly-published
+ *     posts before the analytics fetcher's 72h gate fires)
+ *   - populated object (real metrics from the latest fetched_at row)
+ */
+export const PostAnalyticsSchema = z.object({
+  impressions: z.number().int().nullable(),
+  reactions: z.number().int().nullable(),
+  comments: z.number().int().nullable(),
+  reshares: z.number().int().nullable(),
+  members_reached: z.number().int().nullable(),
+});
+export type PostAnalytics = z.infer<typeof PostAnalyticsSchema>;
+
+/**
  * Mirrors Pydantic PostDTO. Timestamps stay as strings; `created_at` is
  * required (sourced from sequences.created_at), `updated_at` is always null
  * in v1 (no column in pm-authority state.db).
@@ -107,6 +127,7 @@ export const PostSchema = z.object({
   published_at: z.iso.datetime({ offset: true }).nullable(),
   created_at: z.iso.datetime({ offset: true }),
   updated_at: z.iso.datetime({ offset: true }).nullable(),
+  analytics: PostAnalyticsSchema.nullable().optional(),
 });
 export type Post = z.infer<typeof PostSchema>;
 

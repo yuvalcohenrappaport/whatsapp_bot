@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
 import linkedinRoutes from '../../routes/linkedin.js';
 import { PM_AUTHORITY_BASE_URL } from '../client.js';
+import { PostSchema } from '../schemas.js';
 
 /**
  * Plan 34-02: read-side proxy routes.
@@ -365,5 +366,96 @@ describe('linkedin read routes — auth gate', () => {
 
     expect(res.statusCode).toBe(401);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Plan 35-01: PostSchema.analytics mirror (cross-repo contract).
+ *
+ * Exercises Zod parse directly against four wire shapes pm-authority is
+ * allowed to emit after Plan 35-01 landed on the Python side:
+ *   - analytics absent   (older pm-authority build during deploy window)
+ *   - analytics: null    (no post_analytics row — the default on live data today)
+ *   - analytics: object  (full metrics, freshly-fetched)
+ *   - analytics: object  (partial nulls — LinkedIn returned only some metrics)
+ *
+ * These cases bypass Fastify because the contract is a pure schema shape;
+ * exercising it via the proxy route would add zero signal over the raw parse.
+ */
+describe('PostSchema analytics field (Plan 35-01)', () => {
+  it('parses cleanly when analytics is absent (older pm-authority build)', () => {
+    const livePost = fixturePost({
+      id: 'post-analytics-absent',
+      status: 'PUBLISHED',
+      share_urn: 'urn:li:share:1',
+      published_at: '2026-04-10T06:30:00+00:00',
+      // analytics key intentionally not set — .optional() must accept this
+    });
+
+    const parsed = PostSchema.parse(livePost);
+    expect(parsed.analytics).toBeUndefined();
+  });
+
+  it('parses cleanly when analytics is explicitly null (no post_analytics row)', () => {
+    const post = fixturePost({
+      id: 'post-analytics-null',
+      status: 'PUBLISHED',
+      share_urn: 'urn:li:share:2',
+      published_at: '2026-04-10T06:30:00+00:00',
+      analytics: null,
+    });
+
+    const parsed = PostSchema.parse(post);
+    expect(parsed.analytics).toBeNull();
+  });
+
+  it('parses cleanly when analytics is populated with full metrics', () => {
+    const post = fixturePost({
+      id: 'post-analytics-full',
+      status: 'PUBLISHED',
+      share_urn: 'urn:li:share:3',
+      published_at: '2026-04-10T06:30:00+00:00',
+      analytics: {
+        impressions: 1200,
+        reactions: 87,
+        comments: 34,
+        reshares: 5,
+        members_reached: 950,
+      },
+    });
+
+    const parsed = PostSchema.parse(post);
+    expect(parsed.analytics).toEqual({
+      impressions: 1200,
+      reactions: 87,
+      comments: 34,
+      reshares: 5,
+      members_reached: 950,
+    });
+  });
+
+  it('parses cleanly when analytics has partial nulls (real wire shape)', () => {
+    // Mirrors pm-authority's test_analytics_partial_row_surfaces_nulls —
+    // LinkedIn often returns only some metrics on a given fetch.
+    const post = fixturePost({
+      id: 'post-analytics-partial',
+      status: 'PUBLISHED',
+      share_urn: 'urn:li:share:4',
+      published_at: '2026-04-10T06:30:00+00:00',
+      analytics: {
+        impressions: null,
+        reactions: 42,
+        comments: null,
+        reshares: null,
+        members_reached: null,
+      },
+    });
+
+    const parsed = PostSchema.parse(post);
+    expect(parsed.analytics?.reactions).toBe(42);
+    expect(parsed.analytics?.impressions).toBeNull();
+    expect(parsed.analytics?.comments).toBeNull();
+    expect(parsed.analytics?.reshares).toBeNull();
+    expect(parsed.analytics?.members_reached).toBeNull();
   });
 });
