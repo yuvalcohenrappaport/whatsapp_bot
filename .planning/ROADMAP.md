@@ -91,7 +91,7 @@
 
 - [x] **Phase 33: pm-authority HTTP Service** — FastAPI sidecar binding 127.0.0.1 exposing post/variant/lesson state + mutations over localhost (completed 2026-04-13)
 - [x] **Phase 34: Fastify Proxy Layer** — Typed Zod-validated proxy routes in whatsapp-bot forwarding dashboard calls to the FastAPI service (completed 2026-04-13)
-- [ ] **Phase 35: LinkedIn Queue Read-Side UI** — `/linkedin/queue` page with list, status strip, recent-published tab, and SSE auto-refresh
+- [x] **Phase 35: LinkedIn Queue Read-Side UI** — `/linkedin/queue` page with list, status strip, recent-published tab, and SSE auto-refresh (completed 2026-04-13)
 - [ ] **Phase 36: Review Actions (Write)** — Approve/reject/edit/regenerate/replace-image per-post controls wired end-to-end
 - [ ] **Phase 37: Lesson Mode UX** — Two-phase lesson picker (4 candidates → 2 variants) with inline generated fal.ai images
 - [ ] **Phase 38: New Lesson Run Form** — Dashboard form to start a lesson-mode generation run, replacing the SSH + `generate.py --mode lesson` CLI workflow
@@ -226,11 +226,11 @@ Plans:
   2. A status strip on the queue page shows the next publish slot (Tue/Wed/Thu 06:30 IDT), pending count, approved count, and a preview of the last published post
   3. A recent-published history tab lists the last N published posts with published_at timestamp, clickable LinkedIn permalink, content preview, and any basic metrics available from pm-authority
   4. When a post's state changes in pm-authority (e.g. a regen completes, a variant is generated), the queue updates live over SSE without a manual page reload
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 complete
 - [x] 35-01-PLAN.md — Cross-repo PostDTO.analytics embed + PM2 whatsapp-bot unblocker (see `.planning/phases/35-linkedin-queue-read-side-ui/35-01-SUMMARY.md`)
-- [ ] 35-02-PLAN.md — Status strip with next publish slot
-- [ ] 35-03-PLAN.md — Recent-published tab with inline metrics
-- [ ] 35-04-PLAN.md — SSE auto-refresh wiring
+- [x] 35-02-PLAN.md — Server-side SSE stream route with 3s upstream poll + sha1 dedup + 15s heartbeat + JWT-in-query-string (11 new vitest cases; 84/84 linkedin suite green) (see `.planning/phases/35-linkedin-queue-read-side-ui/35-02-SUMMARY.md`)
+- [x] 35-03-PLAN.md — Dashboard primitives: LinkedInPostCard + StatusStrip + nextPublishSlot + LinkedInQueue page shell with mock wrapper (see `.planning/phases/35-linkedin-queue-read-side-ui/35-03-SUMMARY.md`)
+- [x] 35-04-PLAN.md — Zod install + 3 data hooks (queue stream / published history / health) + real-data LinkedInQueue wrapper + route mount + Sidebar nav + live-verified browser checkpoint (see `.planning/phases/35-linkedin-queue-read-side-ui/35-04-SUMMARY.md`)
 
 ### Phase 36: Review Actions (Write)
 **Goal**: Every per-post action the Telegram bot can perform — approve, reject, edit, regenerate, replace image — is available as a control on the dashboard queue and produces the same state transitions in pm-authority's state machine, so the owner can drive a full review cycle from the web UI end-to-end
@@ -303,7 +303,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 32. Recurring Schedules | v1.6 | 2/2 | Complete | 2026-03-30 |
 | 33. pm-authority HTTP Service | v1.7 | 5/5 | Complete | 2026-04-13 |
 | 34. Fastify Proxy Layer | v1.7 | 4/4 | Complete | 2026-04-13 |
-| 35. LinkedIn Queue Read-Side UI | 3/4 | In Progress|  | — |
+| 35. LinkedIn Queue Read-Side UI | v1.7 | 4/4 | Complete | 2026-04-13 |
 | 36. Review Actions (Write) | v1.7 | 0/? | Not started | — |
 | 37. Lesson Mode UX | v1.7 | 0/? | Not started | — |
 | 38. New Lesson Run Form | v1.7 | 0/? | Not started | — |
