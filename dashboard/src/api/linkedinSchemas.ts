@@ -62,6 +62,12 @@ export const DashboardPostSchema = z
     image: DashboardPostImageSchema.nullable(),
     variants: z.array(z.any()),
     lesson_candidates: z.array(z.any()),
+    // Plan 36-01 drift fix: pm-authority has always sent these on PostDTO
+    // (since Phase 33-02), but the dashboard-side Zod parser was missing
+    // them. Wave-2 plan 36-03's regeneration cap gate consumes both. The
+    // .default()s protect against an older pm-authority build mid-deploy.
+    regeneration_count: z.number().int().default(0),
+    regeneration_capped: z.boolean().default(false),
     share_urn: z.string().nullable(),
     published_at: z.string().nullable(),
     created_at: z.string(),
