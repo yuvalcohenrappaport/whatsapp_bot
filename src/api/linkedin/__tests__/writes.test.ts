@@ -582,3 +582,293 @@ describe('linkedin write routes — auth gate', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+// ═════════════════════════════════════════════════════════════════════════
+// Plan 36-01 — upload-image (multipart) + confirm-pii routes
+// ═════════════════════════════════════════════════════════════════════════
+
+/**
+ * Hand-build a multipart/form-data body matching RFC 7578. Avoids pulling in
+ * the form-data package — Fastify's inject accepts Buffer + content-type.
+ */
+function buildMultipartBody(
+  boundary: string,
+  field: string,
+  filename: string,
+  contentType: string,
+  fileBytes: Buffer,
+): Buffer {
+  const CRLF = '\r\n';
+  const header =
+    `--${boundary}${CRLF}` +
+    `Content-Disposition: form-data; name="${field}"; filename="${filename}"${CRLF}` +
+    `Content-Type: ${contentType}${CRLF}${CRLF}`;
+  const footer = `${CRLF}--${boundary}--${CRLF}`;
+  return Buffer.concat([
+    Buffer.from(header, 'utf8'),
+    fileBytes,
+    Buffer.from(footer, 'utf8'),
+  ]);
+}
+
+function multipartPayload(
+  field: string,
+  filename: string,
+  contentType: string,
+  fileBytes: Buffer,
+): { payload: Buffer; headers: Record<string, string> } {
+  const boundary = '----TestBoundary' + Math.random().toString(16).slice(2);
+  const payload = buildMultipartBody(
+    boundary,
+    field,
+    filename,
+    contentType,
+    fileBytes,
+  );
+  return {
+    payload,
+    headers: {
+      'content-type': `multipart/form-data; boundary=${boundary}`,
+      'content-length': String(payload.length),
+    },
+  };
+}
+
+const MIN_PNG = Buffer.from([
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+  ...Array(50).fill(0),
+]);
+
+describe('linkedin write routes — Plan 36-01 upload-image + confirm-pii', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+  let server: FastifyInstance;
+
+  beforeEach(async () => {
+    fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    server = await buildTestServer();
+  });
+
+  afterEach(async () => {
+    await server.close();
+    vi.unstubAllGlobals();
+  });
+
+  // ───── upload-image — 6 tests ─────────────────────────────────────────
+
+  it('POST /posts/:id/upload-image → 200 + PostSchema on happy path', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(
+        fixturePost({
+          id: 'post-xyz',
+          status: 'PENDING_PII_REVIEW',
+          image: {
+            source: 'uploaded',
+            url: '/v1/posts/post-xyz/image',
+            pii_reviewed: false,
+          },
+        }),
+      ),
+    );
+
+    const { payload, headers } = multipartPayload(
+      'image',
+      'shot.png',
+      'image/png',
+      MIN_PNG,
+    );
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/linkedin/posts/post-xyz/upload-image',
+      payload,
+      headers,
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.id).toBe('post-xyz');
+    expect(body.status).toBe('PENDING_PII_REVIEW');
+    expect(body.image.source).toBe('uploaded');
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [calledUrl, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    // Upstream URL string (not a URL object — we use string interp for multipart).
+    expect(String(calledUrl)).toBe(
+      `${PM_AUTHORITY_BASE_URL}/v1/posts/post-xyz/upload-image`,
+    );
+    expect(init.method).toBe('POST');
+    expect(init.body).toBeInstanceOf(FormData);
+  });
+
+  it('POST /posts/:id/upload-image with no file field → 400 VALIDATION_ERROR, fetch NOT called', async () => {
+    // Empty multipart — no file parts at all.
+    const boundary = '----EmptyBoundary';
+    const payload = Buffer.from(`--${boundary}--\r\n`, 'utf8');
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/linkedin/posts/post-xyz/upload-image',
+      payload,
+      headers: {
+        'content-type': `multipart/form-data; boundary=${boundary}`,
+        'content-length': String(payload.length),
+      },
+    });
+
+    expect(res.statusCode).toBe(400);
+    const body = res.json();
+    expect(body.error.code).toBe('VALIDATION_ERROR');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('POST /posts/:id/upload-image with wrong field name → 400 VALIDATION_ERROR, fetch NOT called', async () => {
+    const { payload, headers } = multipartPayload(
+      'file', // wrong — handler expects 'image'
+      'shot.png',
+      'image/png',
+      MIN_PNG,
+    );
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/linkedin/posts/post-xyz/upload-image',
+      payload,
+      headers,
+    });
+
+    expect(res.statusCode).toBe(400);
+    const body = res.json();
+    expect(body.error.code).toBe('VALIDATION_ERROR');
+    expect(body.error.details.received).toBe('file');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('POST /posts/:id/upload-image oversize → 413 VALIDATION_ERROR with cap_bytes', async () => {
+    // 11 MB payload — the 10 MB limits.fileSize plugin should throw
+    // FST_REQ_FILE_TOO_LARGE when toBuffer() drains past the cap.
+    const big = Buffer.alloc(11 * 1024 * 1024, 0x41);
+    const { payload, headers } = multipartPayload(
+      'image',
+      'big.png',
+      'image/png',
+      big,
+    );
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/linkedin/posts/post-xyz/upload-image',
+      payload,
+      headers,
+    });
+
+    expect(res.statusCode).toBe(413);
+    const body = res.json();
+    expect(body.error.code).toBe('VALIDATION_ERROR');
+    expect(body.error.details.cap_bytes).toBe(10 * 1024 * 1024);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('POST /posts/:id/upload-image upstream 409 STATE_VIOLATION → pass-through', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(
+        {
+          error: {
+            code: 'STATE_VIOLATION',
+            message: 'cannot replace_image post with status PUBLISHED',
+            details: {
+              action: 'replace_image',
+              current_status: 'PUBLISHED',
+              allowed_from: ['APPROVED', 'DRAFT', 'PENDING_PII_REVIEW'],
+            },
+          },
+        },
+        409,
+      ),
+    );
+
+    const { payload, headers } = multipartPayload(
+      'image',
+      'shot.png',
+      'image/png',
+      MIN_PNG,
+    );
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/linkedin/posts/post-pub/upload-image',
+      payload,
+      headers,
+    });
+
+    expect(res.statusCode).toBe(409);
+    const body = res.json();
+    expect(body.error.code).toBe('STATE_VIOLATION');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('POST /posts/:id/upload-image upstream schema mismatch → 500 INTERNAL_ERROR', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ garbage: true }, 200));
+
+    const { payload, headers } = multipartPayload(
+      'image',
+      'shot.png',
+      'image/png',
+      MIN_PNG,
+    );
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/linkedin/posts/post-xyz/upload-image',
+      payload,
+      headers,
+    });
+
+    expect(res.statusCode).toBe(500);
+    const body = res.json();
+    expect(body.error.code).toBe('INTERNAL_ERROR');
+  });
+
+  // ───── confirm-pii — 2 tests ──────────────────────────────────────────
+
+  it('POST /posts/:id/confirm-pii → 200 + PostSchema (empty body)', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(fixturePost({ id: 'post-xyz', status: 'DRAFT' })),
+    );
+
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/linkedin/posts/post-xyz/confirm-pii',
+      payload: {},
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().status).toBe('DRAFT');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [calledUrl, init] = fetchMock.mock.calls[0] as [URL, RequestInit];
+    expect(calledUrl.pathname).toBe('/v1/posts/post-xyz/confirm-pii');
+    expect(init.method).toBe('POST');
+  });
+
+  it('POST /posts/:id/confirm-pii upstream 409 STATE_VIOLATION → pass-through', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(
+        {
+          error: {
+            code: 'STATE_VIOLATION',
+            message: 'cannot confirm_pii post with status DRAFT',
+            details: {
+              action: 'confirm_pii',
+              current_status: 'DRAFT',
+              allowed_from: ['PENDING_PII_REVIEW'],
+            },
+          },
+        },
+        409,
+      ),
+    );
+
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/linkedin/posts/post-xyz/confirm-pii',
+      payload: {},
+    });
+
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error.code).toBe('STATE_VIOLATION');
+  });
+});

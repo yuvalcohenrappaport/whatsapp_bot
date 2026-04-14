@@ -77,7 +77,9 @@ export type LessonCandidate = z.infer<typeof LessonCandidateSchema>;
 export const ImageInfoSchema = z.object({
   // NOTE: Pydantic ImageInfoDTO.filesystem_path is Field(exclude=True) and
   // NEVER appears on the wire — it is intentionally absent here.
-  source: z.enum(['ai', 'screenshot']).nullable(),
+  // 'uploaded' added in Plan 36-01 to tag dashboard multipart uploads
+  // distinctly from Telegram screenshot uploads.
+  source: z.enum(['ai', 'screenshot', 'uploaded']).nullable(),
   url: z.string().nullable(),
   pii_reviewed: z.boolean(),
 });
@@ -192,6 +194,17 @@ export const StartLessonRunRequestSchema = z
   })
   .strict();
 export type StartLessonRunRequest = z.infer<typeof StartLessonRunRequestSchema>;
+
+/**
+ * Body for POST /v1/posts/{id}/confirm-pii. v1 captures optional reviewer
+ * note but pm-authority does not persist it.
+ */
+export const ConfirmPiiRequestSchema = z
+  .object({
+    note: z.string().optional(),
+  })
+  .strict();
+export type ConfirmPiiRequest = z.infer<typeof ConfirmPiiRequestSchema>;
 
 // ─── Query strings ───────────────────────────────────────────────────────────
 

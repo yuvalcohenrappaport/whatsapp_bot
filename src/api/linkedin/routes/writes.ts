@@ -33,9 +33,14 @@
  */
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import { callUpstream, SchemaMismatchError } from '../client.js';
+import {
+  callUpstream,
+  PM_AUTHORITY_BASE_URL,
+  SchemaMismatchError,
+} from '../client.js';
 import { mapUpstreamErrorToReply } from '../errors.js';
 import {
+  ConfirmPiiRequestSchema,
   EditRequestSchema,
   JobAcceptedSchema,
   PickLessonRequestSchema,
@@ -295,6 +300,128 @@ export async function registerWriteRoutes(
           body,
           timeoutMs: SLOW_MUTATION_TIMEOUT_MS,
           responseSchema: JobAcceptedSchema,
+        });
+        return reply.status(status).send(data);
+      } catch (err) {
+        return mapUpstreamErrorToReply(err, reply);
+      }
+    },
+  );
+
+  // ─── Plan 36-01 — Route 9: upload-image (multipart, sync PostSchema) ────
+  //
+  // Multipart streaming proxy for POST /v1/posts/:id/upload-image. The
+  // @fastify/multipart plugin (registered in routes/linkedin.ts) gates the
+  // body to fileSize:10MB and files:1, then we forward the single `image`
+  // field verbatim to pm-authority via undici's global fetch + FormData.
+  // pm-authority is the authority on MIME validation; we only gate size.
+  const UPLOAD_IMAGE_TIMEOUT_MS = 15_000; // larger than slow — Tailscale adds latency
+  fastify.post<{ Params: { id: string } }>(
+    '/api/linkedin/posts/:id/upload-image',
+    { onRequest: [fastify.authenticate] },
+    async (request, reply) => {
+      const { id } = request.params;
+      try {
+        const mp = await request.file();
+        if (!mp) {
+          return reply.status(400).send({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'no multipart file field provided',
+              details: { expected_field: 'image' },
+            },
+          });
+        }
+        if (mp.fieldname !== 'image') {
+          return reply.status(400).send({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: `unexpected field name '${mp.fieldname}' (expected 'image')`,
+              details: { received: mp.fieldname },
+            },
+          });
+        }
+
+        // Read the full upload into a Buffer (≤10MB enforced by plugin limits).
+        const buf = await mp.toBuffer();
+        const blob = new Blob([new Uint8Array(buf)], {
+          type: mp.mimetype || 'application/octet-stream',
+        });
+        const upstreamForm = new FormData();
+        upstreamForm.append('image', blob, mp.filename || 'upload.bin');
+
+        let upstreamRes: Response;
+        try {
+          upstreamRes = await fetch(
+            `${PM_AUTHORITY_BASE_URL}/v1/posts/${encodeURIComponent(id)}/upload-image`,
+            {
+              method: 'POST',
+              body: upstreamForm,
+              signal: AbortSignal.timeout(UPLOAD_IMAGE_TIMEOUT_MS),
+            },
+          );
+        } catch (fetchErr) {
+          // Forward network/timeout failures through the standard mapper.
+          return mapUpstreamErrorToReply(fetchErr, reply);
+        }
+
+        const upstreamJson = await upstreamRes
+          .json()
+          .catch(() => null as unknown);
+        if (upstreamRes.status >= 400) {
+          return reply.status(upstreamRes.status).send(upstreamJson);
+        }
+        const parsed = PostSchema.safeParse(upstreamJson);
+        if (!parsed.success) {
+          throw new SchemaMismatchError(
+            '/v1/posts/:id/upload-image',
+            parsed.error.issues,
+            upstreamJson,
+          );
+        }
+        return reply.status(200).send(parsed.data);
+      } catch (err) {
+        // @fastify/multipart throws an error with code FST_REQ_FILE_TOO_LARGE
+        // (message includes 'request file too large') when fileSize is exceeded.
+        const msg = err instanceof Error ? err.message : '';
+        const code =
+          (err as { code?: string } | null | undefined)?.code ?? '';
+        if (
+          code === 'FST_REQ_FILE_TOO_LARGE' ||
+          /file too large|File size limit/i.test(msg)
+        ) {
+          return reply.status(413).send({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'image exceeds 10MB limit',
+              details: { cap_bytes: 10 * 1024 * 1024 },
+            },
+          });
+        }
+        return mapUpstreamErrorToReply(err, reply);
+      }
+    },
+  );
+
+  // ─── Plan 36-01 — Route 10: confirm-pii (sync JSON, body: {note?}) ──────
+  fastify.post<{ Params: { id: string }; Body: unknown }>(
+    '/api/linkedin/posts/:id/confirm-pii',
+    { onRequest: [fastify.authenticate] },
+    async (request, reply) => {
+      const body = await validateBody(
+        ConfirmPiiRequestSchema,
+        request.body ?? {},
+        reply,
+      );
+      if (body === null) return;
+      const { id } = request.params;
+      try {
+        const { status, data } = await callUpstream({
+          method: 'POST',
+          path: `/v1/posts/${encodeURIComponent(id)}/confirm-pii`,
+          body,
+          timeoutMs: FAST_MUTATION_TIMEOUT_MS,
+          responseSchema: PostSchema,
         });
         return reply.status(status).send(data);
       } catch (err) {

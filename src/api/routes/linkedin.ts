@@ -7,6 +7,7 @@
  * All routes in this plugin are JWT-guarded via fastify.authenticate
  * (registered by src/api/plugins/jwt.ts).
  */
+import fastifyMultipart from '@fastify/multipart';
 import type { FastifyInstance } from 'fastify';
 import {
   callUpstream,
@@ -24,6 +25,17 @@ import {
 export default async function linkedinRoutes(
   fastify: FastifyInstance,
 ): Promise<void> {
+  // ─── Plan 36-01: multipart body parser for the upload-image proxy ───────
+  // Scoped to this plugin so other routes (/api/*) are unaffected. The plan
+  // caps fileSize at 10 MB to match the pm-authority handler's cap and
+  // hard-limits to one file per request (no batching in v1).
+  await fastify.register(fastifyMultipart, {
+    limits: {
+      fileSize: 10 * 1024 * 1024, // 10 MB — matches pm-authority cap
+      files: 1, // single-file upload only
+    },
+    attachFieldsToBody: false, // use the streaming .file() API
+  });
   // GET /api/linkedin/health
   //
   // PHASE 34 SC#4 — this endpoint MUST always return HTTP 200 with a
