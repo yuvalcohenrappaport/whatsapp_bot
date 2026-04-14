@@ -27,6 +27,7 @@
     "@elevenlabs/elevenlabs-js": "^2.42.0",
     "@fastify/cors": "^11.2.0",
     "@fastify/jwt": "^10.0.0",
+    "@fastify/multipart": "^10.0.0",
     "@fastify/static": "^9.1.0",
     "@google/genai": "^1.49.0",
     "@sinclair/typebox": "^0.34.49",
