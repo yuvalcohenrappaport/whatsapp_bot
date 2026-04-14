@@ -14,8 +14,8 @@ Requirements for the LinkedIn Bot Dashboard Integration milestone. Each maps to 
 
 ### Queue & Status (Read)
 
-- [ ] **LIN-03**: User can view a `/linkedin/queue` dashboard page listing all posts in `DRAFT`, `PENDING_VARIANT`, `PENDING_LESSON_SELECTION`, or `PENDING_PII_REVIEW` with status badge, content preview, and image thumbnail
-- [ ] **LIN-04**: User can see a status strip on the queue page showing next publish slot (Tue/Wed/Thu 06:30 IDT), pending count, approved count, and last published post preview
+- [ ] **LIN-03**: User can view a `/linkedin/queue` dashboard page listing all posts in `DRAFT`, `PENDING_VARIANT`, `PENDING_LESSON_SELECTION`, or `PENDING_PII_REVIEW` with status badge, content preview, and image thumbnail _(presentation layer ready in Plan 35-03; live data wiring + route mount + nav entry in Plan 35-04)_
+- [ ] **LIN-04**: User can see a status strip on the queue page showing next publish slot (Tue/Wed/Thu 06:30 IDT), pending count, approved count, and last published post preview _(presentation layer ready in Plan 35-03; live data wiring in Plan 35-04)_
 - [x] **LIN-05**: User can view a recent-published history tab listing the last N published posts with published_at, LinkedIn permalink, content preview, and basic metrics when available
 - [ ] **LIN-06**: User sees the queue auto-refresh via SSE on post state changes without manual page reload
 
@@ -123,8 +123,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | LIN-01 | Phase 33 | Complete (2026-04-13 — 52/52 HTTP tests passing, service live on PM2 at 127.0.0.1:8765) |
 | LIN-02 | Phase 34 | Complete (2026-04-13 — 63 unit vitest + 6 live integration tests green; live pm-authority verified via fastify.inject against 127.0.0.1:8765) |
-| LIN-03 | Phase 35 | Pending |
-| LIN-04 | Phase 35 | Pending |
+| LIN-03 | Phase 35 | In Progress (presentation layer shipped in Plan 35-03; Plan 35-04 wires live data + mounts route) |
+| LIN-04 | Phase 35 | In Progress (presentation layer shipped in Plan 35-03; Plan 35-04 wires live data) |
 | LIN-05 | Phase 35 | Complete |
 | LIN-06 | Phase 35 | Pending |
 | LIN-07 | Phase 36 | Pending |

@@ -226,7 +226,7 @@ Plans:
   2. A status strip on the queue page shows the next publish slot (Tue/Wed/Thu 06:30 IDT), pending count, approved count, and a preview of the last published post
   3. A recent-published history tab lists the last N published posts with published_at timestamp, clickable LinkedIn permalink, content preview, and any basic metrics available from pm-authority
   4. When a post's state changes in pm-authority (e.g. a regen completes, a variant is generated), the queue updates live over SSE without a manual page reload
-**Plans:** 1/4 plans executed
+**Plans:** 3/4 plans executed
 - [x] 35-01-PLAN.md — Cross-repo PostDTO.analytics embed + PM2 whatsapp-bot unblocker (see `.planning/phases/35-linkedin-queue-read-side-ui/35-01-SUMMARY.md`)
 - [ ] 35-02-PLAN.md — Status strip with next publish slot
 - [ ] 35-03-PLAN.md — Recent-published tab with inline metrics
@@ -303,7 +303,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 32. Recurring Schedules | v1.6 | 2/2 | Complete | 2026-03-30 |
 | 33. pm-authority HTTP Service | v1.7 | 5/5 | Complete | 2026-04-13 |
 | 34. Fastify Proxy Layer | v1.7 | 4/4 | Complete | 2026-04-13 |
-| 35. LinkedIn Queue Read-Side UI | 1/4 | In Progress|  | — |
+| 35. LinkedIn Queue Read-Side UI | 3/4 | In Progress|  | — |
 | 36. Review Actions (Write) | v1.7 | 0/? | Not started | — |
 | 37. Lesson Mode UX | v1.7 | 0/? | Not started | — |
 | 38. New Lesson Run Form | v1.7 | 0/? | Not started | — |
