@@ -256,10 +256,10 @@ Plans:
   1. A PENDING_LESSON_SELECTION post shows a card list of the 4 candidate lessons with lesson text and rationale, and clicking one advances the post into the next generation step
   2. A PENDING_VARIANT post shows a side-by-side view of the 2 full-post variants with content and image prompt, and clicking one finalizes it as the chosen variant
   3. Once fal.ai image generation completes for a variant, the generated image renders inline on the variant card (replacing any earlier "file path only" placeholder) without a manual reload
-**Plans:** 2/5 plans executed
+**Plans:** 3/5 plans executed
   - [x] 37-01-PLAN.md — Foundation: pm-authority DTO additions, proxy + dashboard Zod mirror, shared GenerationMetadata + StickyConfirmBar primitives, router routes with stub pages (completed 2026-04-15)
-  - [ ] 37-02-PLAN.md — Lesson selection page: 4-card vertical stack, focus-then-confirm, pick-lesson mutation, modal wait for variant generation, auto-navigate on success
-  - [ ] 37-03-PLAN.md — Variant finalization page: 2-col responsive grid, focus-then-confirm, mixed 200/202 pick-variant flow, SSE-driven inline fal.ai image state
+  - [x] 37-02-PLAN.md — Lesson selection page: 4-card vertical stack, focus-then-confirm, pick-lesson mutation, modal wait for variant generation, auto-navigate on success (completed 2026-04-15)
+  - [x] 37-03-PLAN.md — Variant finalization page: 2-col responsive grid, focus-then-confirm, mixed 200/202 pick-variant flow, SSE-driven inline fal.ai image state (completed 2026-04-15)
   - [ ] 37-04-PLAN.md — Queue integration: purple/indigo pills + 4px left stripes, PendingActionEntryButton, status strip 2 new counters, 300ms amber arrival flash
   - [ ] 37-05-PLAN.md — Live verification: pytest + vitest + tsc + vite green, PM2 restart, human checkpoint for all 3 SCs, STATE/ROADMAP/REQUIREMENTS updates
 
@@ -315,5 +315,5 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 34. Fastify Proxy Layer | v1.7 | 4/4 | Complete | 2026-04-13 |
 | 35. LinkedIn Queue Read-Side UI | v1.7 | 4/4 | Complete | 2026-04-13 |
 | 36. Review Actions (Write) | v1.7 | 5/5 | Complete | 2026-04-15 |
-| 37. Lesson Mode UX | 2/5 | In Progress|  | — |
+| 37. Lesson Mode UX | v1.7 | 3/5 | In Progress | — |
 | 38. New Lesson Run Form | v1.7 | 0/? | Not started | — |

@@ -29,8 +29,8 @@ Requirements for the LinkedIn Bot Dashboard Integration milestone. Each maps to 
 ### Lesson Mode UX
 
 - [x] **LIN-11**: User can pick one of 4 candidate lessons for a `PENDING_LESSON_SELECTION` post via a dashboard card list showing lesson text + rationale
-- [ ] **LIN-12**: User can pick one of 2 full-post variants for a `PENDING_VARIANT` post via a side-by-side dashboard view showing content + image prompt
-- [ ] **LIN-13**: User can see the generated fal.ai image inline on the variant card once image generation completes (replaces the current "file path only" state)
+- [x] **LIN-12**: User can pick one of 2 full-post variants for a `PENDING_VARIANT` post via a side-by-side dashboard view showing content + image prompt
+- [x] **LIN-13**: User can see the generated fal.ai image inline on the variant card once image generation completes (replaces the current "file path only" state)
 - [ ] **LIN-14**: User can start a new lesson-mode generation run from a dashboard form with project-picker dropdown, perspective, and language fields (replaces the SSH + `generate.py --mode lesson` CLI workflow)
 
 ## Previous Milestones
@@ -131,9 +131,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LIN-08 | Phase 36 | Complete (2026-04-15 — live-verified in browser walkthrough, bilingual edit persists; see 36-05-SUMMARY.md SC#2) |
 | LIN-09 | Phase 36 | Complete (2026-04-15 — live-verified after in-session fix `fcb619b` (JobAcceptedSchema drift); see 36-05-SUMMARY.md SC#3) |
 | LIN-10 | Phase 36 | Complete (2026-04-15 — live-verified after in-session fix `ac9b47f` (image route `?token=` fallback); see 36-05-SUMMARY.md SC#4) |
-| LIN-11 | Phase 37 | Complete |
-| LIN-12 | Phase 37 | Pending |
-| LIN-13 | Phase 37 | Pending |
+| LIN-11 | Phase 37 | Complete (2026-04-15 — Plan 37-02 ships lesson selection page with 4-card stack + pick-lesson + locked modal; live verification deferred to Plan 37-05) |
+| LIN-12 | Phase 37 | Complete (2026-04-15 — Plan 37-03 ships variant finalization page with 2-col focus-then-confirm + mixed 200/202 pick-variant flow; live verification deferred to Plan 37-05) |
+| LIN-13 | Phase 37 | Complete (2026-04-15 — Plan 37-03 ships VariantImageSlot idle/pending/ready/error modes + SSE-driven ackSlow() pattern + 1500ms visual-confirmation delay; live verification deferred to Plan 37-05) |
 | LIN-14 | Phase 38 | Pending |
 
 **Coverage:**
