@@ -92,7 +92,7 @@
 - [x] **Phase 33: pm-authority HTTP Service** — FastAPI sidecar binding 127.0.0.1 exposing post/variant/lesson state + mutations over localhost (completed 2026-04-13)
 - [x] **Phase 34: Fastify Proxy Layer** — Typed Zod-validated proxy routes in whatsapp-bot forwarding dashboard calls to the FastAPI service (completed 2026-04-13)
 - [x] **Phase 35: LinkedIn Queue Read-Side UI** — `/linkedin/queue` page with list, status strip, recent-published tab, and SSE auto-refresh (completed 2026-04-13)
-- [ ] **Phase 36: Review Actions (Write)** — Approve/reject/edit/regenerate/replace-image per-post controls wired end-to-end
+- [x] **Phase 36: Review Actions (Write)** — Approve/reject/edit/regenerate/replace-image per-post controls wired end-to-end (completed 2026-04-15)
 - [ ] **Phase 37: Lesson Mode UX** — Two-phase lesson picker (4 candidates → 2 variants) with inline generated fal.ai images
 - [ ] **Phase 38: New Lesson Run Form** — Dashboard form to start a lesson-mode generation run, replacing the SSH + `generate.py --mode lesson` CLI workflow
 
@@ -241,12 +241,12 @@ Plans:
   2. The owner can edit a post's content inline, with Hebrew and English sides editable separately for bilingual posts, and the edit persists across reloads
   3. Clicking Regenerate shows a live status indicator while Claude CLI runs, refuses once the existing 5-regeneration cap is reached, and replaces the preview with the new content when the run finishes
   4. The owner can drag-and-drop a replacement image onto a post card, the upload passes through the existing PENDING_PII_REVIEW gate, and the post cannot advance to APPROVED until PII review clears
-**Plans:** 4/5 plans executed
-- [ ] 36-01-PLAN.md — Foundation: cross-repo upload-image + confirm-pii endpoints, DashboardPostSchema drift fix, LinkedInPostCard slot props
-- [ ] 36-02-PLAN.md — Approve / Reject / Edit dashboard UX with optimistic updates + EditPostDialog (tabs, rtl/ltr)
-- [ ] 36-03-PLAN.md — Regenerate UX: useLinkedInJob 1500ms polling + useLinkedInRegenerate + visual regen state + client-side cap
-- [ ] 36-04-PLAN.md — Image replace drop zone + PENDING_PII_REVIEW gate UI + Mark PII Reviewed button
-- [ ] 36-05-PLAN.md — Live E2E browser verification + STATE / ROADMAP / REQUIREMENTS updates
+**Plans:** 5/5 plans complete
+- [x] 36-01-PLAN.md — Foundation: cross-repo upload-image + confirm-pii endpoints, DashboardPostSchema drift fix, LinkedInPostCard slot props (see `.planning/phases/36-review-actions-write/36-01-SUMMARY.md`)
+- [x] 36-02-PLAN.md — Approve / Reject / Edit dashboard UX with optimistic updates + EditPostDialog (tabs, rtl/ltr) (see `.planning/phases/36-review-actions-write/36-02-SUMMARY.md`)
+- [x] 36-03-PLAN.md — Regenerate UX: useLinkedInJob 1500ms polling + useLinkedInRegenerate + visual regen state + client-side cap (see `.planning/phases/36-review-actions-write/36-03-SUMMARY.md`)
+- [x] 36-04-PLAN.md — Image replace drop zone + PENDING_PII_REVIEW gate UI + Mark PII Reviewed button (see `.planning/phases/36-review-actions-write/36-04-SUMMARY.md`)
+- [x] 36-05-PLAN.md — Live E2E browser verification + STATE / ROADMAP / REQUIREMENTS updates (see `.planning/phases/36-review-actions-write/36-05-SUMMARY.md`)
 
 ### Phase 37: Lesson Mode UX
 **Goal**: The owner can complete the two-phase lesson-mode review (pick 1 of 4 candidate lessons, then pick 1 of 2 full-post variants) entirely in the dashboard, with the generated fal.ai image rendered inline on variant cards — replacing the Telegram-only UX for the existing lesson-mode generation flow
@@ -309,6 +309,6 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 33. pm-authority HTTP Service | v1.7 | 5/5 | Complete | 2026-04-13 |
 | 34. Fastify Proxy Layer | v1.7 | 4/4 | Complete | 2026-04-13 |
 | 35. LinkedIn Queue Read-Side UI | v1.7 | 4/4 | Complete | 2026-04-13 |
-| 36. Review Actions (Write) | 4/5 | In Progress|  | — |
+| 36. Review Actions (Write) | v1.7 | 5/5 | Complete | 2026-04-15 |
 | 37. Lesson Mode UX | v1.7 | 0/? | Not started | — |
 | 38. New Lesson Run Form | v1.7 | 0/? | Not started | — |

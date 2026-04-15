@@ -127,10 +127,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LIN-04 | Phase 35 | Complete (2026-04-13 — live-verified in browser with PM2 dashboard) |
 | LIN-05 | Phase 35 | Complete |
 | LIN-06 | Phase 35 | Complete |
-| LIN-07 | Phase 36 | Complete |
-| LIN-08 | Phase 36 | Complete |
-| LIN-09 | Phase 36 | Complete |
-| LIN-10 | Phase 36 | Complete |
+| LIN-07 | Phase 36 | Complete (2026-04-15 — live-verified in browser walkthrough against PM2 stack; see 36-05-SUMMARY.md SC#1) |
+| LIN-08 | Phase 36 | Complete (2026-04-15 — live-verified in browser walkthrough, bilingual edit persists; see 36-05-SUMMARY.md SC#2) |
+| LIN-09 | Phase 36 | Complete (2026-04-15 — live-verified after in-session fix `fcb619b` (JobAcceptedSchema drift); see 36-05-SUMMARY.md SC#3) |
+| LIN-10 | Phase 36 | Complete (2026-04-15 — live-verified after in-session fix `ac9b47f` (image route `?token=` fallback); see 36-05-SUMMARY.md SC#4) |
 | LIN-11 | Phase 37 | Pending |
 | LIN-12 | Phase 37 | Pending |
 | LIN-13 | Phase 37 | Pending |
