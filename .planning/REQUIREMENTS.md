@@ -21,8 +21,8 @@ Requirements for the LinkedIn Bot Dashboard Integration milestone. Each maps to 
 
 ### Review Actions (Write)
 
-- [ ] **LIN-07**: User can approve or reject any post from the dashboard via per-post action buttons
-- [ ] **LIN-08**: User can edit a post's content inline in the dashboard (Hebrew and English sides separately for bilingual posts)
+- [x] **LIN-07**: User can approve or reject any post from the dashboard via per-post action buttons
+- [x] **LIN-08**: User can edit a post's content inline in the dashboard (Hebrew and English sides separately for bilingual posts)
 - [ ] **LIN-09**: User can regenerate any post with a live status indicator while Claude CLI runs, respecting the existing 5-regeneration cap
 - [ ] **LIN-10**: User can replace a post's image by uploading a new file via drag-and-drop; the upload passes through the existing `PENDING_PII_REVIEW` gate
 
@@ -127,8 +127,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LIN-04 | Phase 35 | Complete (2026-04-13 — live-verified in browser with PM2 dashboard) |
 | LIN-05 | Phase 35 | Complete |
 | LIN-06 | Phase 35 | Complete |
-| LIN-07 | Phase 36 | Pending |
-| LIN-08 | Phase 36 | Pending |
+| LIN-07 | Phase 36 | Complete |
+| LIN-08 | Phase 36 | Complete |
 | LIN-09 | Phase 36 | Pending |
 | LIN-10 | Phase 36 | Pending |
 | LIN-11 | Phase 37 | Pending |
