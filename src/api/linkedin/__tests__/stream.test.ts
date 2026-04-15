@@ -32,6 +32,9 @@ function makePost(overrides: Record<string, unknown> = {}): Post {
     status: 'DRAFT',
     perspective: 'yuval',
     language: 'en',
+    // Plan 37-01 additions
+    project_name: 'TestProject',
+    source_snippet: null,
     content: 'Hello world',
     content_he: null,
     image: { source: null, url: null, pii_reviewed: true },

@@ -31,6 +31,9 @@ function fixturePost(overrides: Record<string, unknown> = {}): Record<string, un
     status: 'DRAFT',
     perspective: 'yuval',
     language: 'en',
+    // Plan 37-01: project_name + source_snippet are required PostSchema fields.
+    project_name: 'TestProject',
+    source_snippet: null,
     content: 'hello world',
     content_he: null,
     image: { source: null, url: null, pii_reviewed: false },
@@ -531,5 +534,105 @@ describe('PostSchema analytics field (Plan 35-01)', () => {
     expect(parsed.analytics?.comments).toBeNull();
     expect(parsed.analytics?.reshares).toBeNull();
     expect(parsed.analytics?.members_reached).toBeNull();
+  });
+});
+
+/**
+ * Plan 37-01: lesson-mode-ux foundation cross-repo contract.
+ *
+ * pm-authority's PostDTO grew project_name + source_snippet, and
+ * VariantDTO/LessonCandidateDTO grew per-row created_at. These tests pin the
+ * proxy Zod mirror — both the parse-level shape AND a real /posts/:id pass-
+ * through round-trip via fastify.inject().
+ */
+describe('PostSchema Plan 37-01 fields (project_name, source_snippet, per-row created_at)', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+  let server: FastifyInstance;
+
+  beforeEach(async () => {
+    fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    server = await buildTestServer();
+  });
+
+  afterEach(async () => {
+    await server.close();
+    vi.unstubAllGlobals();
+  });
+
+  it('PostSchema rejects a body missing project_name', () => {
+    const badPost = fixturePost();
+    delete (badPost as Record<string, unknown>).project_name;
+    expect(() => PostSchema.parse(badPost)).toThrow();
+  });
+
+  it('VariantSchema and LessonCandidateSchema require created_at', () => {
+    const variant = {
+      id: 1,
+      kind: 'lesson_story',
+      content: 'variant body',
+      image_prompt: null,
+      selected: false,
+      // created_at intentionally omitted
+    };
+    const lesson = {
+      id: 1,
+      lesson_text: 'lesson A',
+      rationale: 'why A',
+      image_url: null,
+      selected: false,
+      // created_at intentionally omitted
+    };
+    expect(() =>
+      PostSchema.parse(fixturePost({ variants: [variant] })),
+    ).toThrow();
+    expect(() =>
+      PostSchema.parse(fixturePost({ lesson_candidates: [lesson] })),
+    ).toThrow();
+  });
+
+  it('GET /posts/:id passes project_name, source_snippet, and per-row created_at through end-to-end', async () => {
+    const upstreamPost = fixturePost({
+      id: 'post-37-01',
+      project_name: 'Lesson Mode UX Project',
+      source_snippet: 'When we shipped Phase 36 we discovered that the dashboard...',
+      variants: [
+        {
+          id: 11,
+          kind: 'lesson_story',
+          content: 'Variant 1 body',
+          image_prompt: 'a desk',
+          selected: false,
+          created_at: '2026-04-15T10:00:00+00:00',
+        },
+      ],
+      lesson_candidates: [
+        {
+          id: 21,
+          lesson_text: 'Lesson A',
+          rationale: 'Why A',
+          image_url: null,
+          selected: false,
+          created_at: '2026-04-15T09:55:00+00:00',
+        },
+      ],
+    });
+    fetchMock.mockResolvedValueOnce(jsonResponse(upstreamPost));
+
+    const res = await server.inject({
+      method: 'GET',
+      url: '/api/linkedin/posts/post-37-01',
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.project_name).toBe('Lesson Mode UX Project');
+    expect(body.source_snippet).toBe(
+      'When we shipped Phase 36 we discovered that the dashboard...',
+    );
+    expect(body.variants[0].created_at).toBe('2026-04-15T10:00:00+00:00');
+    expect(body.lesson_candidates[0].created_at).toBe(
+      '2026-04-15T09:55:00+00:00',
+    );
   });
 });

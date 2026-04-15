@@ -44,6 +44,9 @@ function fixturePost(overrides: Record<string, unknown> = {}): Record<string, un
     status: 'DRAFT',
     perspective: 'yuval',
     language: 'en',
+    // Plan 37-01 additions — required PostSchema fields.
+    project_name: 'TestProject',
+    source_snippet: null,
     content: 'hello world',
     content_he: null,
     image: { source: null, url: null, pii_reviewed: false },

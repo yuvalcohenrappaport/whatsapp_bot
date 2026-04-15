@@ -62,6 +62,8 @@ export const VariantSchema = z.object({
   content: z.string(),
   image_prompt: z.string().nullable(),
   selected: z.boolean(),
+  // Plan 37-01: per-variant generation timestamp from post_variants.created_at.
+  created_at: z.iso.datetime({ offset: true }),
 });
 export type Variant = z.infer<typeof VariantSchema>;
 
@@ -71,6 +73,8 @@ export const LessonCandidateSchema = z.object({
   rationale: z.string(),
   image_url: z.string().nullable(),
   selected: z.boolean(),
+  // Plan 37-01: per-candidate generation timestamp from lesson_candidates.created_at.
+  created_at: z.iso.datetime({ offset: true }),
 });
 export type LessonCandidate = z.infer<typeof LessonCandidateSchema>;
 
@@ -117,6 +121,11 @@ export const PostSchema = z.object({
   status: z.string(),
   perspective: z.string(),
   language: z.string(),
+  // Plan 37-01: page-header context for the lesson + variant pages.
+  // project_name is required (sequences.project_name is NOT NULL).
+  // source_snippet is nullable (sequences.context_json may be NULL or empty).
+  project_name: z.string(),
+  source_snippet: z.string().nullable(),
   content: z.string(),
   content_he: z.string().nullable(),
   image: ImageInfoSchema,
