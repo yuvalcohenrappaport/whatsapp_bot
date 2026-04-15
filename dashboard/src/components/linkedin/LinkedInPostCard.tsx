@@ -96,7 +96,10 @@ function linkedInPermalink(shareUrn: string | null): string | null {
 
 function Thumbnail({ post }: { post: LinkedInPost }) {
   const [errored, setErrored] = useState(false);
-  const src = `/api/linkedin/posts/${post.id}/image`;
+  // <img> tags cannot send Authorization: Bearer headers. The image proxy
+  // route accepts ?token=<jwt> as a query-string fallback (same trick as SSE).
+  const token = localStorage.getItem('jwt') ?? '';
+  const src = `/api/linkedin/posts/${post.id}/image?token=${encodeURIComponent(token)}`;
 
   if (errored || !post.image.url) {
     return (

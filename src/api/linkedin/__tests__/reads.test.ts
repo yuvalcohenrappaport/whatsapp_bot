@@ -69,9 +69,24 @@ async function buildTestServer(
   authenticate: () => Promise<void> = async () => {
     /* always pass */
   },
+  jwtVerifyPasses = true,
 ): Promise<FastifyInstance> {
   const fastify = Fastify({ logger: false });
   fastify.decorate('authenticate', authenticate);
+  // Stub @fastify/jwt's two verification surfaces used by the image-route
+  // auth gate (header via request.jwtVerify, query-string via fastify.jwt.verify).
+  // Tests that want the 401 path set jwtVerifyPasses=false.
+  fastify.decorateRequest('jwtVerify', async function () {
+    if (!jwtVerifyPasses) throw new Error('unauthorized');
+  });
+  fastify.decorate('jwt', {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    verify: (_token: string): any => {
+      if (!jwtVerifyPasses) throw new Error('unauthorized');
+      return { sub: 'test' };
+    },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any);
   await fastify.register(linkedinRoutes);
   await fastify.ready();
   return fastify;
@@ -366,6 +381,65 @@ describe('linkedin read routes — auth gate', () => {
 
     expect(res.statusCode).toBe(401);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+// ─── Image-route auth gate (jwtVerify + ?token= fallback) ───────────────
+// The image routes don't use the fastify.authenticate decorator — they call
+// request.jwtVerify() first, then fall back to fastify.jwt.verify(?token=).
+// This lets <img> tags (which can't send Authorization headers) pass a token
+// via query string, the same workaround SSE uses in stream.ts.
+describe('linkedin read routes — image auth fallback', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('GET /posts/:id/image with neither header nor ?token → 401 and upstream fetch NOT called', async () => {
+    const server = await buildTestServer(undefined, false); // jwt always rejects
+    const res = await server.inject({
+      method: 'GET',
+      url: '/api/linkedin/posts/post-xyz/image',
+    });
+    expect(res.statusCode).toBe(401);
+    expect(fetchMock).not.toHaveBeenCalled();
+    await server.close();
+  });
+
+  it('GET /posts/:id/image with ?token=<valid jwt> → 200 and upstream streamed', async () => {
+    // jwtVerifyPasses=true means fastify.jwt.verify(token) succeeds.
+    const server = await buildTestServer();
+    const pngBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+    fetchMock.mockResolvedValueOnce(
+      new Response(pngBytes, {
+        status: 200,
+        headers: { 'content-type': 'image/png' },
+      }),
+    );
+    const res = await server.inject({
+      method: 'GET',
+      url: '/api/linkedin/posts/post-xyz/image?token=valid-jwt',
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['content-type']).toBe('image/png');
+    await server.close();
+  });
+
+  it('GET /posts/:id/lesson-candidates/:cid/image without auth → 401', async () => {
+    const server = await buildTestServer(undefined, false);
+    const res = await server.inject({
+      method: 'GET',
+      url: '/api/linkedin/posts/post-xyz/lesson-candidates/7/image',
+    });
+    expect(res.statusCode).toBe(401);
+    expect(fetchMock).not.toHaveBeenCalled();
+    await server.close();
   });
 });
 

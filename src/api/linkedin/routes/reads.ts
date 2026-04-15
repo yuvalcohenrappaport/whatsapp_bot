@@ -93,10 +93,14 @@ export async function registerReadRoutes(
   );
 
   // ─── Route 3: stream a post image ───────────────────────────────────────
-  fastify.get<{ Params: { id: string } }>(
+  // <img> tags cannot send Authorization: Bearer headers, so this route also
+  // accepts ?token=<jwt> as a query-string fallback — same trick as SSE uses
+  // in stream.ts. When the header is absent we verify the query-string token
+  // via fastify.jwt.verify() directly.
+  fastify.get<{ Params: { id: string }; Querystring: { token?: string } }>(
     '/api/linkedin/posts/:id/image',
-    { onRequest: [fastify.authenticate] },
     async (request, reply) => {
+      if (!(await verifyImageAuth(fastify, request, reply))) return;
       const { id } = request.params;
       try {
         const upstream = await streamUpstream(
@@ -112,10 +116,13 @@ export async function registerReadRoutes(
   );
 
   // ─── Route 4: stream a lesson-candidate image ───────────────────────────
-  fastify.get<{ Params: { id: string; cid: string } }>(
+  fastify.get<{
+    Params: { id: string; cid: string };
+    Querystring: { token?: string };
+  }>(
     '/api/linkedin/posts/:id/lesson-candidates/:cid/image',
-    { onRequest: [fastify.authenticate] },
     async (request, reply) => {
+      if (!(await verifyImageAuth(fastify, request, reply))) return;
       const { id, cid } = request.params;
       try {
         const upstream = await streamUpstream(
@@ -149,6 +156,37 @@ export async function registerReadRoutes(
       }
     },
   );
+}
+
+/**
+ * Image-route auth gate. Tries the normal Authorization: Bearer header first
+ * via fastify.authenticate; if that throws, falls back to verifying a ?token=
+ * query-string param (needed by <img> tags which cannot send headers). On
+ * any failure sends a 401 and returns false so the caller bails out.
+ */
+async function verifyImageAuth(
+  fastify: FastifyInstance,
+  request: import('fastify').FastifyRequest,
+  reply: import('fastify').FastifyReply,
+): Promise<boolean> {
+  try {
+    await (request as unknown as { jwtVerify: () => Promise<unknown> }).jwtVerify();
+    return true;
+  } catch {
+    // fall through to query-string check
+  }
+  const { token } = (request.query ?? {}) as { token?: string };
+  if (!token) {
+    reply.status(401).send({ error: 'Unauthorized' });
+    return false;
+  }
+  try {
+    fastify.jwt.verify(token);
+    return true;
+  } catch {
+    reply.status(401).send({ error: 'Unauthorized' });
+    return false;
+  }
 }
 
 /**
