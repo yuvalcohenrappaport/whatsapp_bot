@@ -241,7 +241,7 @@ Plans:
   2. The owner can edit a post's content inline, with Hebrew and English sides editable separately for bilingual posts, and the edit persists across reloads
   3. Clicking Regenerate shows a live status indicator while Claude CLI runs, refuses once the existing 5-regeneration cap is reached, and replaces the preview with the new content when the run finishes
   4. The owner can drag-and-drop a replacement image onto a post card, the upload passes through the existing PENDING_PII_REVIEW gate, and the post cannot advance to APPROVED until PII review clears
-**Plans:** 3/5 plans executed
+**Plans:** 4/5 plans executed
 - [ ] 36-01-PLAN.md — Foundation: cross-repo upload-image + confirm-pii endpoints, DashboardPostSchema drift fix, LinkedInPostCard slot props
 - [ ] 36-02-PLAN.md — Approve / Reject / Edit dashboard UX with optimistic updates + EditPostDialog (tabs, rtl/ltr)
 - [ ] 36-03-PLAN.md — Regenerate UX: useLinkedInJob 1500ms polling + useLinkedInRegenerate + visual regen state + client-side cap
@@ -309,6 +309,6 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 33. pm-authority HTTP Service | v1.7 | 5/5 | Complete | 2026-04-13 |
 | 34. Fastify Proxy Layer | v1.7 | 4/4 | Complete | 2026-04-13 |
 | 35. LinkedIn Queue Read-Side UI | v1.7 | 4/4 | Complete | 2026-04-13 |
-| 36. Review Actions (Write) | 3/5 | In Progress|  | — |
+| 36. Review Actions (Write) | 4/5 | In Progress|  | — |
 | 37. Lesson Mode UX | v1.7 | 0/? | Not started | — |
 | 38. New Lesson Run Form | v1.7 | 0/? | Not started | — |
