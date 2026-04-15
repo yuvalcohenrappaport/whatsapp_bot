@@ -10,7 +10,8 @@
  *   - tab bar: "Queue" (default) | "Recent Published"
  *   - card feed below the active tab (or skeleton/empty state)
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -26,6 +27,13 @@ import {
   isPending,
   type LinkedInPost,
 } from '@/components/linkedin';
+import { LinkedInPostActions } from '@/components/linkedin/LinkedInPostActions';
+import { EditPostDialog } from '@/components/linkedin/EditPostDialog';
+import {
+  useLinkedInPostActions,
+  actionErrorToToastText,
+  type PostActionError,
+} from '@/hooks/useLinkedInPostActions';
 import { useLinkedInQueueStream } from '@/hooks/useLinkedInQueueStream';
 import { useLinkedInPublishedHistory } from '@/hooks/useLinkedInPublishedHistory';
 import { useLinkedInHealth } from '@/hooks/useLinkedInHealth';
@@ -41,14 +49,18 @@ interface LinkedInQueuePageProps {
   streamStatus: 'connecting' | 'open' | 'reconnecting' | 'error';
   /** When the proxy health check is unavailable, we render a degraded banner. */
   degraded: { reason: string; onRetry: () => void } | null;
+  /** Plan 36-02: render the action row for a queue card. Not used for published. */
+  renderPostActions?: (post: LinkedInPost) => ReactNode;
 }
 
 function QueueFeed({
   posts,
   loading,
+  renderPostActions,
 }: {
   posts: LinkedInPost[] | null;
   loading: boolean;
+  renderPostActions?: (post: LinkedInPost) => ReactNode;
 }) {
   if (loading || posts === null) {
     return (
@@ -72,7 +84,12 @@ function QueueFeed({
   return (
     <div className="space-y-4 mt-4">
       {posts.map((post) => (
-        <LinkedInPostCard key={post.id} post={post} variant="queue" />
+        <LinkedInPostCard
+          key={post.id}
+          post={post}
+          variant="queue"
+          actionsSlot={renderPostActions?.(post)}
+        />
       ))}
     </div>
   );
@@ -118,6 +135,7 @@ export function LinkedInQueuePage({
   published,
   streamStatus,
   degraded,
+  renderPostActions,
 }: LinkedInQueuePageProps) {
   const [tab, setTab] = useState<TabValue>('queue');
 
@@ -173,7 +191,11 @@ export function LinkedInQueuePage({
           <TabsTrigger value="published">Recent Published</TabsTrigger>
         </TabsList>
         <TabsContent value="queue">
-          <QueueFeed posts={queue} loading={queue === null && !degraded} />
+          <QueueFeed
+            posts={queue}
+            loading={queue === null && !degraded}
+            renderPostActions={renderPostActions}
+          />
         </TabsContent>
         <TabsContent value="published">
           <PublishedFeed
@@ -212,6 +234,33 @@ export default function LinkedInQueueRoute() {
   const { posts: published, refresh: refreshPublished } =
     useLinkedInPublishedHistory();
   const { health, refresh: refreshHealth } = useLinkedInHealth();
+  const { approvePost, rejectPost } = useLinkedInPostActions();
+
+  // Optimistic-patch map: post.id -> partial post state overriding the SSE
+  // value. The SSE stream will eventually deliver the real state; until then
+  // the patch dominates. On error we roll back by clearing the patch.
+  const [patches, setPatches] = useState<
+    Record<string, Partial<LinkedInPost>>
+  >({});
+
+  // Edit modal state
+  const [editPostTarget, setEditPostTarget] = useState<LinkedInPost | null>(
+    null,
+  );
+  const [editOpen, setEditOpen] = useState(false);
+
+  // Project the SSE queue through the patch map. Posts optimistically
+  // marked REJECTED fall out of the visible queue (REJECTED is terminal).
+  const patchedQueue = useMemo<LinkedInPost[] | null>(() => {
+    if (queue === null) return null;
+    return (queue as unknown as LinkedInPost[])
+      .map((p) => {
+        const patch = patches[p.id];
+        if (!patch) return p;
+        return { ...p, ...patch } as LinkedInPost;
+      })
+      .filter((p) => p.status !== 'REJECTED');
+  }, [queue, patches]);
 
   // Whenever a new queue state arrives (e.g. a post transitioned to
   // PUBLISHED), re-fetch the published history so the Recent tab stays
@@ -229,12 +278,89 @@ export default function LinkedInQueueRoute() {
         }
       : null;
 
-  return (
-    <LinkedInQueuePage
-      queue={queue as unknown as LinkedInPost[] | null}
-      published={published as unknown as LinkedInPost[] | null}
-      streamStatus={streamStatus}
-      degraded={degraded}
+  function applyPatch(postId: string, patch: Partial<LinkedInPost>) {
+    setPatches((prev) => ({
+      ...prev,
+      [postId]: { ...prev[postId], ...patch },
+    }));
+  }
+
+  function clearPatch(postId: string) {
+    setPatches((prev) => {
+      const next = { ...prev };
+      delete next[postId];
+      return next;
+    });
+  }
+
+  async function handleApprove(post: LinkedInPost) {
+    applyPatch(post.id, { status: 'APPROVED' });
+    try {
+      await approvePost(post.id);
+      toast.success('Approved');
+      // Keep the optimistic patch until SSE refreshes the post with the
+      // real state. CONTEXT §1: "local wins until the POST response resolves".
+    } catch (err) {
+      clearPatch(post.id);
+      toast.error(actionErrorToToastText(err as PostActionError, 'approve'));
+    }
+  }
+
+  async function handleReject(post: LinkedInPost) {
+    applyPatch(post.id, { status: 'REJECTED' });
+    try {
+      await rejectPost(post.id);
+      toast.success('Rejected');
+    } catch (err) {
+      clearPatch(post.id);
+      toast.error(actionErrorToToastText(err as PostActionError, 'reject'));
+    }
+  }
+
+  function handleEdit(post: LinkedInPost) {
+    setEditPostTarget(post);
+    setEditOpen(true);
+  }
+
+  function handleEditSaved(updated: {
+    id: string;
+    content: string;
+    content_he: string | null;
+  }) {
+    applyPatch(updated.id, {
+      content: updated.content,
+      content_he: updated.content_he,
+    });
+    toast.success('Edit saved');
+  }
+
+  const renderPostActions = (post: LinkedInPost) => (
+    <LinkedInPostActions
+      post={post}
+      onApprove={() => void handleApprove(post)}
+      onReject={() => void handleReject(post)}
+      onEdit={() => handleEdit(post)}
+      onRegenerate={() => {
+        /* wired by Plan 36-03 */
+      }}
     />
+  );
+
+  return (
+    <>
+      <LinkedInQueuePage
+        queue={patchedQueue}
+        published={published as unknown as LinkedInPost[] | null}
+        streamStatus={streamStatus}
+        degraded={degraded}
+        renderPostActions={renderPostActions}
+      />
+      <EditPostDialog
+        post={editPostTarget}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        onSaved={handleEditSaved}
+      />
+    </>
   );
 }
