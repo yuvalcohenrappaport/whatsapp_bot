@@ -12,6 +12,8 @@ import Tasks from '@/pages/Tasks';
 import ScheduledMessages from '@/pages/ScheduledMessages';
 import Integrations from '@/pages/Integrations';
 import LinkedInQueue from '@/pages/LinkedInQueue';
+import LinkedInLessonSelection from '@/pages/LinkedInLessonSelection';
+import LinkedInVariantFinalization from '@/pages/LinkedInVariantFinalization';
 
 export const router = createBrowserRouter([
   { path: '/login', element: <Login /> },
@@ -30,6 +32,8 @@ export const router = createBrowserRouter([
           { path: 'tasks', element: <Tasks /> },
           { path: 'scheduled-messages', element: <ScheduledMessages /> },
           { path: 'linkedin/queue', element: <LinkedInQueue /> },
+          { path: 'linkedin/queue/posts/:id/lesson', element: <LinkedInLessonSelection /> },
+          { path: 'linkedin/queue/posts/:id/variant', element: <LinkedInVariantFinalization /> },
           { path: 'groups', element: <Groups /> },
           { path: 'integrations', element: <Integrations /> },
         ],
