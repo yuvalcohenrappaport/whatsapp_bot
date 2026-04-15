@@ -37,6 +37,7 @@ import {
 import { useLinkedInQueueStream } from '@/hooks/useLinkedInQueueStream';
 import { useLinkedInPublishedHistory } from '@/hooks/useLinkedInPublishedHistory';
 import { useLinkedInHealth } from '@/hooks/useLinkedInHealth';
+import { useLinkedInRegenerate } from '@/hooks/useLinkedInRegenerate';
 
 type TabValue = 'queue' | 'published';
 
@@ -51,16 +52,31 @@ interface LinkedInQueuePageProps {
   degraded: { reason: string; onRetry: () => void } | null;
   /** Plan 36-02: render the action row for a queue card. Not used for published. */
   renderPostActions?: (post: LinkedInPost) => ReactNode;
+  /**
+   * Plan 36-03: per-post regeneration predicate. When true, QueueCard
+   * applies `ring-2 ring-blue-400 animate-pulse` + Loader2 spinner overlay
+   * (both pre-wired in Plan 36-01 Task 6).
+   */
+  isPostRegenerating?: (post: LinkedInPost) => boolean;
+  /**
+   * Plan 36-03: per-post 400ms emerald flash predicate (CONTEXT §3).
+   * Cleared by the parent via setTimeout after the success transition.
+   */
+  isPostJustRegenerated?: (post: LinkedInPost) => boolean;
 }
 
 function QueueFeed({
   posts,
   loading,
   renderPostActions,
+  isPostRegenerating,
+  isPostJustRegenerated,
 }: {
   posts: LinkedInPost[] | null;
   loading: boolean;
   renderPostActions?: (post: LinkedInPost) => ReactNode;
+  isPostRegenerating?: (post: LinkedInPost) => boolean;
+  isPostJustRegenerated?: (post: LinkedInPost) => boolean;
 }) {
   if (loading || posts === null) {
     return (
@@ -89,6 +105,8 @@ function QueueFeed({
           post={post}
           variant="queue"
           actionsSlot={renderPostActions?.(post)}
+          isRegenerating={isPostRegenerating?.(post) ?? false}
+          justRegenerated={isPostJustRegenerated?.(post) ?? false}
         />
       ))}
     </div>
@@ -136,6 +154,8 @@ export function LinkedInQueuePage({
   streamStatus,
   degraded,
   renderPostActions,
+  isPostRegenerating,
+  isPostJustRegenerated,
 }: LinkedInQueuePageProps) {
   const [tab, setTab] = useState<TabValue>('queue');
 
@@ -195,6 +215,8 @@ export function LinkedInQueuePage({
             posts={queue}
             loading={queue === null && !degraded}
             renderPostActions={renderPostActions}
+            isPostRegenerating={isPostRegenerating}
+            isPostJustRegenerated={isPostJustRegenerated}
           />
         </TabsContent>
         <TabsContent value="published">
@@ -248,6 +270,24 @@ export default function LinkedInQueueRoute() {
     null,
   );
   const [editOpen, setEditOpen] = useState(false);
+
+  // Plan 36-03: 400ms emerald flash map driven by the regen success handler.
+  // CONTEXT §3 lock: NO success toast — the card itself flashes via
+  // bg-emerald-50 + transition-colors (pre-wired in Plan 36-01 Task 6).
+  const [justRegenerated, setJustRegenerated] = useState<
+    Record<string, boolean>
+  >({});
+
+  const flashRegenSuccess = (postId: string) => {
+    setJustRegenerated((prev) => ({ ...prev, [postId]: true }));
+    window.setTimeout(() => {
+      setJustRegenerated((prev) => {
+        const next = { ...prev };
+        delete next[postId];
+        return next;
+      });
+    }, 400);
+  };
 
   // Project the SSE queue through the patch map. Posts optimistically
   // marked REJECTED fall out of the visible queue (REJECTED is terminal).
@@ -334,15 +374,62 @@ export default function LinkedInQueueRoute() {
     toast.success('Edit saved');
   }
 
+  // Plan 36-03: Regenerate orchestration. Single-active-job semantics
+  // mirror pm-authority's semaphore(1). All three callbacks below are
+  // CONTEXT §3 locks:
+  //  - onSucceeded → NO toast, instead emerald flash via flashRegenSuccess
+  //  - onFailed → toast.error with Retry action
+  //  - onCapped → toast.error "Regeneration cap reached for this post (5/5)"
+  const { start: startRegen, isRegenerating: getRegenStatus } =
+    useLinkedInRegenerate({
+      onSucceeded: (postId, updated) => {
+        // Updated may be null on shape-drift fallback; SSE will catch up.
+        if (updated) {
+          applyPatch(postId, {
+            content: updated.content,
+            content_he: updated.content_he,
+            status: updated.status,
+            regeneration_count: updated.regeneration_count,
+            regeneration_capped: updated.regeneration_capped,
+          });
+        }
+        // CONTEXT §3 lock: NO success toast — the card itself flashes.
+        flashRegenSuccess(postId);
+      },
+      onFailed: (postId, errorMessage) => {
+        // Clear any patches that may have leaked into the regen window.
+        clearPatch(postId);
+        toast.error(`Regeneration failed: ${errorMessage}`, {
+          action: {
+            label: 'Retry',
+            onClick: () => {
+              void handleRegenerate({ id: postId } as LinkedInPost);
+            },
+          },
+        });
+      },
+      onCapped: (_postId) => {
+        toast.error('Regeneration cap reached for this post (5/5)');
+      },
+    });
+
+  async function handleRegenerate(post: LinkedInPost) {
+    const result = await startRegen(post.id);
+    if (result.kind === 'error') {
+      toast.error(`Could not start regeneration: ${result.message}`);
+    }
+    // 'capped' already toasted via onCapped
+    // 'started' → hook's internal poll handles the rest via callbacks
+  }
+
   const renderPostActions = (post: LinkedInPost) => (
     <LinkedInPostActions
       post={post}
+      isRegenerating={getRegenStatus(post.id)}
       onApprove={() => void handleApprove(post)}
       onReject={() => void handleReject(post)}
       onEdit={() => handleEdit(post)}
-      onRegenerate={() => {
-        /* wired by Plan 36-03 */
-      }}
+      onRegenerate={() => void handleRegenerate(post)}
     />
   );
 
@@ -354,6 +441,8 @@ export default function LinkedInQueueRoute() {
         streamStatus={streamStatus}
         degraded={degraded}
         renderPostActions={renderPostActions}
+        isPostRegenerating={(p) => getRegenStatus(p.id)}
+        isPostJustRegenerated={(p) => justRegenerated[p.id] === true}
       />
       <EditPostDialog
         post={editPostTarget}
