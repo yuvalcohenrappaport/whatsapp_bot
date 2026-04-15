@@ -28,7 +28,6 @@ import { useLinkedInJob } from './useLinkedInJob';
 /** 202 response shape from POST /api/linkedin/posts/:id/regenerate. */
 const JobAcceptedSchema = z.object({
   job_id: z.string(),
-  status: z.string(),
 });
 
 export type RegenStartResult =
