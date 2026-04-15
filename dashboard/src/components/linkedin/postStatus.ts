@@ -29,7 +29,7 @@ export interface LinkedInLessonCandidate {
 }
 
 export interface LinkedInImageInfo {
-  source: 'ai' | 'screenshot' | null;
+  source: 'ai' | 'screenshot' | 'uploaded' | null;
   url: string | null;
   pii_reviewed: boolean;
 }

@@ -29,15 +29,19 @@ import {
 } from '@/components/linkedin';
 import { LinkedInPostActions } from '@/components/linkedin/LinkedInPostActions';
 import { EditPostDialog } from '@/components/linkedin/EditPostDialog';
+import { LinkedInImageDropZone } from '@/components/linkedin/LinkedInImageDropZone';
+import { LinkedInPiiGate } from '@/components/linkedin/LinkedInPiiGate';
 import {
   useLinkedInPostActions,
   actionErrorToToastText,
   type PostActionError,
 } from '@/hooks/useLinkedInPostActions';
+import { useLinkedInConfirmPii } from '@/hooks/useLinkedInConfirmPii';
 import { useLinkedInQueueStream } from '@/hooks/useLinkedInQueueStream';
 import { useLinkedInPublishedHistory } from '@/hooks/useLinkedInPublishedHistory';
 import { useLinkedInHealth } from '@/hooks/useLinkedInHealth';
 import { useLinkedInRegenerate } from '@/hooks/useLinkedInRegenerate';
+import type { DashboardPost } from '@/api/linkedinSchemas';
 
 type TabValue = 'queue' | 'published';
 
@@ -63,6 +67,16 @@ interface LinkedInQueuePageProps {
    * Cleared by the parent via setTimeout after the success transition.
    */
   isPostJustRegenerated?: (post: LinkedInPost) => boolean;
+  /**
+   * Plan 36-04: render the thumbnail drop-zone overlay for a queue card.
+   * Mounted inside the thumbnail's relative wrapper (pre-wired by 36-01 Task 6).
+   */
+  renderThumbnailOverlay?: (post: LinkedInPost) => ReactNode;
+  /**
+   * Plan 36-04: render the PII gate affordance below the content preview.
+   * Parent gates by status === 'PENDING_PII_REVIEW' and returns null otherwise.
+   */
+  renderPiiGate?: (post: LinkedInPost) => ReactNode;
 }
 
 function QueueFeed({
@@ -71,12 +85,16 @@ function QueueFeed({
   renderPostActions,
   isPostRegenerating,
   isPostJustRegenerated,
+  renderThumbnailOverlay,
+  renderPiiGate,
 }: {
   posts: LinkedInPost[] | null;
   loading: boolean;
   renderPostActions?: (post: LinkedInPost) => ReactNode;
   isPostRegenerating?: (post: LinkedInPost) => boolean;
   isPostJustRegenerated?: (post: LinkedInPost) => boolean;
+  renderThumbnailOverlay?: (post: LinkedInPost) => ReactNode;
+  renderPiiGate?: (post: LinkedInPost) => ReactNode;
 }) {
   if (loading || posts === null) {
     return (
@@ -107,6 +125,8 @@ function QueueFeed({
           actionsSlot={renderPostActions?.(post)}
           isRegenerating={isPostRegenerating?.(post) ?? false}
           justRegenerated={isPostJustRegenerated?.(post) ?? false}
+          thumbnailOverlay={renderThumbnailOverlay?.(post)}
+          piiGateSlot={renderPiiGate?.(post)}
         />
       ))}
     </div>
@@ -156,6 +176,8 @@ export function LinkedInQueuePage({
   renderPostActions,
   isPostRegenerating,
   isPostJustRegenerated,
+  renderThumbnailOverlay,
+  renderPiiGate,
 }: LinkedInQueuePageProps) {
   const [tab, setTab] = useState<TabValue>('queue');
 
@@ -217,6 +239,8 @@ export function LinkedInQueuePage({
             renderPostActions={renderPostActions}
             isPostRegenerating={isPostRegenerating}
             isPostJustRegenerated={isPostJustRegenerated}
+            renderThumbnailOverlay={renderThumbnailOverlay}
+            renderPiiGate={renderPiiGate}
           />
         </TabsContent>
         <TabsContent value="published">
@@ -257,6 +281,7 @@ export default function LinkedInQueueRoute() {
     useLinkedInPublishedHistory();
   const { health, refresh: refreshHealth } = useLinkedInHealth();
   const { approvePost, rejectPost } = useLinkedInPostActions();
+  const { confirmPii } = useLinkedInConfirmPii();
 
   // Optimistic-patch map: post.id -> partial post state overriding the SSE
   // value. The SSE stream will eventually deliver the real state; until then
@@ -374,6 +399,41 @@ export default function LinkedInQueueRoute() {
     toast.success('Edit saved');
   }
 
+  // Plan 36-04: drag-drop image replace success handler. The upload returns
+  // the updated DashboardPost with status PENDING_PII_REVIEW and the new
+  // image.source === 'uploaded'. Patch the queue optimistically — SSE will
+  // reconcile within ~3s.
+  function handleImageUploaded(updated: DashboardPost) {
+    applyPatch(updated.id, {
+      status: updated.status,
+      image: updated.image as unknown as LinkedInPost['image'],
+    });
+    toast.success('Image uploaded — review for PII before approving');
+  }
+
+  function handleImageUploadError(message: string) {
+    toast.error(message);
+  }
+
+  // Plan 36-04: PII-gate clearance. Optimistically assume the post returns
+  // to DRAFT (pm-authority's confirm_pii_reviewed transitions
+  // PENDING_PII_REVIEW -> DRAFT per bot.py parity, Plan 36-01 Task 2); if
+  // the server responds with a different status, align with reality. On
+  // error, roll back the patch and surface a toast.
+  async function handleConfirmPii(post: LinkedInPost) {
+    applyPatch(post.id, { status: 'DRAFT' });
+    try {
+      const updated = await confirmPii(post.id);
+      applyPatch(post.id, { status: updated.status });
+      toast.success('PII review cleared');
+    } catch (err) {
+      clearPatch(post.id);
+      toast.error(
+        actionErrorToToastText(err as PostActionError, 'confirm-pii'),
+      );
+    }
+  }
+
   // Plan 36-03: Regenerate orchestration. Single-active-job semantics
   // mirror pm-authority's semaphore(1). All three callbacks below are
   // CONTEXT §3 locks:
@@ -433,6 +493,24 @@ export default function LinkedInQueueRoute() {
     />
   );
 
+  const renderThumbnailOverlay = (post: LinkedInPost) => (
+    <LinkedInImageDropZone
+      postId={post.id}
+      onUploaded={handleImageUploaded}
+      onError={handleImageUploadError}
+    />
+  );
+
+  const renderPiiGate = (post: LinkedInPost) => {
+    if (post.status !== 'PENDING_PII_REVIEW') return null;
+    return (
+      <LinkedInPiiGate
+        postId={post.id}
+        onConfirm={() => handleConfirmPii(post)}
+      />
+    );
+  };
+
   return (
     <>
       <LinkedInQueuePage
@@ -443,6 +521,8 @@ export default function LinkedInQueueRoute() {
         renderPostActions={renderPostActions}
         isPostRegenerating={(p) => getRegenStatus(p.id)}
         isPostJustRegenerated={(p) => justRegenerated[p.id] === true}
+        renderThumbnailOverlay={renderThumbnailOverlay}
+        renderPiiGate={renderPiiGate}
       />
       <EditPostDialog
         post={editPostTarget}
