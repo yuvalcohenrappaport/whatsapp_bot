@@ -41,12 +41,43 @@ const DashboardPostImageSchema = z.object({
 });
 
 /**
+ * Variant + lesson candidate sub-schemas — Plan 37-01 flip.
+ *
+ * Wave-1 (this plan) upgrades these from the old `z.array(z.any())` to
+ * strongly-typed schemas because Phase 37's lesson-selection page and
+ * variant-finalization page consume the inner shape. Plans 37-02 / 37-03
+ * read `lesson_text`, `rationale`, `content`, `image_prompt`, `created_at`
+ * etc. directly off the parsed payload.
+ *
+ * `created_at` lives as an ISO string on the wire and is rendered by the
+ * shared <GenerationMetadata> component (no transform — date formatting is
+ * the consumer's job).
+ */
+const DashboardVariantSchema = z.object({
+  id: z.number().int(),
+  kind: z.string(),
+  content: z.string(),
+  image_prompt: z.string().nullable(),
+  selected: z.boolean(),
+  created_at: z.string(),
+});
+
+const DashboardLessonCandidateSchema = z.object({
+  id: z.number().int(),
+  lesson_text: z.string(),
+  rationale: z.string(),
+  image_url: z.string().nullable(),
+  selected: z.boolean(),
+  created_at: z.string(),
+});
+
+/**
  * Post schema — ONLY the fields the queue + published tabs read.
  *
- * `variants` and `lesson_candidates` are typed as `z.array(z.any())` because
- * the UI only reads `.length` off them (queue status pill — e.g. "3 variants
- * pending selection"). Validating their inner shape would couple the
- * dashboard to the full variant/lesson contracts unnecessarily.
+ * Plan 37-01: variants + lesson_candidates upgraded from z.array(z.any())
+ * to strongly-typed sub-schemas, and project_name / source_snippet /
+ * perspective / language added so the lesson + variant pages can render
+ * the locked page header without bouncing elsewhere.
  *
  * `.passthrough()` lets pm-authority add fields (e.g. Phase 36 write-action
  * metadata) without breaking the parse.
@@ -57,11 +88,16 @@ export const DashboardPostSchema = z
     sequence_id: z.string(),
     position: z.number().int(),
     status: z.string(), // enum-loose for forward compat (Phase 36 may add states)
+    // Plan 37-01: surface for lesson page header.
+    perspective: z.string(),
+    language: z.string(),
+    project_name: z.string(),
+    source_snippet: z.string().nullable(),
     content: z.string(),
     content_he: z.string().nullable(),
     image: DashboardPostImageSchema.nullable(),
-    variants: z.array(z.any()),
-    lesson_candidates: z.array(z.any()),
+    variants: z.array(DashboardVariantSchema),
+    lesson_candidates: z.array(DashboardLessonCandidateSchema),
     // Plan 36-01 drift fix: pm-authority has always sent these on PostDTO
     // (since Phase 33-02), but the dashboard-side Zod parser was missing
     // them. Wave-2 plan 36-03's regeneration cap gate consumes both. The
@@ -76,6 +112,8 @@ export const DashboardPostSchema = z
   .passthrough();
 
 export type DashboardPost = z.infer<typeof DashboardPostSchema>;
+export type DashboardVariant = z.infer<typeof DashboardVariantSchema>;
+export type DashboardLessonCandidate = z.infer<typeof DashboardLessonCandidateSchema>;
 
 /**
  * Payload shape for the `queue.updated` SSE event. The server always sends

@@ -18,6 +18,8 @@ export interface LinkedInVariant {
   content: string;
   image_prompt: string | null;
   selected: boolean;
+  /** Plan 37-01: ISO timestamp from post_variants.created_at, rendered by GenerationMetadata. */
+  created_at: string;
 }
 
 export interface LinkedInLessonCandidate {
@@ -26,6 +28,8 @@ export interface LinkedInLessonCandidate {
   rationale: string;
   image_url: string | null;
   selected: boolean;
+  /** Plan 37-01: ISO timestamp from lesson_candidates.created_at, rendered by GenerationMetadata. */
+  created_at: string;
 }
 
 export interface LinkedInImageInfo {
@@ -49,6 +53,9 @@ export interface LinkedInPost {
   status: string;
   perspective: string;
   language: string;
+  /** Plan 37-01: page-header context for the lesson + variant pages. */
+  project_name: string;
+  source_snippet: string | null;
   content: string;
   content_he: string | null;
   image: LinkedInImageInfo;
