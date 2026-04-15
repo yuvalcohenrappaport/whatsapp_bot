@@ -28,7 +28,7 @@ Requirements for the LinkedIn Bot Dashboard Integration milestone. Each maps to 
 
 ### Lesson Mode UX
 
-- [ ] **LIN-11**: User can pick one of 4 candidate lessons for a `PENDING_LESSON_SELECTION` post via a dashboard card list showing lesson text + rationale
+- [x] **LIN-11**: User can pick one of 4 candidate lessons for a `PENDING_LESSON_SELECTION` post via a dashboard card list showing lesson text + rationale
 - [ ] **LIN-12**: User can pick one of 2 full-post variants for a `PENDING_VARIANT` post via a side-by-side dashboard view showing content + image prompt
 - [ ] **LIN-13**: User can see the generated fal.ai image inline on the variant card once image generation completes (replaces the current "file path only" state)
 - [ ] **LIN-14**: User can start a new lesson-mode generation run from a dashboard form with project-picker dropdown, perspective, and language fields (replaces the SSH + `generate.py --mode lesson` CLI workflow)
@@ -131,7 +131,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LIN-08 | Phase 36 | Complete (2026-04-15 — live-verified in browser walkthrough, bilingual edit persists; see 36-05-SUMMARY.md SC#2) |
 | LIN-09 | Phase 36 | Complete (2026-04-15 — live-verified after in-session fix `fcb619b` (JobAcceptedSchema drift); see 36-05-SUMMARY.md SC#3) |
 | LIN-10 | Phase 36 | Complete (2026-04-15 — live-verified after in-session fix `ac9b47f` (image route `?token=` fallback); see 36-05-SUMMARY.md SC#4) |
-| LIN-11 | Phase 37 | Pending |
+| LIN-11 | Phase 37 | Complete |
 | LIN-12 | Phase 37 | Pending |
 | LIN-13 | Phase 37 | Pending |
 | LIN-14 | Phase 38 | Pending |

@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-04-12)
 
 **Core value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
-**Current focus:** Milestone v1.7 LinkedIn Bot Dashboard Integration — Phase 36 Review Actions (Write) COMPLETE (5/5 plans); Phase 37 Lesson Mode UX in progress — Plan 37-01 (Foundation) shipped 2026-04-15; next = Plan 37-02 + 37-03 (Wave 2 parallel)
+**Current focus:** Milestone v1.7 LinkedIn Bot Dashboard Integration — Phase 36 Review Actions (Write) COMPLETE (5/5 plans); Phase 37 Lesson Mode UX in progress — Plan 37-01 (Foundation) + Plan 37-02 (Lesson Selection Page, LIN-11) shipped 2026-04-15; Plan 37-03 in flight (parallel Wave 2); next = Plan 37-04 (queue integration)
 
 ## Current Position
 
@@ -171,6 +171,7 @@ Legacy decisions from v1.6 (see phase 27-32 archive):
 - [Phase 36-review-actions-write]: Single activeJob slot in useLinkedInRegenerate (not per-post map) mirrors pm-authority's semaphore(1). isRegenerating(postId) predicate keeps per-post mental model for caller while only one regen runs at a time.
 - [Phase 36-review-actions-write]: POLL_MAX_MS=120_000 in useLinkedInJob (more generous than CONTEXT §3's 60s). Claude CLI cold-starts can stretch past 90s; v1 ergonomic priority is 'don't give up too early'. Tighten once we have telemetry.
 - [Phase 36-review-actions-write]: Plan 36-03 honors CONTEXT §3 NO-success-toast lock for regenerate. grep -c 'toast.success.*[Rr]egeneration' returns 0 in both LinkedInQueue.tsx and useLinkedInRegenerate.ts. Success path is purely visual: optimistic content patch + 400ms bg-emerald-50 flash via separate justRegenerated state map + setTimeout cleanup.
+- [Phase 37-lesson-mode-ux]: Plan 37-02: locked-modal pattern (triple-suppressed Radix Dialog) + POST/job-poll mutation hook + auto-navigate page useEffect; reusable template for future pick-* mutations
 
 ### Pending Todos
 
