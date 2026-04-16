@@ -80,7 +80,7 @@ export interface LinkedInPost {
  */
 export const STATUS_STYLES: Record<
   string,
-  { className: string; label: string }
+  { className: string; label: string; accentClass?: string }
 > = {
   DRAFT: {
     className:
@@ -89,13 +89,17 @@ export const STATUS_STYLES: Record<
   },
   PENDING_VARIANT: {
     className:
-      'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-    label: 'Variant',
+      'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200',
+    label: 'Variant to finalize',
+    // Plan 37-04: 4px indigo left-edge accent stripe on the queue card.
+    accentClass: 'border-l-4 border-indigo-500',
   },
   PENDING_LESSON_SELECTION: {
     className:
       'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-    label: 'Lesson',
+    label: 'Lesson to pick',
+    // Plan 37-04: 4px purple left-edge accent stripe on the queue card.
+    accentClass: 'border-l-4 border-purple-500',
   },
   PENDING_PII_REVIEW: {
     className:
@@ -119,7 +123,9 @@ export const STATUS_STYLES: Record<
   },
 };
 
-export function statusStyle(status: string): { className: string; label: string } {
+export function statusStyle(
+  status: string,
+): { className: string; label: string; accentClass?: string } {
   return (
     STATUS_STYLES[status] ?? {
       className:

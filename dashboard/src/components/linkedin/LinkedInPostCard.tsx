@@ -60,6 +60,18 @@ export interface LinkedInPostCardProps {
    * "Mark PII Reviewed" affordance. Queue variant only.
    */
   piiGateSlot?: ReactNode;
+  /**
+   * Plan 37-04: extra className applied to the root <Card>, typically a
+   * 4px left-edge accent stripe (e.g. 'border-l-4 border-purple-500').
+   * Sourced from STATUS_STYLES[status].accentClass. Queue variant only.
+   */
+  accentStripeClass?: string;
+  /**
+   * Plan 37-04: when true, applies a ~300ms amber bg flash to signal a
+   * brand-new pending-action post arrived via SSE. The caller (LinkedInQueue)
+   * owns the expiry via the useNewArrivalFlash hook. Queue variant only.
+   */
+  justArrivedFlash?: boolean;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -217,6 +229,8 @@ export function LinkedInPostCard({
   justRegenerated,
   thumbnailOverlay,
   piiGateSlot,
+  accentStripeClass,
+  justArrivedFlash,
 }: LinkedInPostCardProps) {
   if (variant === 'queue') {
     return (
@@ -228,6 +242,8 @@ export function LinkedInPostCard({
         justRegenerated={justRegenerated}
         thumbnailOverlay={thumbnailOverlay}
         piiGateSlot={piiGateSlot}
+        accentStripeClass={accentStripeClass}
+        justArrivedFlash={justArrivedFlash}
       />
     );
   }
@@ -242,6 +258,8 @@ function QueueCard({
   justRegenerated = false,
   thumbnailOverlay,
   piiGateSlot,
+  accentStripeClass,
+  justArrivedFlash = false,
 }: {
   post: LinkedInPost;
   className?: string;
@@ -250,6 +268,8 @@ function QueueCard({
   justRegenerated?: boolean;
   thumbnailOverlay?: ReactNode;
   piiGateSlot?: ReactNode;
+  accentStripeClass?: string;
+  justArrivedFlash?: boolean;
 }) {
   const style = statusStyle(post.status);
   const relative = formatRelative(post.created_at);
@@ -259,6 +279,11 @@ function QueueCard({
   const flashClass = justRegenerated
     ? 'bg-emerald-50 dark:bg-emerald-950/30'
     : '';
+  // Plan 37-04: amber arrival flash for new SSE-delivered pending-action posts.
+  // The parent (LinkedInQueue) owns the 300ms expiry via useNewArrivalFlash.
+  const arrivalClass = justArrivedFlash
+    ? 'bg-amber-100 dark:bg-amber-900/30'
+    : '';
 
   return (
     <Card
@@ -266,6 +291,8 @@ function QueueCard({
         'p-4 md:p-5 transition-colors duration-[400ms]',
         ringClass,
         flashClass,
+        accentStripeClass,
+        arrivalClass,
         className,
       )}
     >
