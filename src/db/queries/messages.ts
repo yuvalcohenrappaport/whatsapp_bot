@@ -35,26 +35,40 @@ export function getStyleExamples(contactJid: string, limit = 200): Promise<strin
     .then((rows) => rows.map((r) => r.body));
 }
 
-// Stub exports to unblock ESM module load for src/ai/gemini.ts — the actual
-// implementations live on a feature branch (feat/contact-name-in-tasks-events)
-// that hasn't been merged. Commit 82e9fdd (Phase 31-01) added the imports in
-// gemini.ts without landing these queries on main, crash-looping the bot on
-// boot. These throwing stubs unblock Fastify boot for Phase 37 live verification.
-// Neither callsite (gemini.ts:149 getPairedExamples / gemini.ts:243
-// getAllFromMeMessages) runs during a Phase 37 dashboard walkthrough — they
-// are invoked only on paired-style example generation and global persona
-// regeneration. Tracked in .planning/todos/pending for proper implementation.
 export async function getPairedExamples(
-  _contactJid: string,
-  _limit: number,
-): Promise<never> {
-  throw new Error(
-    'getPairedExamples: not implemented on main branch (Phase 31 leftover — see .planning/todos/pending)',
-  );
+  contactJid: string,
+  limit: number,
+): Promise<{ incoming: string; reply: string }[]> {
+  // Over-fetch recent messages so pairing (which skips consecutive same-side
+  // messages) can still yield up to `limit` pairs.
+  const recent = await db
+    .select({ fromMe: messages.fromMe, body: messages.body })
+    .from(messages)
+    .where(eq(messages.contactJid, contactJid))
+    .orderBy(desc(messages.timestamp))
+    .limit(Math.max(limit * 10, 500));
+
+  const chronological = recent.reverse();
+  const pairs: { incoming: string; reply: string }[] = [];
+  let pendingIncoming: string | null = null;
+  for (const m of chronological) {
+    if (!m.body) continue;
+    if (!m.fromMe) {
+      pendingIncoming = m.body;
+    } else if (pendingIncoming !== null) {
+      pairs.push({ incoming: pendingIncoming, reply: m.body });
+      pendingIncoming = null;
+    }
+  }
+  return pairs.slice(-limit);
 }
 
-export async function getAllFromMeMessages(_limit: number): Promise<never> {
-  throw new Error(
-    'getAllFromMeMessages: not implemented on main branch (Phase 31 leftover — see .planning/todos/pending)',
-  );
+export async function getAllFromMeMessages(limit: number): Promise<string[]> {
+  const rows = await db
+    .select({ body: messages.body })
+    .from(messages)
+    .where(eq(messages.fromMe, true))
+    .orderBy(desc(messages.timestamp))
+    .limit(limit);
+  return rows.map((r) => r.body).filter((b) => b.length > 0);
 }
