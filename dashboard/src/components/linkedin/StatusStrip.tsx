@@ -31,6 +31,10 @@ import {
 export interface StatusStripProps {
   pendingCount: number;
   approvedCount: number;
+  /** Plan 37-04: count of PENDING_LESSON_SELECTION posts in the live queue. */
+  lessonsToPick: number;
+  /** Plan 37-04: count of PENDING_VARIANT posts in the live queue. */
+  variantsToFinalize: number;
   lastPublished: LinkedInPost | null;
   degraded?: {
     reason: string;
@@ -42,6 +46,8 @@ export interface StatusStripProps {
 export function StatusStrip({
   pendingCount,
   approvedCount,
+  lessonsToPick,
+  variantsToFinalize,
   lastPublished,
   degraded,
   className,
@@ -92,7 +98,7 @@ export function StatusStrip({
 
   return (
     <div className={wrapperClass}>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
         {/* Card 1: Next publish slot */}
         <Card className="p-3">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -111,6 +117,28 @@ export function StatusStrip({
           </p>
           <p className="text-2xl font-bold mt-1">{pendingCount}</p>
           <p className="text-xs text-muted-foreground">awaiting review</p>
+        </Card>
+
+        {/* Card 2b: Lessons to pick (Plan 37-04) */}
+        <Card className="p-3">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">
+            Lessons to pick
+          </p>
+          <p className="text-2xl font-bold mt-1 text-purple-600 dark:text-purple-400">
+            {lessonsToPick}
+          </p>
+          <p className="text-xs text-muted-foreground">needs your choice</p>
+        </Card>
+
+        {/* Card 2c: Variants to finalize (Plan 37-04) */}
+        <Card className="p-3">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">
+            Variants to finalize
+          </p>
+          <p className="text-2xl font-bold mt-1 text-indigo-600 dark:text-indigo-400">
+            {variantsToFinalize}
+          </p>
+          <p className="text-xs text-muted-foreground">needs your choice</p>
         </Card>
 
         {/* Card 3: Approved count */}

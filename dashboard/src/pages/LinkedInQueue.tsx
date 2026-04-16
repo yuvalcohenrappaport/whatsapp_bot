@@ -22,6 +22,8 @@ import {
 } from '@/components/ui/tabs';
 import {
   LinkedInPostCard,
+  PendingActionEntryButton,
+  STATUS_STYLES,
   StatusStrip,
   isApproved,
   isPending,
@@ -31,6 +33,7 @@ import { LinkedInPostActions } from '@/components/linkedin/LinkedInPostActions';
 import { EditPostDialog } from '@/components/linkedin/EditPostDialog';
 import { LinkedInImageDropZone } from '@/components/linkedin/LinkedInImageDropZone';
 import { LinkedInPiiGate } from '@/components/linkedin/LinkedInPiiGate';
+import { useNewArrivalFlash } from '@/hooks/useNewArrivalFlash';
 import {
   useLinkedInPostActions,
   actionErrorToToastText,
@@ -54,6 +57,12 @@ interface LinkedInQueuePageProps {
   streamStatus: 'connecting' | 'open' | 'reconnecting' | 'error';
   /** When the proxy health check is unavailable, we render a degraded banner. */
   degraded: { reason: string; onRetry: () => void } | null;
+  /**
+   * Plan 37-04: set of post ids that arrived via SSE in the most recent
+   * update tick and are currently showing the 300ms amber flash. Derived
+   * upstream by useNewArrivalFlash against the patched queue.
+   */
+  flashingIds: Set<string>;
   /** Plan 36-02: render the action row for a queue card. Not used for published. */
   renderPostActions?: (post: LinkedInPost) => ReactNode;
   /**
@@ -82,6 +91,7 @@ interface LinkedInQueuePageProps {
 function QueueFeed({
   posts,
   loading,
+  flashingIds,
   renderPostActions,
   isPostRegenerating,
   isPostJustRegenerated,
@@ -90,6 +100,7 @@ function QueueFeed({
 }: {
   posts: LinkedInPost[] | null;
   loading: boolean;
+  flashingIds: Set<string>;
   renderPostActions?: (post: LinkedInPost) => ReactNode;
   isPostRegenerating?: (post: LinkedInPost) => boolean;
   isPostJustRegenerated?: (post: LinkedInPost) => boolean;
@@ -117,18 +128,33 @@ function QueueFeed({
   }
   return (
     <div className="space-y-4 mt-4">
-      {posts.map((post) => (
-        <LinkedInPostCard
-          key={post.id}
-          post={post}
-          variant="queue"
-          actionsSlot={renderPostActions?.(post)}
-          isRegenerating={isPostRegenerating?.(post) ?? false}
-          justRegenerated={isPostJustRegenerated?.(post) ?? false}
-          thumbnailOverlay={renderThumbnailOverlay?.(post)}
-          piiGateSlot={renderPiiGate?.(post)}
-        />
-      ))}
+      {posts.map((post) => {
+        // Plan 37-04: branch the actions slot on status — pending-action
+        // posts get the PendingActionEntryButton, everything else keeps
+        // the Phase 36 approve/reject/edit/regenerate action row.
+        const isPendingAction =
+          post.status === 'PENDING_LESSON_SELECTION' ||
+          post.status === 'PENDING_VARIANT';
+        const actionsSlot = isPendingAction ? (
+          <PendingActionEntryButton post={post} />
+        ) : (
+          renderPostActions?.(post)
+        );
+        return (
+          <LinkedInPostCard
+            key={post.id}
+            post={post}
+            variant="queue"
+            actionsSlot={actionsSlot}
+            isRegenerating={isPostRegenerating?.(post) ?? false}
+            justRegenerated={isPostJustRegenerated?.(post) ?? false}
+            thumbnailOverlay={renderThumbnailOverlay?.(post)}
+            piiGateSlot={renderPiiGate?.(post)}
+            accentStripeClass={STATUS_STYLES[post.status]?.accentClass}
+            justArrivedFlash={flashingIds.has(post.id)}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -173,6 +199,7 @@ export function LinkedInQueuePage({
   published,
   streamStatus,
   degraded,
+  flashingIds,
   renderPostActions,
   isPostRegenerating,
   isPostJustRegenerated,
@@ -190,6 +217,17 @@ export function LinkedInQueuePage({
     () => (queue ?? []).filter((p) => isApproved(p.status)).length,
     [queue],
   );
+  // Plan 37-04: two new mini-counters for pending-action posts.
+  const lessonsToPick = useMemo(
+    () =>
+      (queue ?? []).filter((p) => p.status === 'PENDING_LESSON_SELECTION')
+        .length,
+    [queue],
+  );
+  const variantsToFinalize = useMemo(
+    () => (queue ?? []).filter((p) => p.status === 'PENDING_VARIANT').length,
+    [queue],
+  );
   const lastPublished = useMemo(
     () => ((published ?? []).length > 0 ? (published ?? [])[0] : null),
     [published],
@@ -200,6 +238,8 @@ export function LinkedInQueuePage({
       <StatusStrip
         pendingCount={pendingCount}
         approvedCount={approvedCount}
+        lessonsToPick={lessonsToPick}
+        variantsToFinalize={variantsToFinalize}
         lastPublished={lastPublished}
         degraded={degraded ?? undefined}
       />
@@ -236,6 +276,7 @@ export function LinkedInQueuePage({
           <QueueFeed
             posts={queue}
             loading={queue === null && !degraded}
+            flashingIds={flashingIds}
             renderPostActions={renderPostActions}
             isPostRegenerating={isPostRegenerating}
             isPostJustRegenerated={isPostJustRegenerated}
@@ -326,6 +367,11 @@ export default function LinkedInQueueRoute() {
       })
       .filter((p) => p.status !== 'REJECTED');
   }, [queue, patches]);
+
+  // Plan 37-04: 300ms amber arrival flash for newly SSE-delivered
+  // PENDING_LESSON_SELECTION / PENDING_VARIANT posts. The hook seeds on
+  // first render (no flash storm on mount), then diffs each snapshot.
+  const flashingIds = useNewArrivalFlash(patchedQueue);
 
   // Whenever a new queue state arrives (e.g. a post transitioned to
   // PUBLISHED), re-fetch the published history so the Recent tab stays
@@ -518,6 +564,7 @@ export default function LinkedInQueueRoute() {
         published={published as unknown as LinkedInPost[] | null}
         streamStatus={streamStatus}
         degraded={degraded}
+        flashingIds={flashingIds}
         renderPostActions={renderPostActions}
         isPostRegenerating={(p) => getRegenStatus(p.id)}
         isPostJustRegenerated={(p) => justRegenerated[p.id] === true}
