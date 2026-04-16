@@ -28,3 +28,30 @@ Unrelated to Phase 37 files:
 These errors existed on HEAD before Plan 37-04. Verified via `git stash` / `npx tsc -b` round-trip. LinkedIn subsystem typecheck is clean (no `linkedin|postStatus|LinkedIn` hits in tsc output).
 
 Recommendation: separate maintenance plan for the groups + overview settings/persona refactor.
+
+## BLOCKER — whatsapp-bot crash loop on boot (observed 2026-04-16 during Plan 37-05 Task 2)
+
+`src/ai/gemini.ts:1` imports `getPairedExamples` and `getAllFromMeMessages` from `../db/queries/messages.js`, but `src/db/queries/messages.ts` only exports `insertMessage`, `getRecentMessages`, and `getStyleExamples`. The missing named imports cause ESM instantiation to fail with `SyntaxError: The requested module '../db/queries/messages.js' does not provide an export named 'getAllFromMeMessages'`.
+
+Introduced in commit `82e9fdda` (`feat(31-01): add resolveContent, sendVoiceWithTimeout, ttsQueue, export buildSystemPrompt`, 2026-03-30) — the symbols are imported and called in `gemini.ts:149` (`getPairedExamples`) and `gemini.ts:243` (`getAllFromMeMessages`) but their query-side implementations never landed in `messages.ts`.
+
+Impact on Phase 37: `npx pm2 restart whatsapp-bot` puts the service into a crash loop (pid churn visible via `pm2 describe whatsapp-bot` → restart count climbing every ~8s). Port 3000 never binds. `/api/linkedin/*` proxy is unreachable. The previous pid (2044484) had uptime 10h pre-restart, but restart count was already 422 — the bot has been cycling for weeks. It likely gets through enough boot cycles to briefly serve requests between crashes.
+
+BLOCKS Plan 37-05 Task 3 (live browser walkthrough) — the dashboard cannot proxy to pm-authority without whatsapp-bot up.
+
+Out of scope for Phase 37 per scope-boundary policy — touching `src/ai/gemini.ts` or `src/db/queries/messages.ts` would be adding backend AI query behavior with unknown semantics. Flagged to owner in the Plan 37-05 checkpoint return.
+
+Recommendation: separate maintenance plan to either (a) implement `getPairedExamples` + `getAllFromMeMessages` in `messages.ts` with proper Drizzle queries, or (b) stub them to throw-on-call and stop importing them from gemini.ts at module top-level.
+
+## Additional state.db reality check (observed 2026-04-16 during Plan 37-05 Task 2)
+
+Live pm-authority state.db has only PUBLISHED (3) and REJECTED (27) posts. Zero posts in PENDING_LESSON_SELECTION, PENDING_VARIANT, DRAFT, APPROVED, or PENDING_PII_REVIEW.
+
+Lesson-mode artifacts exist but are attached to REJECTED posts:
+- 4 lesson_candidates rows attached to 1 REJECTED post (1 selected)
+- 8 post_variants rows attached to 4 REJECTED posts (2 variants each)
+
+Data seeding options for SC walkthrough (if whatsapp-bot is unblocked):
+- Path A (non-destructive recycle): flip a REJECTED post with lesson_candidates back to PENDING_LESSON_SELECTION by clearing `lesson_candidates.selected` and setting `posts.status`. Similarly for PENDING_VARIANT.
+- Path B (real generation): `cd /home/yuval/pm-authority && ./.venv/bin/python -m generation.cli ...` to produce a fresh lesson run — 10-60s LLM call.
+- Path C (observational degradation): skip SC#3 fal.ai verification; inject a mock post via devtools to check only UI primitives.
