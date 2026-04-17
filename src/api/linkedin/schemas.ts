@@ -215,6 +215,23 @@ export const ConfirmPiiRequestSchema = z
   .strict();
 export type ConfirmPiiRequest = z.infer<typeof ConfirmPiiRequestSchema>;
 
+// ─── Phase 38: project list + lesson candidate generation ─────────────────
+
+export const ProjectListSchema = z.object({
+  projects: z.array(z.string()),
+});
+export type ProjectList = z.infer<typeof ProjectListSchema>;
+
+export const GenerateLessonRunRequestSchema = z
+  .object({
+    project_name: z.string().min(1),
+    perspective: z.string().default('yuval'),
+    language: z.string().default('en'),
+    topic_hint: z.string().nullable().optional(),
+  })
+  .strict();
+export type GenerateLessonRunRequest = z.infer<typeof GenerateLessonRunRequestSchema>;
+
 // ─── Query strings ───────────────────────────────────────────────────────────
 
 /**

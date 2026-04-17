@@ -42,6 +42,7 @@ import { mapUpstreamErrorToReply } from '../errors.js';
 import {
   ConfirmPiiRequestSchema,
   EditRequestSchema,
+  GenerateLessonRunRequestSchema,
   JobAcceptedSchema,
   PickLessonRequestSchema,
   PickVariantRequestSchema,
@@ -268,6 +269,32 @@ export async function registerWriteRoutes(
         const { status, data } = await callUpstream({
           method: 'POST',
           path: `/v1/posts/${encodeURIComponent(id)}/replace-image`,
+          body,
+          timeoutMs: SLOW_MUTATION_TIMEOUT_MS,
+          responseSchema: JobAcceptedSchema,
+        });
+        return reply.status(status).send(data);
+      } catch (err) {
+        return mapUpstreamErrorToReply(err, reply);
+      }
+    },
+  );
+
+  // ─── Phase 38 — Route 11: lesson-runs/generate (async 202, Phase 1 candidates) ─
+  fastify.post<{ Body: unknown }>(
+    '/api/linkedin/lesson-runs/generate',
+    { onRequest: [fastify.authenticate] },
+    async (request, reply) => {
+      const body = await validateBody(
+        GenerateLessonRunRequestSchema,
+        request.body,
+        reply,
+      );
+      if (body === null) return;
+      try {
+        const { status, data } = await callUpstream({
+          method: 'POST',
+          path: '/v1/lesson-runs/generate',
           body,
           timeoutMs: SLOW_MUTATION_TIMEOUT_MS,
           responseSchema: JobAcceptedSchema,

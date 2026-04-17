@@ -875,3 +875,122 @@ describe('linkedin write routes — Plan 36-01 upload-image + confirm-pii', () =
     expect(res.json().error.code).toBe('STATE_VIOLATION');
   });
 });
+
+// ═════════════════════════════════════════════════════════════════════════
+// Plan 38-01 — lesson-runs/generate + projects proxy routes
+// ═════════════════════════════════════════════════════════════════════════
+
+describe('linkedin write routes — Plan 38-01 lesson-runs/generate', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+  let server: FastifyInstance;
+
+  beforeEach(async () => {
+    fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    server = await buildTestServer();
+  });
+
+  afterEach(async () => {
+    await server.close();
+    vi.unstubAllGlobals();
+  });
+
+  it('POST /lesson-runs/generate with valid body → 202 + job_id', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ job_id: 'job-gen-1' }, 202),
+    );
+
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/linkedin/lesson-runs/generate',
+      payload: {
+        project_name: 'my-project',
+        perspective: 'yuval',
+        language: 'en',
+      },
+    });
+
+    expect(res.statusCode).toBe(202);
+    expect(res.json().job_id).toBe('job-gen-1');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [calledUrl, init] = fetchMock.mock.calls[0] as [URL, RequestInit];
+    expect(calledUrl.pathname).toBe('/v1/lesson-runs/generate');
+    expect(init.method).toBe('POST');
+    const sentBody = JSON.parse(init.body as string);
+    expect(sentBody.project_name).toBe('my-project');
+  });
+
+  it('POST /lesson-runs/generate with missing project_name → 400 VALIDATION_ERROR', async () => {
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/linkedin/lesson-runs/generate',
+      payload: { language: 'en' },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error.code).toBe('VALIDATION_ERROR');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('POST /lesson-runs/generate with upstream 404 → pass-through', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(
+        {
+          error: {
+            code: 'NOT_FOUND',
+            message: "no sequence found for project 'nonexistent' with context",
+            details: { project_name: 'nonexistent' },
+          },
+        },
+        404,
+      ),
+    );
+
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/linkedin/lesson-runs/generate',
+      payload: { project_name: 'nonexistent' },
+    });
+
+    expect(res.statusCode).toBe(404);
+    expect(res.json().error.code).toBe('NOT_FOUND');
+  });
+
+  it('POST /lesson-runs/generate with topic_hint → forwarded to upstream', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ job_id: 'job-gen-2' }, 202),
+    );
+
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/linkedin/lesson-runs/generate',
+      payload: {
+        project_name: 'my-project',
+        topic_hint: 'focus on scaling',
+      },
+    });
+
+    expect(res.statusCode).toBe(202);
+    const sentBody = JSON.parse(
+      (fetchMock.mock.calls[0] as [URL, RequestInit])[1].body as string,
+    );
+    expect(sentBody.topic_hint).toBe('focus on scaling');
+  });
+
+  it('GET /projects → returns project list from upstream', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ projects: ['alpha', 'beta', 'gamma'] }),
+    );
+
+    const res = await server.inject({
+      method: 'GET',
+      url: '/api/linkedin/projects',
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().projects).toEqual(['alpha', 'beta', 'gamma']);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [calledUrl] = fetchMock.mock.calls[0] as [URL, RequestInit];
+    expect(calledUrl.pathname).toBe('/v1/projects');
+  });
+});

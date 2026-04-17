@@ -31,6 +31,7 @@ import {
   JobSchema,
   ListPostsQuerySchema,
   PostSchema,
+  ProjectListSchema,
 } from '../schemas.js';
 
 /** Timeout tiers (ms). JSON reads are fast; image streams get 30s. */
@@ -151,6 +152,25 @@ export async function registerReadRoutes(
           responseSchema: JobSchema,
         });
         return data;
+      } catch (err) {
+        return mapUpstreamErrorToReply(err, reply);
+      }
+    },
+  );
+
+  // ─── Phase 38: project list for lesson-run form ──────────────────────────
+  fastify.get(
+    '/api/linkedin/projects',
+    { onRequest: [fastify.authenticate] },
+    async (_request, reply) => {
+      try {
+        const { status, data } = await callUpstream({
+          method: 'GET',
+          path: '/v1/projects',
+          timeoutMs: JSON_READ_TIMEOUT_MS,
+          responseSchema: ProjectListSchema,
+        });
+        return reply.status(status).send(data);
       } catch (err) {
         return mapUpstreamErrorToReply(err, reply);
       }
