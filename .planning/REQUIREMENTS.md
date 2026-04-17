@@ -131,9 +131,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LIN-08 | Phase 36 | Complete (2026-04-15 — live-verified in browser walkthrough, bilingual edit persists; see 36-05-SUMMARY.md SC#2) |
 | LIN-09 | Phase 36 | Complete (2026-04-15 — live-verified after in-session fix `fcb619b` (JobAcceptedSchema drift); see 36-05-SUMMARY.md SC#3) |
 | LIN-10 | Phase 36 | Complete (2026-04-15 — live-verified after in-session fix `ac9b47f` (image route `?token=` fallback); see 36-05-SUMMARY.md SC#4) |
-| LIN-11 | Phase 37 | Complete (2026-04-15 — Plan 37-02 ships lesson selection page with 4-card stack + pick-lesson + locked modal; live verification deferred to Plan 37-05) |
-| LIN-12 | Phase 37 | Complete (2026-04-15 — Plan 37-03 ships variant finalization page with 2-col focus-then-confirm + mixed 200/202 pick-variant flow; live verification deferred to Plan 37-05) |
-| LIN-13 | Phase 37 | Complete (2026-04-15 — Plan 37-03 ships VariantImageSlot idle/pending/ready/error modes + SSE-driven ackSlow() pattern + 1500ms visual-confirmation delay; live verification deferred to Plan 37-05) |
+| LIN-11 | Phase 37 | Complete (2026-04-17 — live-verified in owner's browser walkthrough; SC#1 observed: 4-card lesson pick + locked modal + auto-nav to variant page; see 37-05-SUMMARY.md) |
+| LIN-12 | Phase 37 | Complete (2026-04-17 — live-verified in owner's browser walkthrough; SC#2 observed: 2-col variant grid + focus-then-confirm + finalize; see 37-05-SUMMARY.md) |
+| LIN-13 | Phase 37 | Complete (2026-04-17 — live-verified in owner's browser walkthrough; SC#3 observed: fal.ai image rendered inline on focused variant card with 1.5s visible delay before nav; see 37-05-SUMMARY.md) |
 | LIN-14 | Phase 38 | Pending |
 
 **Coverage:**
@@ -164,4 +164,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-30 (v1.6)*
-*Last updated: 2026-04-12 — v1.7 requirements mapped to Phases 33-38*
+*Last updated: 2026-04-17 — LIN-11/12/13 live-verified and marked complete (Phase 37)*
