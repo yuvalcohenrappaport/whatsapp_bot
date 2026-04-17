@@ -9,7 +9,7 @@
 - [x] **v1.4 Travel Agent** — Phases 17-21 (shipped 2026-03-02) — [archive](milestones/v1.4-ROADMAP.md)
 - [x] **v1.5 Personal Assistant** — Phases 22-26 (shipped 2026-03-16)
 - [x] **v1.6 Scheduled Replies** — Phases 27-32 (shipped 2026-03-30)
-- [ ] **v1.7 LinkedIn Bot Dashboard Integration** — Phases 33-38 (in progress)
+- [x] **v1.7 LinkedIn Bot Dashboard Integration** — Phases 33-38 (shipped 2026-04-17)
 
 ## Phases
 
@@ -85,7 +85,7 @@
 
 </details>
 
-### v1.7 LinkedIn Bot Dashboard Integration (In Progress)
+### v1.7 LinkedIn Bot Dashboard Integration (SHIPPED 2026-04-17)
 
 **Milestone Goal:** Surface pm-authority's LinkedIn content pipeline inside the whatsapp-bot dashboard so review, approve, reject, edit, regenerate, lesson-mode pick flows, queue status, and publish history can be driven from the web UI instead of Telegram — with the Telegram bot remaining as an untouched fallback.
 
@@ -94,7 +94,7 @@
 - [x] **Phase 35: LinkedIn Queue Read-Side UI** — `/linkedin/queue` page with list, status strip, recent-published tab, and SSE auto-refresh (completed 2026-04-13)
 - [x] **Phase 36: Review Actions (Write)** — Approve/reject/edit/regenerate/replace-image per-post controls wired end-to-end (completed 2026-04-15)
 - [x] **Phase 37: Lesson Mode UX** — Two-phase lesson picker (4 candidates → 2 variants) with inline generated fal.ai images (completed 2026-04-17)
-- [ ] **Phase 38: New Lesson Run Form** — Dashboard form to start a lesson-mode generation run, replacing the SSH + `generate.py --mode lesson` CLI workflow
+- [x] **Phase 38: New Lesson Run Form** — Dashboard form to start a lesson-mode generation run, replacing the SSH + `generate.py --mode lesson` CLI workflow (completed 2026-04-17)
 
 ## Phase Details
 
@@ -272,11 +272,11 @@ Plans:
   2. After submission, the new run appears in the queue in its initial state within seconds and progresses through PENDING_LESSON_SELECTION as generation advances
   3. Validation errors (missing project, unsupported language, generator busy) are surfaced inline on the form instead of as opaque 500s
   4. The SSH + `generate.py --mode lesson` CLI workflow is no longer required for the owner's normal lesson-mode usage (CLI still works as an escape hatch)
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 Plans:
 - [x] 38-01-PLAN.md — Cross-repo backend: GET /v1/projects + POST /v1/lesson-runs/generate + proxy routes (completed 2026-04-17)
-- [ ] 38-02-PLAN.md — Dashboard form: NewLessonRunSheet slide-out with project picker, perspective/language radios, topic hint, submit/retry UX
-- [ ] 38-03-PLAN.md — Live E2E browser verification + STATE/ROADMAP/REQUIREMENTS updates
+- [x] 38-02-PLAN.md — Dashboard form: NewLessonRunSheet slide-out with project picker, perspective/language radios, topic hint, submit/retry UX (completed 2026-04-17)
+- [x] 38-03-PLAN.md — Live E2E browser verification + STATE/ROADMAP/REQUIREMENTS updates (completed 2026-04-17)
 
 ## Progress
 
@@ -320,4 +320,4 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 35. LinkedIn Queue Read-Side UI | v1.7 | 4/4 | Complete | 2026-04-13 |
 | 36. Review Actions (Write) | v1.7 | 5/5 | Complete | 2026-04-15 |
 | 37. Lesson Mode UX | v1.7 | 5/5 | Complete | 2026-04-17 |
-| 38. New Lesson Run Form | 2/3 | In Progress|  | — |
+| 38. New Lesson Run Form | v1.7 | 3/3 | Complete | 2026-04-17 |

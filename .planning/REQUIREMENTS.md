@@ -134,7 +134,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LIN-11 | Phase 37 | Complete (2026-04-17 — live-verified in owner's browser walkthrough; SC#1 observed: 4-card lesson pick + locked modal + auto-nav to variant page; see 37-05-SUMMARY.md) |
 | LIN-12 | Phase 37 | Complete (2026-04-17 — live-verified in owner's browser walkthrough; SC#2 observed: 2-col variant grid + focus-then-confirm + finalize; see 37-05-SUMMARY.md) |
 | LIN-13 | Phase 37 | Complete (2026-04-17 — live-verified in owner's browser walkthrough; SC#3 observed: fal.ai image rendered inline on focused variant card with 1.5s visible delay before nav; see 37-05-SUMMARY.md) |
-| LIN-14 | Phase 38 | In Progress (Plan 38-01 backend complete: endpoints + proxy routes live; Plans 38-02/38-03 pending for dashboard form) |
+| LIN-14 | Phase 38 | Complete (2026-04-17 -- live-verified in owner's browser walkthrough; form submits, post appears in queue, validation inline, localStorage persists; Hebrew variant waived as upstream bug; see 38-03-SUMMARY.md) |
 
 **Coverage:**
 - v1.7 requirements: 14 total
@@ -164,4 +164,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-30 (v1.6)*
-*Last updated: 2026-04-17 — LIN-11/12/13 live-verified and marked complete (Phase 37)*
+*Last updated: 2026-04-17 — LIN-14 live-verified and marked complete (Phase 38); v1.7 milestone shipped*
