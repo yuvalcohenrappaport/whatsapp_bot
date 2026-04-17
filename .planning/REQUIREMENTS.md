@@ -31,7 +31,7 @@ Requirements for the LinkedIn Bot Dashboard Integration milestone. Each maps to 
 - [x] **LIN-11**: User can pick one of 4 candidate lessons for a `PENDING_LESSON_SELECTION` post via a dashboard card list showing lesson text + rationale
 - [x] **LIN-12**: User can pick one of 2 full-post variants for a `PENDING_VARIANT` post via a side-by-side dashboard view showing content + image prompt
 - [x] **LIN-13**: User can see the generated fal.ai image inline on the variant card once image generation completes (replaces the current "file path only" state)
-- [ ] **LIN-14**: User can start a new lesson-mode generation run from a dashboard form with project-picker dropdown, perspective, and language fields (replaces the SSH + `generate.py --mode lesson` CLI workflow)
+- [x] **LIN-14**: User can start a new lesson-mode generation run from a dashboard form with project-picker dropdown, perspective, and language fields (replaces the SSH + `generate.py --mode lesson` CLI workflow)
 
 ## Previous Milestones
 

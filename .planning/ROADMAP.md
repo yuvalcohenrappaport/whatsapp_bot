@@ -272,7 +272,7 @@ Plans:
   2. After submission, the new run appears in the queue in its initial state within seconds and progresses through PENDING_LESSON_SELECTION as generation advances
   3. Validation errors (missing project, unsupported language, generator busy) are surfaced inline on the form instead of as opaque 500s
   4. The SSH + `generate.py --mode lesson` CLI workflow is no longer required for the owner's normal lesson-mode usage (CLI still works as an escape hatch)
-**Plans:** 3 plans
+**Plans:** 2/3 plans executed
 Plans:
 - [x] 38-01-PLAN.md — Cross-repo backend: GET /v1/projects + POST /v1/lesson-runs/generate + proxy routes (completed 2026-04-17)
 - [ ] 38-02-PLAN.md — Dashboard form: NewLessonRunSheet slide-out with project picker, perspective/language radios, topic hint, submit/retry UX
@@ -320,4 +320,4 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 35. LinkedIn Queue Read-Side UI | v1.7 | 4/4 | Complete | 2026-04-13 |
 | 36. Review Actions (Write) | v1.7 | 5/5 | Complete | 2026-04-15 |
 | 37. Lesson Mode UX | v1.7 | 5/5 | Complete | 2026-04-17 |
-| 38. New Lesson Run Form | v1.7 | 0/3 | Planning complete | — |
+| 38. New Lesson Run Form | 2/3 | In Progress|  | — |
