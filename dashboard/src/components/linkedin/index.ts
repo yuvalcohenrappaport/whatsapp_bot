@@ -28,3 +28,7 @@ export type { VariantImageMode } from './VariantImageSlot';
 
 // Plan 37-04 — queue integration (Plan 37-01 lands stub; Plan 37-04 fills body).
 export { PendingActionEntryButton } from './PendingActionEntryButton';
+
+// Plan 38-02 — new lesson run form (slide-out sheet from queue page).
+export { NewLessonRunSheet } from './NewLessonRunSheet';
+export type { NewLessonRunSheetProps } from './NewLessonRunSheet';

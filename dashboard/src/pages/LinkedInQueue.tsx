@@ -10,8 +10,9 @@
  *   - tab bar: "Queue" (default) | "Recent Published"
  *   - card feed below the active tab (or skeleton/empty state)
  */
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
+import { Plus, X } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -22,6 +23,7 @@ import {
 } from '@/components/ui/tabs';
 import {
   LinkedInPostCard,
+  NewLessonRunSheet,
   PendingActionEntryButton,
   STATUS_STYLES,
   StatusStrip,
@@ -29,6 +31,7 @@ import {
   isPending,
   type LinkedInPost,
 } from '@/components/linkedin';
+import { Button } from '@/components/ui/button';
 import { LinkedInPostActions } from '@/components/linkedin/LinkedInPostActions';
 import { EditPostDialog } from '@/components/linkedin/EditPostDialog';
 import { LinkedInImageDropZone } from '@/components/linkedin/LinkedInImageDropZone';
@@ -86,6 +89,12 @@ interface LinkedInQueuePageProps {
    * Parent gates by status === 'PENDING_PII_REVIEW' and returns null otherwise.
    */
   renderPiiGate?: (post: LinkedInPost) => ReactNode;
+  /** Plan 38-02: opens the New Lesson Run sheet. */
+  onNewRun?: () => void;
+  /** Plan 38-02: pending-run warning when generation may have failed. */
+  pendingRunWarning?: string | null;
+  /** Plan 38-02: dismiss the pending-run warning banner. */
+  onDismissWarning?: () => void;
 }
 
 function QueueFeed({
@@ -205,6 +214,9 @@ export function LinkedInQueuePage({
   isPostJustRegenerated,
   renderThumbnailOverlay,
   renderPiiGate,
+  onNewRun,
+  pendingRunWarning,
+  onDismissWarning,
 }: LinkedInQueuePageProps) {
   const [tab, setTab] = useState<TabValue>('queue');
 
@@ -244,6 +256,19 @@ export function LinkedInQueuePage({
         degraded={degraded ?? undefined}
       />
 
+      {/* Plan 38-02: 3-minute timeout warning banner */}
+      {pendingRunWarning && (
+        <div className="mt-4 flex items-center justify-between rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
+          <span>{pendingRunWarning}</span>
+          {onDismissWarning && (
+            <button onClick={onDismissWarning} className="ml-2 shrink-0 opacity-60 hover:opacity-100">
+              <X className="size-4" />
+              <span className="sr-only">Dismiss</span>
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="mt-4 flex items-start justify-between">
         <div>
           <h1
@@ -256,11 +281,19 @@ export function LinkedInQueuePage({
             Pending-review posts and recently published history
           </p>
         </div>
-        {streamStatus === 'reconnecting' && (
-          <span className="text-xs text-amber-600 dark:text-amber-400 animate-pulse">
-            Reconnecting…
-          </span>
-        )}
+        <div className="flex items-center gap-3">
+          {onNewRun && (
+            <Button onClick={onNewRun}>
+              <Plus className="size-4 mr-2" />
+              New Lesson Run
+            </Button>
+          )}
+          {streamStatus === 'reconnecting' && (
+            <span className="text-xs text-amber-600 dark:text-amber-400 animate-pulse">
+              Reconnecting…
+            </span>
+          )}
+        </div>
       </div>
 
       <Tabs
@@ -316,6 +349,9 @@ export function LinkedInQueuePage({
  * cast at the call-site boundary is the cleanest reconciliation since the
  * Zod schema already enforces the runtime contract.
  */
+const PENDING_RUN_KEY = 'linkedin-pending-run';
+const PENDING_RUN_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
+
 export default function LinkedInQueueRoute() {
   const { posts: queue, status: streamStatus } = useLinkedInQueueStream();
   const { posts: published, refresh: refreshPublished } =
@@ -323,6 +359,10 @@ export default function LinkedInQueueRoute() {
   const { health, refresh: refreshHealth } = useLinkedInHealth();
   const { approvePost, rejectPost } = useLinkedInPostActions();
   const { confirmPii } = useLinkedInConfirmPii();
+
+  // Plan 38-02: New Lesson Run sheet state
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [pendingRunWarning, setPendingRunWarning] = useState<string | null>(null);
 
   // Optimistic-patch map: post.id -> partial post state overriding the SSE
   // value. The SSE stream will eventually deliver the real state; until then
@@ -380,6 +420,72 @@ export default function LinkedInQueueRoute() {
     if (queue === null) return;
     void refreshPublished();
   }, [queue, refreshPublished]);
+
+  // Plan 38-02: handle successful lesson run start
+  const handleLessonRunStarted = useCallback((projectName: string) => {
+    toast.success(`Lesson run started for ${projectName}`);
+    // Store pending-run metadata for 3-minute timeout tracking
+    localStorage.setItem(
+      PENDING_RUN_KEY,
+      JSON.stringify({ project_name: projectName, submitted_at: Date.now() }),
+    );
+  }, []);
+
+  // Plan 38-02: 3-minute timeout check — if no PENDING_LESSON_SELECTION post
+  // for the pending project arrives within 3 minutes, show a warning banner.
+  useEffect(() => {
+    const raw = localStorage.getItem(PENDING_RUN_KEY);
+    if (!raw) {
+      setPendingRunWarning(null);
+      return;
+    }
+
+    let pending: { project_name: string; submitted_at: number };
+    try {
+      pending = JSON.parse(raw);
+    } catch {
+      localStorage.removeItem(PENDING_RUN_KEY);
+      return;
+    }
+
+    // Check if a PENDING_LESSON_SELECTION post for the project appeared
+    const matched = (queue ?? []).some(
+      (p) =>
+        p.status === 'PENDING_LESSON_SELECTION' &&
+        (p as unknown as { project_name?: string }).project_name === pending.project_name,
+    );
+    if (matched) {
+      localStorage.removeItem(PENDING_RUN_KEY);
+      setPendingRunWarning(null);
+      return;
+    }
+
+    const elapsed = Date.now() - pending.submitted_at;
+    if (elapsed >= PENDING_RUN_TIMEOUT_MS) {
+      setPendingRunWarning(
+        `Lesson run for ${pending.project_name} may have failed -- check logs`,
+      );
+    } else {
+      // Schedule a check when the 3-minute window expires
+      setPendingRunWarning(null);
+      const timer = window.setTimeout(() => {
+        // Re-read to check if it was cleared by SSE in the meantime
+        const check = localStorage.getItem(PENDING_RUN_KEY);
+        if (check) {
+          const p = JSON.parse(check);
+          setPendingRunWarning(
+            `Lesson run for ${p.project_name} may have failed -- check logs`,
+          );
+        }
+      }, PENDING_RUN_TIMEOUT_MS - elapsed);
+      return () => clearTimeout(timer);
+    }
+  }, [queue]);
+
+  const handleDismissWarning = useCallback(() => {
+    localStorage.removeItem(PENDING_RUN_KEY);
+    setPendingRunWarning(null);
+  }, []);
 
   const degraded =
     health?.upstream === 'unavailable'
@@ -570,12 +676,20 @@ export default function LinkedInQueueRoute() {
         isPostJustRegenerated={(p) => justRegenerated[p.id] === true}
         renderThumbnailOverlay={renderThumbnailOverlay}
         renderPiiGate={renderPiiGate}
+        onNewRun={() => setSheetOpen(true)}
+        pendingRunWarning={pendingRunWarning}
+        onDismissWarning={handleDismissWarning}
       />
       <EditPostDialog
         post={editPostTarget}
         open={editOpen}
         onOpenChange={setEditOpen}
         onSaved={handleEditSaved}
+      />
+      <NewLessonRunSheet
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        onStarted={handleLessonRunStarted}
       />
     </>
   );
