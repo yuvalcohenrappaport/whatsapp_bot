@@ -274,7 +274,7 @@ Plans:
   4. The SSH + `generate.py --mode lesson` CLI workflow is no longer required for the owner's normal lesson-mode usage (CLI still works as an escape hatch)
 **Plans:** 3 plans
 Plans:
-- [ ] 38-01-PLAN.md — Cross-repo backend: GET /v1/projects + POST /v1/lesson-runs/generate + proxy routes
+- [x] 38-01-PLAN.md — Cross-repo backend: GET /v1/projects + POST /v1/lesson-runs/generate + proxy routes (completed 2026-04-17)
 - [ ] 38-02-PLAN.md — Dashboard form: NewLessonRunSheet slide-out with project picker, perspective/language radios, topic hint, submit/retry UX
 - [ ] 38-03-PLAN.md — Live E2E browser verification + STATE/ROADMAP/REQUIREMENTS updates
 
