@@ -1,3 +1,14 @@
+// Silence libsignal's console.* calls — they dump SessionEntry (privKey/rootKey/etc.)
+// to stdout, which PM2 captures into bot-out.log. Must run before any libsignal import.
+for (const method of ['info', 'warn', 'error', 'log'] as const) {
+  const original = console[method];
+  console[method] = (...args: unknown[]) => {
+    const stack = new Error().stack ?? '';
+    if (stack.includes('node_modules/libsignal/')) return;
+    original(...args);
+  };
+}
+
 import fs from 'node:fs/promises';
 import pino from 'pino';
 import qrcode from 'qrcode-terminal';
