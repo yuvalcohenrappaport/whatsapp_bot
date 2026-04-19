@@ -1,39 +1,66 @@
 # Requirements: WhatsApp Bot
 
-**Defined:** 2026-03-30 (v1.6) · updated 2026-04-12 (v1.7)
+**Defined:** 2026-03-30 (v1.6) · updated 2026-04-19 (v1.8)
 **Core Value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
 
-## v1.7 Requirements
+## v1.8 Requirements
 
-Requirements for the LinkedIn Bot Dashboard Integration milestone. Each maps to roadmap phases. Owning repo: whatsapp-bot (dashboard + proxy routes). Cross-repo side work: a new FastAPI sidecar service in ~/pm-authority.
+Requirements for the **Task Approval & Context Enrichment** milestone. Turn commitment/task detection into a *draft → approve → sync* workflow with LLM-enriched, self-contained Google Tasks titles that use prior conversation context and the other contact's name.
 
-### API & Proxy
+### Data Model
+
+- [ ] **ACT-01**: A unified `actionables` table stores every detected or user-requested actionable item with fields for source (commitment/task/user-command), source contact, source message id + text, detected task, detected_at, status, enriched title, enriched note, Google Tasks ids, and the approval preview message id
+- [ ] **ACT-02**: Actionable status follows the lifecycle `pending_approval → approved → fired` (with `rejected` and `expired` terminal states), and the transitions are idempotent against duplicate WhatsApp replies
+
+### Detection Pipeline
+
+- [ ] **DETC-01**: Commitment/task detection in private chats writes a single `actionable` row with status `pending_approval` and stops auto-pushing to Google Tasks
+- [ ] **DETC-02**: One detection pipeline covers both commitment-type (with time / involving others) and task-type (solo, no time) items — the parallel `commitments` → `todo` split is retired
+- [ ] **DETC-03**: Self-chat direct reminder commands (`remind me to X at Y`) create an actionable with status `approved` and bypass the approval gate entirely
+
+### Approval UX (WhatsApp)
+
+- [ ] **APPR-01**: Bot sends a per-detection self-chat preview message containing proposed task, contact name, source snippet, and detection timestamp, formatted in the message's detected language (Hebrew or English)
+- [ ] **APPR-02**: User can approve a pending actionable by WhatsApp quoted-reply with ✅ (synonyms: `approve`, `✓`, `ok`)
+- [ ] **APPR-03**: User can reject a pending actionable by WhatsApp quoted-reply with ❌ (synonyms: `reject`, `no`, `✗`)
+- [ ] **APPR-04**: User can edit the proposed task before approving by WhatsApp quoted-reply with `edit: <new task text>` — the edited text replaces the detected task and then runs enrichment as if approved
+- [ ] **APPR-05**: Pending actionables older than 7 days auto-expire to `expired` state and are removed from the preview backlog
+
+### Context Enrichment (at approval)
+
+- [ ] **ENRI-01**: On approval, a Gemini call uses the most recent ~10 messages from the source chat to produce an enriched, self-contained Google Tasks title
+- [ ] **ENRI-02**: The enriched title resolves pronouns and vague references, includes the contact's name, and includes a concrete deadline when a time was detected
+- [ ] **ENRI-03**: The Google Tasks note records contact name, source chat snippet, and original trigger message text so the task is auditable from the Google Tasks UI alone
+- [ ] **ENRI-04**: Enrichment failures (Gemini error, empty response, validation fail) fall back to the originally detected task + basic note and never block approval
+
+### Dashboard
+
+- [ ] **DASH-ACT-01**: Dashboard page lists all `pending_approval` actionables with contact, proposed task, source snippet, detected_at, and language — read-only view for auditing detection quality
+- [ ] **DASH-ACT-02**: Dashboard surfaces recent `approved`, `rejected`, and `expired` actionables (last N) for audit trail, showing enriched title alongside the original detection
+
+### Migration
+
+- [ ] **MIGR-01**: A Drizzle migration creates the `actionables` table and backfills in-flight pending rows from `reminders (source=commitment)` and `todoTasks` into the new model without losing existing Google Tasks ids
+- [ ] **MIGR-02**: Detection code paths split across `commitments/` → `reminders/` and `commitments/` → `todo/` are retired in favor of one unified detection-to-actionable pipeline; already-synced Google Tasks entries are left alone
+
+## Previous Milestones
+
+### v1.7 Requirements (Complete)
 
 - [x] **LIN-01**: User can start a long-running pm-authority HTTP service exposing read + mutate endpoints for post state, variants, and lesson candidates over localhost (127.0.0.1 only, no auth — local binding is the security boundary)
 - [x] **LIN-02**: User can open the whatsapp-bot dashboard and it fetches LinkedIn post data via Fastify proxy routes forwarding to the pm-authority HTTP service, with typed Zod schemas and error pass-through
-
-### Queue & Status (Read)
-
 - [x] **LIN-03**: User can view a `/linkedin/queue` dashboard page listing all posts in `DRAFT`, `PENDING_VARIANT`, `PENDING_LESSON_SELECTION`, or `PENDING_PII_REVIEW` with status badge, content preview, and image thumbnail
 - [x] **LIN-04**: User can see a status strip on the queue page showing next publish slot (Tue/Wed/Thu 06:30 IDT), pending count, approved count, and last published post preview
 - [x] **LIN-05**: User can view a recent-published history tab listing the last N published posts with published_at, LinkedIn permalink, content preview, and basic metrics when available
 - [x] **LIN-06**: User sees the queue auto-refresh via SSE on post state changes without manual page reload
-
-### Review Actions (Write)
-
 - [x] **LIN-07**: User can approve or reject any post from the dashboard via per-post action buttons
 - [x] **LIN-08**: User can edit a post's content inline in the dashboard (Hebrew and English sides separately for bilingual posts)
 - [x] **LIN-09**: User can regenerate any post with a live status indicator while Claude CLI runs, respecting the existing 5-regeneration cap
 - [x] **LIN-10**: User can replace a post's image by uploading a new file via drag-and-drop; the upload passes through the existing `PENDING_PII_REVIEW` gate
-
-### Lesson Mode UX
-
 - [x] **LIN-11**: User can pick one of 4 candidate lessons for a `PENDING_LESSON_SELECTION` post via a dashboard card list showing lesson text + rationale
 - [x] **LIN-12**: User can pick one of 2 full-post variants for a `PENDING_VARIANT` post via a side-by-side dashboard view showing content + image prompt
 - [x] **LIN-13**: User can see the generated fal.ai image inline on the variant card once image generation completes (replaces the current "file path only" state)
 - [x] **LIN-14**: User can start a new lesson-mode generation run from a dashboard form with project-picker dropdown, perspective, and language fields (replaces the SSH + `generate.py --mode lesson` CLI workflow)
-
-## Previous Milestones
 
 ### v1.6 Requirements (Complete)
 
@@ -100,6 +127,12 @@ Requirements for the LinkedIn Bot Dashboard Integration milestone. Each maps to 
 
 | Feature | Reason |
 |---------|--------|
+| Group chat commitment detection | v1.8 keeps detection private-chat only — group pipelines have their own calendar/travel flows; adding group commitments multiplies false-positive surface |
+| Telegram-style notifications for actionables | WhatsApp self-chat is the owner's primary surface; adding Telegram doubles the notification code path |
+| Recurring actionables (daily/weekly tasks) | v1.6 scheduler handles recurring outgoing messages; recurring personal tasks are a separate concern — defer |
+| Editing an approved actionable's deadline via WhatsApp | Dashboard-only for v1.8 — editing deadlines via quoted-reply adds disambiguation complexity |
+| Two-way sync from Google Tasks back to the bot | One-way push only; checking a task off in Google doesn't update bot state |
+| Per-contact approval-gate bypass (whitelist contacts to auto-approve) | Explicitly requires a uniform gate for all detected items in v1.8; self-chat direct commands are the only bypass |
 | Bearer token / JWT auth on pm-authority service | Binding to 127.0.0.1 is the security boundary; adds complexity without security gain for a single-owner localhost service |
 | OpenAPI codegen across Python ↔ TypeScript | Manual Zod schemas + keep-in-sync discipline; codegen pipeline is overhead for 14 endpoints |
 | Sequence-mode (4-post) generation from dashboard | Lesson mode only via UI; sequence mode stays CLI-only. Can be added later as LIN-15. |
@@ -117,7 +150,35 @@ Requirements for the LinkedIn Bot Dashboard Integration milestone. Each maps to 
 
 ## Traceability
 
-Which phases cover which requirements. Updated during roadmap creation.
+### v1.8 Traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| ACT-01 | Phase 39 | Pending |
+| ACT-02 | Phase 39 | Pending |
+| MIGR-01 | Phase 39 | Pending |
+| DETC-01 | Phase 40 | Pending |
+| DETC-02 | Phase 40 | Pending |
+| MIGR-02 | Phase 40 | Pending |
+| APPR-01 | Phase 41 | Pending |
+| APPR-02 | Phase 41 | Pending |
+| APPR-03 | Phase 41 | Pending |
+| APPR-04 | Phase 41 | Pending |
+| APPR-05 | Phase 41 | Pending |
+| DETC-03 | Phase 41 | Pending |
+| ENRI-01 | Phase 42 | Pending |
+| ENRI-02 | Phase 42 | Pending |
+| ENRI-03 | Phase 42 | Pending |
+| ENRI-04 | Phase 42 | Pending |
+| DASH-ACT-01 | Phase 43 | Pending |
+| DASH-ACT-02 | Phase 43 | Pending |
+
+**v1.8 Coverage:**
+- v1.8 requirements: 18 total
+- Mapped to phases: 18 (Phases 39-43)
+- Unmapped: 0 ✓
+
+### v1.7 Traceability (Complete)
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
@@ -136,7 +197,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LIN-13 | Phase 37 | Complete (2026-04-17 — live-verified in owner's browser walkthrough; SC#3 observed: fal.ai image rendered inline on focused variant card with 1.5s visible delay before nav; see 37-05-SUMMARY.md) |
 | LIN-14 | Phase 38 | Complete (2026-04-17 -- live-verified in owner's browser walkthrough; form submits, post appears in queue, validation inline, localStorage persists; Hebrew variant waived as upstream bug; see 38-03-SUMMARY.md) |
 
-**Coverage:**
+**v1.7 Coverage:**
 - v1.7 requirements: 14 total
 - Mapped to phases: 14 (Phases 33-38)
 - Unmapped: 0
@@ -164,4 +225,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-30 (v1.6)*
-*Last updated: 2026-04-17 — LIN-14 live-verified and marked complete (Phase 38); v1.7 milestone shipped*
+*Last updated: 2026-04-19 — v1.8 Task Approval & Context Enrichment requirements added (18 items across ACT / DETC / APPR / ENRI / DASH-ACT / MIGR categories)*
