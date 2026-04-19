@@ -13,8 +13,8 @@
  *      de-dupes by item index (last-wins) so `1 ✅ 1 ❌` cleanly resolves
  *      to "reject item 1".
  *   4. Applies each directive in input order:
- *        - `approve` → flip to `approved`, push to Google Tasks (raw text;
- *          Phase 42 will intercept `resolveTitle` to enrich), confirm.
+ *        - `approve` → flip to `approved`, enrich via Gemini (Phase 42),
+ *          push enriched title+note to Google Tasks, confirm.
  *        - `edit`    → rewrite the task text, then fall through to approve
  *          so a single message is sent with the edited title.
  *        - `reject`  → flip to `rejected`, confirm dismissal.
@@ -32,6 +32,7 @@ import {
   getActionablesByPreviewMsgId,
   updateActionableStatus,
   updateActionableTask,
+  updateActionableEnrichment,
   updateActionableTodoIds,
   type Actionable,
 } from '../db/queries/actionables.js';
@@ -41,6 +42,7 @@ import {
   parseApprovalReply,
   type ApprovalDirective,
 } from './replyParser.js';
+import { enrichActionable } from './enrichmentService.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
 
@@ -178,15 +180,19 @@ async function approveAndSync(
   sock: WASocket,
   actionable: Actionable,
 ): Promise<void> {
+  // 1. Flip status FIRST — enrichment failure must NEVER block approval (APPR-02 behavior preserved).
   updateActionableStatus(actionable.id, 'approved');
 
+  // 2. Enrich (Gemini + fallback — never throws).
+  const enrichment = await enrichActionable(actionable);
+
+  // 3. Persist enrichment on the actionable row.
+  updateActionableEnrichment(actionable.id, { title: enrichment.title, note: enrichment.note });
+
+  // 4. Push to Google Tasks with the ENRICHED payload (title + note).
   if (isTasksConnected()) {
     try {
-      const title = resolveTitle(actionable);
-      const result = await createTodoTask({
-        title,
-        note: buildBasicNote(actionable),
-      });
+      const result = await createTodoTask({ title: enrichment.title, note: enrichment.note });
       updateActionableTodoIds(actionable.id, {
         todoTaskId: result.taskId,
         todoListId: result.listId,
@@ -194,7 +200,7 @@ async function approveAndSync(
     } catch (err) {
       logger.warn(
         { err, id: actionable.id },
-        'Google Tasks push failed on approval — actionable stays approved in DB',
+        'Google Tasks push failed on approval — actionable stays approved+enriched in DB',
       );
     }
   } else {
@@ -204,21 +210,14 @@ async function approveAndSync(
     );
   }
 
+  // 5. Confirm to owner (still shows actionable.task, not enriched title — matches
+  //    what they saw in the preview; enriched title is what appears in Google Tasks).
   await sock.sendMessage(config.USER_JID, {
     text: approvedConfirmation(actionable),
   });
 }
 
-/**
- * Phase 42 hook: enrichment will intercept this helper to swap in the
- * enriched title right before `createTodoTask` is called. Today it's a
- * straight pass-through to the raw task text.
- */
-function resolveTitle(actionable: Actionable): string {
-  return actionable.task;
-}
-
-function buildBasicNote(actionable: Actionable): string {
+export function buildBasicNote(actionable: Actionable): string {
   const who =
     actionable.sourceContactName ??
     actionable.sourceContactJid ??

@@ -9,11 +9,13 @@ vi.mock('../../config.js', () => ({
 const getActionablesByPreviewMsgIdMock = vi.fn();
 const updateActionableStatusMock = vi.fn();
 const updateActionableTaskMock = vi.fn();
+const updateActionableEnrichmentMock = vi.fn();
 const updateActionableTodoIdsMock = vi.fn();
 vi.mock('../../db/queries/actionables.js', () => ({
   getActionablesByPreviewMsgId: getActionablesByPreviewMsgIdMock,
   updateActionableStatus: updateActionableStatusMock,
   updateActionableTask: updateActionableTaskMock,
+  updateActionableEnrichment: updateActionableEnrichmentMock,
   updateActionableTodoIds: updateActionableTodoIdsMock,
 }));
 
@@ -25,6 +27,11 @@ vi.mock('../../todo/todoService.js', () => ({
 const isTasksConnectedMock = vi.fn(() => true);
 vi.mock('../../todo/todoAuthService.js', () => ({
   isTasksConnected: isTasksConnectedMock,
+}));
+
+const enrichActionableMock = vi.fn();
+vi.mock('../enrichmentService.js', () => ({
+  enrichActionable: enrichActionableMock,
 }));
 
 // Use the REAL replyParser so the grammar is end-to-end asserted.
@@ -80,6 +87,14 @@ describe('tryHandleApprovalReply', () => {
     vi.clearAllMocks();
     isTasksConnectedMock.mockReturnValue(true);
     createTodoTaskMock.mockResolvedValue({ taskId: 'T-NEW', listId: 'L-1' });
+    // Default: enrichActionable returns fallback shape (title = task, basic note).
+    // Per-test cases that need custom enrichment override this.
+    enrichActionableMock.mockImplementation((a: Record<string, unknown>) =>
+      Promise.resolve({
+        title: a['task'] as string,
+        note: `From: ${(a['sourceContactName'] as string | null) ?? 'Self'}`,
+      }),
+    );
   });
 
   // ── Unknown quoted-msg-id falls through ──
@@ -316,8 +331,8 @@ describe('tryHandleApprovalReply', () => {
     );
   });
 
-  // ── createTodoTask throws → status still flipped, no crash ──
-  it('Google Tasks push failure still flips status to approved and sends confirmation', async () => {
+  // ── createTodoTask throws → status still flipped, enrichment persisted, no crash ──
+  it('Google Tasks push failure still flips status to approved, persists enrichment, and sends confirmation', async () => {
     getActionablesByPreviewMsgIdMock.mockReturnValue([
       actionable({ id: 'a-1', task: 'Task A' }),
     ]);
@@ -333,6 +348,8 @@ describe('tryHandleApprovalReply', () => {
 
     expect(handled).toBe(true);
     expect(updateActionableStatusMock).toHaveBeenCalledWith('a-1', 'approved');
+    // Enrichment persisted BEFORE createTodoTask was attempted.
+    expect(updateActionableEnrichmentMock).toHaveBeenCalledOnce();
     expect(createTodoTaskMock).toHaveBeenCalledOnce();
     expect(updateActionableTodoIdsMock).not.toHaveBeenCalled();
     // Confirmation still sent even when sync failed.
@@ -385,6 +402,8 @@ describe('tryHandleApprovalReply', () => {
 
   // ── Note body includes contact name + original text snippet ──
   it('Google Tasks note carries From + Original snippet from the source message', async () => {
+    const enrichedNote = 'Contact: Lee\nOriginal: "Hey can you send the Q2 report tomorrow?"';
+    enrichActionableMock.mockResolvedValue({ title: 'Task A', note: enrichedNote });
     getActionablesByPreviewMsgIdMock.mockReturnValue([
       actionable({
         id: 'a-1',
@@ -404,7 +423,69 @@ describe('tryHandleApprovalReply', () => {
 
     expect(createTodoTaskMock).toHaveBeenCalledOnce();
     const note = createTodoTaskMock.mock.calls[0][0].note;
-    expect(note).toContain('From: Lee');
+    expect(note).toContain('Lee');
     expect(note).toContain('Hey can you send the Q2 report tomorrow?');
+  });
+
+  // ── Enrichment returns custom title → createTodoTask receives enriched values ──
+  it('enrichment returns custom title → createTodoTask and updateActionableEnrichment receive enriched values', async () => {
+    const enrichedTitle = 'Follow up with Lee on Q2 report by Monday';
+    const enrichedNote = 'Contact: Lee\nOriginal: "Check it"\nContext: Lee asked about Q2';
+    enrichActionableMock.mockResolvedValue({ title: enrichedTitle, note: enrichedNote });
+    getActionablesByPreviewMsgIdMock.mockReturnValue([
+      actionable({ id: 'a-1', task: 'Check it', sourceContactName: 'Lee' }),
+    ]);
+    const sock = sockMock();
+
+    const handled = await tryHandleApprovalReply(
+      sock as never,
+      '1 ✅',
+      'PREVIEW-1',
+      'en',
+    );
+
+    expect(handled).toBe(true);
+    expect(updateActionableEnrichmentMock).toHaveBeenCalledWith('a-1', {
+      title: enrichedTitle,
+      note: enrichedNote,
+    });
+    expect(createTodoTaskMock).toHaveBeenCalledWith({
+      title: enrichedTitle,
+      note: enrichedNote,
+    });
+    // Confirmation still uses actionable.task (not enriched title).
+    expect(sock.sendMessage.mock.calls[0][1].text).toBe('✅ Added: Check it');
+  });
+
+  // ── Enrichment persists even when Google Tasks disconnected ──
+  it('enrichment persists updateActionableEnrichment even when Google Tasks disconnected', async () => {
+    isTasksConnectedMock.mockReturnValue(false);
+    const enrichedTitle = 'Custom enriched title';
+    const enrichedNote = 'Contact: Lee\nOriginal: "Task A"';
+    enrichActionableMock.mockResolvedValue({ title: enrichedTitle, note: enrichedNote });
+    getActionablesByPreviewMsgIdMock.mockReturnValue([
+      actionable({ id: 'a-1', task: 'Task A' }),
+    ]);
+    const sock = sockMock();
+
+    const handled = await tryHandleApprovalReply(
+      sock as never,
+      '1 ✅',
+      'PREVIEW-1',
+      'en',
+    );
+
+    expect(handled).toBe(true);
+    // Status flipped.
+    expect(updateActionableStatusMock).toHaveBeenCalledWith('a-1', 'approved');
+    // Enrichment persisted even without Tasks.
+    expect(updateActionableEnrichmentMock).toHaveBeenCalledWith('a-1', {
+      title: enrichedTitle,
+      note: enrichedNote,
+    });
+    // createTodoTask NOT called when Tasks disconnected.
+    expect(createTodoTaskMock).not.toHaveBeenCalled();
+    // Confirmation still sent.
+    expect(sock.sendMessage.mock.calls[0][1].text).toBe('✅ Added: Task A');
   });
 });
