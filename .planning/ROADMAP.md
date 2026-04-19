@@ -106,7 +106,7 @@
 - [x] **Phase 40: Unified Detection Pipeline** (3/3 plans) — completed 2026-04-19
 - [x] **Phase 41: WhatsApp Approval UX** — Per-detection self-chat preview + quoted-reply approve/reject/edit grammar + 7-day auto-expiry + self-chat direct commands bypass (5/5 plans shipped, live verified on prod) (completed 2026-04-19)
 - [x] **Phase 42: Context Enrichment at Approval** — Gemini second pass with last ~10 chat messages produces self-contained Google Tasks title + rich note at approval time; safe fallback on enrichment failure (completed 2026-04-20)
-- [ ] **Phase 43: Dashboard Pending Tasks View** — Read-only dashboard page for auditing pending + recent approved/rejected/expired actionables
+- [x] **Phase 43: Dashboard Pending Tasks View** — Read-only dashboard page for auditing pending + recent approved/rejected/expired actionables (completed 2026-04-20)
 
 ## Phase Details
 
