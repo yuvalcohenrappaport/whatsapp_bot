@@ -30,6 +30,7 @@ import { validateElevenLabsConnection } from './voice/client.js';
 import { initPersonalCalendarAuth } from './calendar/personalCalendarService.js';
 import { initReminderSystem } from './reminders/reminderService.js';
 import { initScheduledMessageScheduler } from './scheduler/scheduledMessageService.js';
+import { initApprovalSystem } from './approval/approvalInit.js';
 
 const logger = pino({
   level: config.LOG_LEVEL,
@@ -108,6 +109,13 @@ async function startSocket(): Promise<void> {
 
       initScheduledMessageScheduler().catch((err) => {
         logger.error(err, 'Failed to initialize scheduled message scheduler');
+      });
+
+      // Phase 41 approval UX — wires debounce flush callback, starts 7-day
+      // expiry scan, and runs the one-time first-boot digest. Idempotent on
+      // reconnect. Must run AFTER sock is connected so the digest can send.
+      initApprovalSystem().catch((err) => {
+        logger.error(err, 'Failed to initialize approval system');
       });
     },
 
