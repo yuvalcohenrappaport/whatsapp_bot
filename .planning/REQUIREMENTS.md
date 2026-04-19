@@ -35,8 +35,8 @@ Requirements for the **Task Approval & Context Enrichment** milestone. Turn comm
 
 ### Dashboard
 
-- [ ] **DASH-ACT-01**: Dashboard page lists all `pending_approval` actionables with contact, proposed task, source snippet, detected_at, and language — read-only view for auditing detection quality
-- [ ] **DASH-ACT-02**: Dashboard surfaces recent `approved`, `rejected`, and `expired` actionables (last N) for audit trail, showing enriched title alongside the original detection
+- [x] **DASH-ACT-01**: Dashboard page lists all `pending_approval` actionables with contact, proposed task, source snippet, detected_at, and language — read-only view for auditing detection quality
+- [x] **DASH-ACT-02**: Dashboard surfaces recent `approved`, `rejected`, and `expired` actionables (last N) for audit trail, showing enriched title alongside the original detection
 
 ### Migration
 
@@ -170,8 +170,8 @@ Requirements for the **Task Approval & Context Enrichment** milestone. Turn comm
 | ENRI-02 | Phase 42 | Complete (2026-04-20 — EnrichmentSchema describe() strings require contact name + deadline in title; Zod min:1/max:200 enforced; approvalHandler wires enriched title to createTodoTask) |
 | ENRI-03 | Phase 42 | Complete (2026-04-20 — EnrichmentSchema note field requires contact name + snippet + trigger text; buildBasicNote fallback preserves same fields; approvalHandler passes enrichment.note to createTodoTask) |
 | ENRI-04 | Phase 42 | Complete (2026-04-20 — 4 fallback cases tested: null response, safeParse fail, throw, whitespace title; status flipped before enrichActionable called so failure cannot block approval; approvalHandler case (b) confirms flow with Tasks disconnected) |
-| DASH-ACT-01 | Phase 43 | Pending |
-| DASH-ACT-02 | Phase 43 | Pending |
+| DASH-ACT-01 | Phase 43 | Complete (2026-04-20 — /pending-tasks page renders every pending_approval row as a card with contact, task headline, line-clamp-6 source snippet, absolute IST `detectedAt`, per-row RTL/LTR via `detectedLanguage`; useActionablesStream + 5s polling fallback) |
+| DASH-ACT-02 | Phase 43 | Complete (2026-04-20 — Recent section renders 50 most-recent terminal rows with enriched title as headline, `Originally: <originalDetectedTask>` secondary when enrichment rewrote it, color-coded approved/rejected/expired badges, filter chips All/Approved/Rejected/Expired, enriched-note preview, Google Tasks link when todoTaskId set) |
 
 **v1.8 Coverage:**
 - v1.8 requirements: 18 total

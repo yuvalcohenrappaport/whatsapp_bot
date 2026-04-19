@@ -179,7 +179,7 @@ Plans:
 **Plans:** 3 plans
 Plans:
 - [x] 43-01-PLAN.md — Fastify REST + SSE routes for actionables (/api/actionables/pending, /recent, /stream) JWT-gated like /api/linkedin/* (see `.planning/phases/43-dashboard-pending-tasks-view/43-01-SUMMARY.md`)
-- [ ] 43-02-PLAN.md — /pending-tasks dashboard page: pending list + audit list + filter chips + sidebar entry + RTL/LTR mirroring + absolute IST timestamps + 300ms amber arrival flash
+- [x] 43-02-PLAN.md — /pending-tasks dashboard page: pending list + audit list + filter chips + sidebar entry + RTL/LTR mirroring + absolute IST timestamps + 300ms amber arrival flash (see `.planning/phases/43-dashboard-pending-tasks-view/43-02-SUMMARY.md`)
 - [ ] 43-03-PLAN.md — Live verification (PM2 restart + owner walk-through) + ROADMAP/REQUIREMENTS/STATE closeout
 
 ### Phase 27: DB Foundation
@@ -409,7 +409,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 40. Unified Detection Pipeline | v1.8 | 3/3 | Complete | 2026-04-19 |
 | 41. WhatsApp Approval UX | v1.8 | 5/5 | Complete | 2026-04-19 |
 | 42. Context Enrichment at Approval | v1.8 | 2/2 | Complete | 2026-04-20 |
-| 43. Dashboard Pending Tasks View | v1.8 | 1/3 | In Progress | — |
+| 43. Dashboard Pending Tasks View | v1.8 | 2/3 | In Progress | — |
 | 44. Unified Editable Calendar | v1.8 | 0 | Pending | — |
 
 ### Phase 44: Unified Editable Calendar (Tasks + Events + LinkedIn)
