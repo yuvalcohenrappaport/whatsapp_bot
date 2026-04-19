@@ -20,10 +20,10 @@ Requirements for the **Task Approval & Context Enrichment** milestone. Turn comm
 
 ### Approval UX (WhatsApp)
 
-- [ ] **APPR-01**: Bot sends a per-detection self-chat preview message containing proposed task, contact name, source snippet, and detection timestamp, formatted in the message's detected language (Hebrew or English)
-- [ ] **APPR-02**: User can approve a pending actionable by WhatsApp quoted-reply with ✅ (synonyms: `approve`, `✓`, `ok`)
-- [ ] **APPR-03**: User can reject a pending actionable by WhatsApp quoted-reply with ❌ (synonyms: `reject`, `no`, `✗`)
-- [ ] **APPR-04**: User can edit the proposed task before approving by WhatsApp quoted-reply with `edit: <new task text>` — the edited text replaces the detected task and then runs enrichment as if approved
+- [x] **APPR-01**: Bot sends a per-detection self-chat preview message containing proposed task, contact name, source snippet, and detection timestamp, formatted in the message's detected language (Hebrew or English)
+- [x] **APPR-02**: User can approve a pending actionable by WhatsApp quoted-reply with ✅ (synonyms: `approve`, `✓`, `ok`)
+- [x] **APPR-03**: User can reject a pending actionable by WhatsApp quoted-reply with ❌ (synonyms: `reject`, `no`, `✗`)
+- [x] **APPR-04**: User can edit the proposed task before approving by WhatsApp quoted-reply with `edit: <new task text>` — the edited text replaces the detected task and then runs enrichment as if approved
 - [ ] **APPR-05**: Pending actionables older than 7 days auto-expire to `expired` state and are removed from the preview backlog
 
 ### Context Enrichment (at approval)
@@ -160,10 +160,10 @@ Requirements for the **Task Approval & Context Enrichment** milestone. Turn comm
 | DETC-01 | Phase 40 | Complete (2026-04-19 — dark-launch deployed, 2 unprompted detections wrote to `actionables` with status=pending_approval and zero legacy writes in the same window) |
 | DETC-02 | Phase 40 | Complete (2026-04-19 — single `detectionService.processDetection` pipeline covers both commitment + task classifications; `processCommitment` only reachable via legacy gate) |
 | MIGR-02 | Phase 40 | Complete (2026-04-19 — `commitmentPipeline.ts` + `todoPipeline.ts` files retained on disk per CLAUDE.md; unreachable from default pipeline; rollback is one setting flip) |
-| APPR-01 | Phase 41 | Pending |
-| APPR-02 | Phase 41 | Pending |
-| APPR-03 | Phase 41 | Pending |
-| APPR-04 | Phase 41 | Pending |
+| APPR-01 | Phase 41 | Complete |
+| APPR-02 | Phase 41 | Complete |
+| APPR-03 | Phase 41 | Complete |
+| APPR-04 | Phase 41 | Complete |
 | APPR-05 | Phase 41 | Pending |
 | DETC-03 | Phase 41 | Pending |
 | ENRI-01 | Phase 42 | Pending |
