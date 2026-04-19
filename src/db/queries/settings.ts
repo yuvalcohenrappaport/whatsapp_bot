@@ -6,7 +6,8 @@ const DEFAULTS: Record<string, string> = {
   ai_provider: 'gemini',
   voice_replies_enabled: 'false', // global master switch — 'true' | 'false'
   commitment_detection_enabled: 'true', // master switch for commitment detection
-  v1_8_detection_pipeline: 'dark_launch', // 'legacy' | 'dark_launch' | 'interactive' — Phase 40/41 gate: dark_launch writes to actionables silently (v1.8); interactive ALSO enqueues into the 2-min debounce bucket so the self-chat preview UX fires (Phase 41); legacy keeps the pre-v1.8 split commitments→{reminders,todoTasks} path. Default stays dark_launch; the flip to `interactive` happens in Plan 41-04 with the first-boot digest.
+  v1_8_detection_pipeline: 'interactive', // 'legacy' | 'dark_launch' | 'interactive' — Phase 40/41 gate: fresh deploys land in 'interactive' directly (self-chat preview UX). Existing servers still have the stored Phase-40 value 'dark_launch' — runFirstBootDigest (Plan 41-04) flips them to 'interactive' atomically with the digest-posted flag on first successful digest send. 'legacy' keeps the pre-v1.8 split commitments→{reminders,todoTasks} path.
+  v1_8_approval_digest_posted: 'false', // one-time gate for the Phase 41 first-boot digest; flipped to 'true' after the digest message is sent successfully. Stored value survives restarts so the digest never re-fires.
 };
 
 export function getSetting(key: string): string | null {
