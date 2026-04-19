@@ -9,8 +9,8 @@ Requirements for the **Task Approval & Context Enrichment** milestone. Turn comm
 
 ### Data Model
 
-- [ ] **ACT-01**: A unified `actionables` table stores every detected or user-requested actionable item with fields for source (commitment/task/user-command), source contact, source message id + text, detected task, detected_at, status, enriched title, enriched note, Google Tasks ids, and the approval preview message id
-- [ ] **ACT-02**: Actionable status follows the lifecycle `pending_approval → approved → fired` (with `rejected` and `expired` terminal states), and the transitions are idempotent against duplicate WhatsApp replies
+- [x] **ACT-01**: A unified `actionables` table stores every detected or user-requested actionable item with fields for source (commitment/task/user-command), source contact, source message id + text, detected task, detected_at, status, enriched title, enriched note, Google Tasks ids, and the approval preview message id
+- [x] **ACT-02**: Actionable status follows the lifecycle `pending_approval → approved → fired` (with `rejected` and `expired` terminal states), and the transitions are idempotent against duplicate WhatsApp replies
 
 ### Detection Pipeline
 
@@ -40,7 +40,7 @@ Requirements for the **Task Approval & Context Enrichment** milestone. Turn comm
 
 ### Migration
 
-- [ ] **MIGR-01**: A Drizzle migration creates the `actionables` table and backfills in-flight pending rows from `reminders (source=commitment)` and `todoTasks` into the new model without losing existing Google Tasks ids
+- [x] **MIGR-01**: A Drizzle migration creates the `actionables` table and backfills in-flight pending rows from `reminders (source=commitment)` and `todoTasks` into the new model without losing existing Google Tasks ids
 - [ ] **MIGR-02**: Detection code paths split across `commitments/` → `reminders/` and `commitments/` → `todo/` are retired in favor of one unified detection-to-actionable pipeline; already-synced Google Tasks entries are left alone
 
 ## Previous Milestones
@@ -154,9 +154,9 @@ Requirements for the **Task Approval & Context Enrichment** milestone. Turn comm
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ACT-01 | Phase 39 | Pending |
-| ACT-02 | Phase 39 | Pending |
-| MIGR-01 | Phase 39 | Pending |
+| ACT-01 | Phase 39 | Complete (2026-04-19 — actionables Drizzle table + migration 0020 applied + 54 vitest cases green; smoke-tested against live DB copy with 356 legacy rows) |
+| ACT-02 | Phase 39 | Complete (2026-04-19 — lifecycle enforced at runtime via `isValidTransition` + `updateActionableStatus` throwing on invalid transitions) |
+| MIGR-01 | Phase 39 | Complete (2026-04-19 — backfill migration 0021 maps 12 source×status combinations, preserves Google Tasks ids on 128 rows, idempotent) |
 | DETC-01 | Phase 40 | Pending |
 | DETC-02 | Phase 40 | Pending |
 | MIGR-02 | Phase 40 | Pending |
