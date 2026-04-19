@@ -31,6 +31,8 @@ import {
 } from '../calendar/personalCalendarService.js';
 import { createTodoTask, deleteTodoTask } from '../todo/todoService.js';
 import { isTasksConnected } from '../todo/todoAuthService.js';
+import { createActionable } from '../db/queries/actionables.js';
+import { detectMessageLanguage } from '../calendar/calendarApproval.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
 
@@ -339,6 +341,32 @@ export async function tryHandleReminder(
 
     // Insert into DB
     insertReminder({ id, task, fireAt });
+
+    // Phase 41 (DETC-03) — dual-write as approved user_command actionable.
+    // Legacy reminders row still drives WhatsApp fireReminder scheduling and
+    // calendar event creation. Phase 42 will consolidate onto actionables.
+    // Enrichment is intentionally NOT run on user_command (Q9A-1 UX decision).
+    try {
+      createActionable({
+        id: `user_cmd_${id}`, // distinct id so both tables can hold rows
+        sourceType: 'user_command',
+        sourceContactJid: config.USER_JID,
+        sourceContactName: 'Self',
+        sourceMessageId: null,
+        sourceMessageText: text, // the `/remind me to ...` command verbatim
+        detectedLanguage: detectMessageLanguage(text),
+        originalDetectedTask: task,
+        task,
+        status: 'approved',
+        detectedAt: Date.now(),
+        fireAt,
+      });
+    } catch (err) {
+      logger.warn(
+        { err, reminderId: id },
+        'user_command actionables write failed — legacy reminder still live',
+      );
+    }
 
     // Sync to Google Tasks (fire-and-forget)
     syncReminderToTasks(id, task, fireAt).catch((error) => {
