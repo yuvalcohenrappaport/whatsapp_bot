@@ -21,6 +21,7 @@ const {
   createActionable,
   getActionableById,
   getActionableByPreviewMsgId,
+  getActionablesByPreviewMsgId,
   getPendingActionables,
   getExpiredActionables,
   updateActionableStatus,
@@ -249,6 +250,27 @@ describe('actionables queries', () => {
       updateActionablePreviewMsgId(id, 'PREVIEW_1');
       const row = getActionableByPreviewMsgId('PREVIEW_1');
       expect(row?.id).toBe(id);
+    });
+  });
+
+  describe('getActionablesByPreviewMsgId', () => {
+    it('returns every actionable sharing a preview msg id in createdAt asc order', () => {
+      const a = seed();
+      // Slight delay so createdAt increases monotonically even on fast CI.
+      const b = seed();
+      const c = seed();
+      updateActionablePreviewMsgId(a, 'PREVIEW_BATCH');
+      updateActionablePreviewMsgId(b, 'PREVIEW_BATCH');
+      updateActionablePreviewMsgId(c, 'PREVIEW_BATCH');
+
+      const rows = getActionablesByPreviewMsgId('PREVIEW_BATCH');
+      expect(rows.map((r) => r.id)).toEqual([a, b, c]);
+    });
+
+    it('returns an empty array when no actionable matches the preview msg id', () => {
+      seed();
+      const rows = getActionablesByPreviewMsgId('NON_EXISTENT_PREVIEW');
+      expect(rows).toEqual([]);
     });
   });
 

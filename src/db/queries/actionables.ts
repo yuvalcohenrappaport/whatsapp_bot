@@ -1,4 +1,4 @@
-import { eq, and, lt, desc, inArray } from 'drizzle-orm';
+import { eq, and, lt, asc, desc, inArray } from 'drizzle-orm';
 import { db } from '../client.js';
 import { actionables } from '../schema.js';
 
@@ -92,6 +92,24 @@ export function getActionableByPreviewMsgId(
     .from(actionables)
     .where(eq(actionables.approvalPreviewMessageId, previewMsgId))
     .get();
+}
+
+/**
+ * Return every actionable whose approval_preview_message_id matches
+ * `previewMsgId`, ordered by createdAt ascending so item indices stay stable
+ * with the batched preview's 1..N numbering. Returns `[]` when no row
+ * matches — Plan 41-03's reply handler uses that to fall through to the
+ * reminder/cancel pipelines.
+ */
+export function getActionablesByPreviewMsgId(
+  previewMsgId: string,
+): Actionable[] {
+  return db
+    .select()
+    .from(actionables)
+    .where(eq(actionables.approvalPreviewMessageId, previewMsgId))
+    .orderBy(asc(actionables.createdAt))
+    .all();
 }
 
 export function getPendingActionables(): Actionable[] {
