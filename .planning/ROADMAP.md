@@ -103,7 +103,7 @@
 **Milestone Goal:** Turn commitment/task detection into a *draft → approve → sync* workflow. Detections become pending placeholders in the self-chat; the owner approves per-item; approved items push to Google Tasks with an LLM-enriched, self-contained title that uses prior conversation context and the other contact's name.
 
 - [x] **Phase 39: Actionables Data Model & Migration** (3/3 plans) — completed 2026-04-19
-- [ ] **Phase 40: Unified Detection Pipeline** — Single detection → one `pending_approval` actionable; remove auto-push to Google Tasks from the detection path; retire split commitment→{reminders,todo} writes
+- [x] **Phase 40: Unified Detection Pipeline** (3/3 plans) — completed 2026-04-19
 - [ ] **Phase 41: WhatsApp Approval UX** — Per-detection self-chat preview + quoted-reply approve/reject/edit grammar + 7-day auto-expiry + self-chat direct commands bypass
 - [ ] **Phase 42: Context Enrichment at Approval** — Gemini second pass with last ~10 chat messages produces self-contained Google Tasks title + rich note at approval time; safe fallback on enrichment failure
 - [ ] **Phase 43: Dashboard Pending Tasks View** — Read-only dashboard page for auditing pending + recent approved/rejected/expired actionables
@@ -390,7 +390,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 37. Lesson Mode UX | v1.7 | 5/5 | Complete | 2026-04-17 |
 | 38. New Lesson Run Form | v1.7 | 3/3 | Complete | 2026-04-17 |
 | 39. Actionables Data Model & Migration | v1.8 | 3/3 | Complete | 2026-04-19 |
-| 40. Unified Detection Pipeline | v1.8 | 0 | Pending | — |
+| 40. Unified Detection Pipeline | v1.8 | 3/3 | Complete | 2026-04-19 |
 | 41. WhatsApp Approval UX | v1.8 | 0 | Pending | — |
 | 42. Context Enrichment at Approval | v1.8 | 0 | Pending | — |
 | 43. Dashboard Pending Tasks View | v1.8 | 0 | Pending | — |

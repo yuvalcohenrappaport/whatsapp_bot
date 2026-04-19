@@ -14,8 +14,8 @@ Requirements for the **Task Approval & Context Enrichment** milestone. Turn comm
 
 ### Detection Pipeline
 
-- [ ] **DETC-01**: Commitment/task detection in private chats writes a single `actionable` row with status `pending_approval` and stops auto-pushing to Google Tasks
-- [ ] **DETC-02**: One detection pipeline covers both commitment-type (with time / involving others) and task-type (solo, no time) items — the parallel `commitments` → `todo` split is retired
+- [x] **DETC-01**: Commitment/task detection in private chats writes a single `actionable` row with status `pending_approval` and stops auto-pushing to Google Tasks
+- [x] **DETC-02**: One detection pipeline covers both commitment-type (with time / involving others) and task-type (solo, no time) items — the parallel `commitments` → `todo` split is retired
 - [ ] **DETC-03**: Self-chat direct reminder commands (`remind me to X at Y`) create an actionable with status `approved` and bypass the approval gate entirely
 
 ### Approval UX (WhatsApp)
@@ -41,7 +41,7 @@ Requirements for the **Task Approval & Context Enrichment** milestone. Turn comm
 ### Migration
 
 - [x] **MIGR-01**: A Drizzle migration creates the `actionables` table and backfills in-flight pending rows from `reminders (source=commitment)` and `todoTasks` into the new model without losing existing Google Tasks ids
-- [ ] **MIGR-02**: Detection code paths split across `commitments/` → `reminders/` and `commitments/` → `todo/` are retired in favor of one unified detection-to-actionable pipeline; already-synced Google Tasks entries are left alone
+- [x] **MIGR-02**: Detection code paths split across `commitments/` → `reminders/` and `commitments/` → `todo/` are retired in favor of one unified detection-to-actionable pipeline; already-synced Google Tasks entries are left alone
 
 ## Previous Milestones
 
@@ -157,9 +157,9 @@ Requirements for the **Task Approval & Context Enrichment** milestone. Turn comm
 | ACT-01 | Phase 39 | Complete (2026-04-19 — actionables Drizzle table + migration 0020 applied + 54 vitest cases green; smoke-tested against live DB copy with 356 legacy rows) |
 | ACT-02 | Phase 39 | Complete (2026-04-19 — lifecycle enforced at runtime via `isValidTransition` + `updateActionableStatus` throwing on invalid transitions) |
 | MIGR-01 | Phase 39 | Complete (2026-04-19 — backfill migration 0021 maps 12 source×status combinations, preserves Google Tasks ids on 128 rows, idempotent) |
-| DETC-01 | Phase 40 | Pending |
-| DETC-02 | Phase 40 | Pending |
-| MIGR-02 | Phase 40 | Pending |
+| DETC-01 | Phase 40 | Complete (2026-04-19 — dark-launch deployed, 2 unprompted detections wrote to `actionables` with status=pending_approval and zero legacy writes in the same window) |
+| DETC-02 | Phase 40 | Complete (2026-04-19 — single `detectionService.processDetection` pipeline covers both commitment + task classifications; `processCommitment` only reachable via legacy gate) |
+| MIGR-02 | Phase 40 | Complete (2026-04-19 — `commitmentPipeline.ts` + `todoPipeline.ts` files retained on disk per CLAUDE.md; unreachable from default pipeline; rollback is one setting flip) |
 | APPR-01 | Phase 41 | Pending |
 | APPR-02 | Phase 41 | Pending |
 | APPR-03 | Phase 41 | Pending |
