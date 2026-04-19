@@ -176,11 +176,11 @@ Plans:
   3. The page is backed by a new Fastify REST route against the `actionables` query layer, JWT-gated in the same style as existing `/api/linkedin/*` routes
   4. The view updates live via the existing SSE channel (or a minimal manual-refresh fallback) — approving something in WhatsApp causes the row to move to the audit section without a page reload
   5. The page performs no mutations — approve/reject/edit remain WhatsApp-only per the milestone scope
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 Plans:
 - [x] 43-01-PLAN.md — Fastify REST + SSE routes for actionables (/api/actionables/pending, /recent, /stream) JWT-gated like /api/linkedin/* (see `.planning/phases/43-dashboard-pending-tasks-view/43-01-SUMMARY.md`)
 - [x] 43-02-PLAN.md — /pending-tasks dashboard page: pending list + audit list + filter chips + sidebar entry + RTL/LTR mirroring + absolute IST timestamps + 300ms amber arrival flash (see `.planning/phases/43-dashboard-pending-tasks-view/43-02-SUMMARY.md`)
-- [ ] 43-03-PLAN.md — Live verification (PM2 restart + owner walk-through) + ROADMAP/REQUIREMENTS/STATE closeout
+- [x] 43-03-PLAN.md — Live verification (PM2 restart + owner walk-through) + ROADMAP/REQUIREMENTS/STATE closeout (see `.planning/phases/43-dashboard-pending-tasks-view/43-03-SUMMARY.md`)
 
 ### Phase 27: DB Foundation
 **Goal**: The scheduled_messages table exists with all columns needed by every downstream phase, and a complete query layer is ready to use
@@ -409,7 +409,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 40. Unified Detection Pipeline | v1.8 | 3/3 | Complete | 2026-04-19 |
 | 41. WhatsApp Approval UX | v1.8 | 5/5 | Complete | 2026-04-19 |
 | 42. Context Enrichment at Approval | v1.8 | 2/2 | Complete | 2026-04-20 |
-| 43. Dashboard Pending Tasks View | v1.8 | 2/3 | In Progress | — |
+| 43. Dashboard Pending Tasks View | v1.8 | 3/3 | Complete | 2026-04-20 |
 | 44. Unified Editable Calendar | v1.8 | 0 | Pending | — |
 
 ### Phase 44: Unified Editable Calendar (Tasks + Events + LinkedIn)
