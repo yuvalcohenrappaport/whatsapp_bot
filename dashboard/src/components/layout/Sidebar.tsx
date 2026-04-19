@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, MessageSquare, Calendar, UsersRound, Bell, CheckSquare, Clock, Plug, Linkedin } from 'lucide-react';
+import { LayoutDashboard, Users, MessageSquare, Calendar, UsersRound, Bell, CheckSquare, Clock, Plug, Linkedin, Inbox } from 'lucide-react';
 import {
   Sidebar as ShadcnSidebar,
   SidebarContent,
@@ -18,6 +18,7 @@ const navItems = [
   { to: '/events', label: 'Events', icon: Calendar },
   { to: '/reminders', label: 'Reminders', icon: Bell },
   { to: '/tasks', label: 'Tasks', icon: CheckSquare },
+  { to: '/pending-tasks', label: 'Pending Tasks', icon: Inbox },
   { to: '/scheduled-messages', label: 'Scheduled', icon: Clock },
   { to: '/linkedin/queue', label: 'LinkedIn', icon: Linkedin },
   { to: '/groups', label: 'Groups', icon: UsersRound },
