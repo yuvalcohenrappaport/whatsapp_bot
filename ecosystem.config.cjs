@@ -3,7 +3,7 @@ module.exports = {
     {
       name: 'whatsapp-bot',
       script: './src/index.ts',
-      interpreter: 'node',
+      interpreter: '/home/yuval/.nvm/versions/node/v20.20.0/bin/node',
       interpreterArgs: '--import tsx',
       watch: false,
       autorestart: true,
