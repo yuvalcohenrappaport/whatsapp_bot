@@ -10,6 +10,7 @@
 - [x] **v1.5 Personal Assistant** — Phases 22-26 (shipped 2026-03-16)
 - [x] **v1.6 Scheduled Replies** — Phases 27-32 (shipped 2026-03-30)
 - [x] **v1.7 LinkedIn Bot Dashboard Integration** — Phases 33-38 (shipped 2026-04-17)
+- [ ] **v1.8 Task Approval & Context Enrichment** — Phases 39-43 (planning, 2026-04-19)
 
 ## Phases
 
@@ -85,18 +86,85 @@
 
 </details>
 
-### v1.7 LinkedIn Bot Dashboard Integration (SHIPPED 2026-04-17)
+<details>
+<summary>v1.7 LinkedIn Bot Dashboard Integration (Phases 33-38) — SHIPPED 2026-04-17</summary>
 
-**Milestone Goal:** Surface pm-authority's LinkedIn content pipeline inside the whatsapp-bot dashboard so review, approve, reject, edit, regenerate, lesson-mode pick flows, queue status, and publish history can be driven from the web UI instead of Telegram — with the Telegram bot remaining as an untouched fallback.
+- [x] Phase 33: pm-authority HTTP Service (5/5 plans) — completed 2026-04-13
+- [x] Phase 34: Fastify Proxy Layer (4/4 plans) — completed 2026-04-13
+- [x] Phase 35: LinkedIn Queue Read-Side UI (4/4 plans) — completed 2026-04-13
+- [x] Phase 36: Review Actions (Write) (5/5 plans) — completed 2026-04-15
+- [x] Phase 37: Lesson Mode UX (5/5 plans) — completed 2026-04-17
+- [x] Phase 38: New Lesson Run Form (3/3 plans) — completed 2026-04-17
 
-- [x] **Phase 33: pm-authority HTTP Service** — FastAPI sidecar binding 127.0.0.1 exposing post/variant/lesson state + mutations over localhost (completed 2026-04-13)
-- [x] **Phase 34: Fastify Proxy Layer** — Typed Zod-validated proxy routes in whatsapp-bot forwarding dashboard calls to the FastAPI service (completed 2026-04-13)
-- [x] **Phase 35: LinkedIn Queue Read-Side UI** — `/linkedin/queue` page with list, status strip, recent-published tab, and SSE auto-refresh (completed 2026-04-13)
-- [x] **Phase 36: Review Actions (Write)** — Approve/reject/edit/regenerate/replace-image per-post controls wired end-to-end (completed 2026-04-15)
-- [x] **Phase 37: Lesson Mode UX** — Two-phase lesson picker (4 candidates → 2 variants) with inline generated fal.ai images (completed 2026-04-17)
-- [x] **Phase 38: New Lesson Run Form** — Dashboard form to start a lesson-mode generation run, replacing the SSH + `generate.py --mode lesson` CLI workflow (completed 2026-04-17)
+</details>
+
+### v1.8 Task Approval & Context Enrichment (PLANNING 2026-04-19)
+
+**Milestone Goal:** Turn commitment/task detection into a *draft → approve → sync* workflow. Detections become pending placeholders in the self-chat; the owner approves per-item; approved items push to Google Tasks with an LLM-enriched, self-contained title that uses prior conversation context and the other contact's name.
+
+- [x] **Phase 39: Actionables Data Model & Migration** (3/3 plans) — completed 2026-04-19
+- [ ] **Phase 40: Unified Detection Pipeline** — Single detection → one `pending_approval` actionable; remove auto-push to Google Tasks from the detection path; retire split commitment→{reminders,todo} writes
+- [ ] **Phase 41: WhatsApp Approval UX** — Per-detection self-chat preview + quoted-reply approve/reject/edit grammar + 7-day auto-expiry + self-chat direct commands bypass
+- [ ] **Phase 42: Context Enrichment at Approval** — Gemini second pass with last ~10 chat messages produces self-contained Google Tasks title + rich note at approval time; safe fallback on enrichment failure
+- [ ] **Phase 43: Dashboard Pending Tasks View** — Read-only dashboard page for auditing pending + recent approved/rejected/expired actionables
 
 ## Phase Details
+
+### Phase 39: Actionables Data Model & Migration
+**Goal**: A unified `actionables` table exists with the full lifecycle schema, and in-flight pending rows from the legacy `reminders(source=commitment)` and `todoTasks` surfaces are backfilled without losing Google Tasks IDs
+**Depends on**: Phase 38 (v1.7 complete)
+**Requirements**: ACT-01, ACT-02, MIGR-01
+**Success Criteria** (what must be TRUE):
+  1. An `actionables` table exists with columns for source type, source contact (JID + name), source message id + text, detected task, detected_at, status, enriched title, enriched note, todo task id / list id, approval preview message id, and timestamps
+  2. A Drizzle migration applies cleanly on the existing DB, is idempotent on re-run, and adds no columns to legacy tables
+  3. A backfill step migrates every pending `reminders` row with `source='commitment'` and every non-cancelled `todoTasks` row into `actionables`, preserving existing `todoTaskId`/`todoListId` pairs
+  4. Status transitions are constrained to the lifecycle `pending_approval → approved → fired` (plus `rejected` / `expired` terminals) via a runtime check or typed helper
+  5. A query layer exposes `createActionable`, `getActionableById`, `getPendingActionables`, `getExpiredActionables`, `updateActionableStatus`, `updateActionableEnrichment`, and `updateActionableTodoIds` with correct TypeScript types
+
+### Phase 40: Unified Detection Pipeline
+**Goal**: Detection in private chats produces exactly one `pending_approval` actionable per item and no Google Tasks entries, replacing the parallel `commitments → reminders` and `commitments → todoTasks` writes with a single pipeline
+**Depends on**: Phase 39
+**Requirements**: DETC-01, DETC-02, MIGR-02
+**Success Criteria** (what must be TRUE):
+  1. A detected commitment-type or task-type item in a private chat inserts exactly one row into `actionables` with status `pending_approval`
+  2. No Google Tasks API call is made at detection time (verified by grep of the detection path + log audit)
+  3. The legacy split in `commitmentPipeline.ts` that routes commitments to `reminders` and tasks to `todoPipeline` is retired in favor of a single write site
+  4. Pre-filter, per-chat cooldown, blocklist, and incoming allowlist behaviors are preserved byte-for-byte from the prior pipeline
+  5. No new rows are written to `todoTasks` after this phase ships; `reminders` continues to serve self-chat direct commands only
+
+### Phase 41: WhatsApp Approval UX
+**Goal**: The owner sees a per-detection preview in self-chat and can approve, reject, or edit via WhatsApp quoted-reply, while self-chat direct reminder commands bypass the gate and 7-day-old pending items auto-expire
+**Depends on**: Phase 40
+**Requirements**: APPR-01, APPR-02, APPR-03, APPR-04, APPR-05, DETC-03
+**Success Criteria** (what must be TRUE):
+  1. Immediately after detection, the bot sends a self-chat preview message (language-matched Hebrew or English) containing proposed task, contact name, source snippet, and detection timestamp, and records the preview message id on the actionable row
+  2. A WhatsApp quoted-reply of ✅ (or `approve` / `✓` / `ok`) on the preview flips the actionable to `approved` and triggers the enrichment phase
+  3. A WhatsApp quoted-reply of ❌ (or `reject` / `no` / `✗`) flips the actionable to `rejected` and the bot sends a one-line confirmation reply
+  4. A WhatsApp quoted-reply of `edit: <new task>` replaces the detected task with the provided text and then runs the approval path end-to-end
+  5. An hourly scan moves pending actionables older than 7 days to status `expired` without pushing anything to Google Tasks
+  6. Typing `remind me to X at Y` in the owner's self-chat creates an actionable with status `approved` directly, skipping the approval preview entirely
+
+### Phase 42: Context Enrichment at Approval
+**Goal**: On approval, a Gemini call that uses the last ~10 messages from the source chat produces a self-contained Google Tasks title plus a rich note, and Google Tasks receives the task at approval time instead of detection time
+**Depends on**: Phase 41
+**Requirements**: ENRI-01, ENRI-02, ENRI-03, ENRI-04
+**Success Criteria** (what must be TRUE):
+  1. On the `pending_approval → approved` transition, an enricher reads the most recent ~10 messages from the source chat (via the existing messages query layer) and calls Gemini with a structured output schema
+  2. The resulting Google Tasks title is self-contained: includes the contact's name, includes a concrete deadline when a time was detected, and resolves pronouns / vague references from the chat context
+  3. The Google Tasks note records contact name, a chat snippet, and the original trigger message text so the task is auditable from the Google Tasks UI alone
+  4. Enrichment failures (Gemini error, empty response, Zod validation fail) fall back to the originally detected task plus a basic note, and the Google Tasks push still succeeds
+  5. The Google Tasks entry is created at approval time (not detection time) and its `taskId` + `listId` are stored on the actionable row before the approval confirmation is sent to self-chat
+
+### Phase 43: Dashboard Pending Tasks View
+**Goal**: A read-only dashboard page lists pending actionables and a recent-audit-trail view so the owner can audit detection quality and approval outcomes without touching WhatsApp
+**Depends on**: Phase 42
+**Requirements**: DASH-ACT-01, DASH-ACT-02
+**Success Criteria** (what must be TRUE):
+  1. A new dashboard route (e.g. `/actionables` or `/pending-tasks`) lists all `pending_approval` actionables with contact, proposed task, source snippet, detected_at, and language
+  2. A second tab or section on the same page shows the most recent ~50 actionables in `approved`, `rejected`, or `expired` status with the enriched title alongside the originally detected task
+  3. The page is backed by a new Fastify REST route against the `actionables` query layer, JWT-gated in the same style as existing `/api/linkedin/*` routes
+  4. The view updates live via the existing SSE channel (or a minimal manual-refresh fallback) — approving something in WhatsApp causes the row to move to the audit section without a page reload
+  5. The page performs no mutations — approve/reject/edit remain WhatsApp-only per the milestone scope
 
 ### Phase 27: DB Foundation
 **Goal**: The scheduled_messages table exists with all columns needed by every downstream phase, and a complete query layer is ready to use
@@ -321,3 +389,8 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 36. Review Actions (Write) | v1.7 | 5/5 | Complete | 2026-04-15 |
 | 37. Lesson Mode UX | v1.7 | 5/5 | Complete | 2026-04-17 |
 | 38. New Lesson Run Form | v1.7 | 3/3 | Complete | 2026-04-17 |
+| 39. Actionables Data Model & Migration | v1.8 | 3/3 | Complete | 2026-04-19 |
+| 40. Unified Detection Pipeline | v1.8 | 0 | Pending | — |
+| 41. WhatsApp Approval UX | v1.8 | 0 | Pending | — |
+| 42. Context Enrichment at Approval | v1.8 | 0 | Pending | — |
+| 43. Dashboard Pending Tasks View | v1.8 | 0 | Pending | — |

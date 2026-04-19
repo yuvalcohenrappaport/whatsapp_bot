@@ -65,5 +65,8 @@
     "tsx": "^4.21.0",
     "typescript": "^6.0.2",
     "vitest": "^4.1.4"
+  },
+  "overrides": {
+    "protobufjs": "^7.5.5"
   }
 }

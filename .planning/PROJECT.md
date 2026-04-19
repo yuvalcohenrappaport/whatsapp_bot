@@ -8,24 +8,24 @@ An AI-powered WhatsApp bot that impersonates the user in private conversations a
 
 The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
 
-## Current Milestone: v1.7 LinkedIn Bot Dashboard Integration
+## Current Milestone: v1.8 Task Approval & Context Enrichment
 
-**Goal:** Surface the pm-authority LinkedIn content pipeline inside the whatsapp-bot dashboard so review, approve, reject, edit, and regenerate actions — plus queue status and publish history — can be driven from the web UI instead of Telegram.
+**Goal:** Turn commitment/task detection into a *draft → approve → sync* workflow. Detections become pending placeholders in self-chat; the user approves per-item; approved items push to Google Tasks with an LLM-enriched, self-contained title that uses prior conversation context and the other contact's name.
 
 **Target features:**
-- New dashboard page listing all pm-authority posts pending review (DRAFT, PENDING_VARIANT, PENDING_LESSON_SELECTION, PENDING_PII_REVIEW)
-- Approve / reject / edit / regenerate controls per post, mirroring the Telegram review UX
-- Lesson-mode two-phase picker UI (pick lesson candidate → pick variant) inside the dashboard
-- Post-queue status strip: next publish slot, pending count, approved queue, recently published
-- pm-authority HTTP API service (new, Python) exposing state + mutations over localhost
-- whatsapp-bot Fastify proxy routes that forward to the pm-authority API (no direct SQLite coupling)
-- Telegram bot remains a working fallback — nothing removed, the dashboard is additive
+- Unified "actionables" lifecycle — merge the parallel `commitments` and `todo` pipelines behind one pending/approved/rejected model (scheduler stays separate — outgoing messages are a different concern)
+- Pending state on detection — stop auto-pushing detections to Google Tasks; persist them as `pending_approval` instead
+- Per-item inline approval in self-chat — richer preview (task + contact + snippet + trigger timestamp); user replies ✅ / ❌ / `edit: …` via WhatsApp quoted reply
+- Context-aware enrichment at approval time — a second Gemini call reads the last ~10 messages in that chat to produce a self-contained Google Tasks title that resolves pronouns and includes contact name, deadline, and subject matter
+- Self-chat direct commands bypass the gate — `remind me to X at Y` auto-approves (explicit user intent)
+- Dashboard "Pending Tasks" view — read-only list for auditing detection quality; approval remains in WhatsApp
+- Migration & cleanup — retire the `todoTasks` surface, stop dual-write, handle in-flight pending rows
 
 ## Current State
 
-**Shipped:** v1.0 Foundation + v1.1 Dashboard & Groups + v1.2 Group Auto-Response + v1.3 Voice Responses + v1.4 Travel Agent + v1.5 Personal Assistant + v1.6 Scheduled Replies
-**Codebase:** ~6,500 LOC TypeScript (src/) + small Python service arriving in v1.7
-**Tech stack:** Baileys v7 + Gemini 2.5 Flash + Fastify 5 + React 19 + shadcn/ui + Drizzle/SQLite + Commander.js/Ink + googleapis + ElevenLabs + (new in v1.7) pm-authority FastAPI service consumed via Fastify proxy
+**Shipped:** v1.0 Foundation + v1.1 Dashboard & Groups + v1.2 Group Auto-Response + v1.3 Voice Responses + v1.4 Travel Agent + v1.5 Personal Assistant + v1.6 Scheduled Replies + v1.7 LinkedIn Bot Dashboard Integration
+**Codebase:** ~7,000 LOC TypeScript (src/) + pm-authority Python service consumed via Fastify proxy
+**Tech stack:** Baileys v7 + Gemini 2.5 Flash + Fastify 5 + React 19 + shadcn/ui + Drizzle/SQLite + Commander.js/Ink + googleapis + ElevenLabs + pm-authority FastAPI
 
 ## Requirements
 
@@ -76,17 +76,27 @@ The bot replies to WhatsApp messages in the user's authentic voice, so contacts 
 - ✓ WhatsApp self-chat pre-send notification with cancel option — v1.6
 - ✓ Restart-safe persistence (DB-backed scheduling) — v1.6
 
+- ✓ pm-authority HTTP API service exposing post state, variants, lesson candidates, and mutations — v1.7
+- ✓ Fastify proxy routes in whatsapp-bot forwarding to the pm-authority API over localhost — v1.7
+- ✓ Dashboard page listing pm-authority posts pending review (all PENDING_* statuses + DRAFT) — v1.7
+- ✓ Approve / reject / edit controls per post wired through the proxy API — v1.7
+- ✓ Regenerate action with live status feedback while Claude CLI runs — v1.7
+- ✓ Lesson-mode phase-1 UI: 4 candidate lesson picker surfaced from the dashboard — v1.7
+- ✓ Lesson-mode phase-2 UI: 2 variant picker with image prompt previews — v1.7
+- ✓ Post-queue status strip: next publish slot, pending count, approved queue, last N published — v1.7
+- ✓ Telegram bot continues to work unchanged as a fallback review UX — v1.7
+
 ### Active
 
-- [ ] pm-authority HTTP API service exposing post state, variants, lesson candidates, and mutations — v1.7
-- [ ] Fastify proxy routes in whatsapp-bot forwarding to the pm-authority API over localhost — v1.7
-- [ ] Dashboard page listing pm-authority posts pending review (all PENDING_* statuses + DRAFT) — v1.7
-- [ ] Approve / reject / edit controls per post wired through the proxy API — v1.7
-- [ ] Regenerate action with live status feedback while Claude CLI runs — v1.7
-- [ ] Lesson-mode phase-1 UI: 4 candidate lesson picker surfaced from the dashboard — v1.7
-- [ ] Lesson-mode phase-2 UI: 2 variant picker with image prompt previews — v1.7
-- [ ] Post-queue status strip: next publish slot, pending count, approved queue, last N published — v1.7
-- [ ] Telegram bot continues to work unchanged as a fallback review UX — v1.7
+- [ ] Unified `actionables` data model replacing split `reminders` (commitment source) + `todoTasks` — v1.8
+- [ ] Detection pipeline stops auto-push to Google Tasks; writes `pending_approval` rows — v1.8
+- [ ] Self-chat approval preview per detection with task + contact + snippet + trigger timestamp — v1.8
+- [ ] Quoted-reply approval grammar: ✅ approve, ❌ reject, `edit: <new task>` — v1.8
+- [ ] Context-aware enrichment on approval using last ~10 messages from the source chat — v1.8
+- [ ] Enriched Google Tasks title is self-contained: resolves pronouns, includes contact name and deadline — v1.8
+- [ ] Self-chat direct commands (`remind me to X`) auto-approve and bypass the gate — v1.8
+- [ ] Dashboard "Pending Tasks" read-only view for auditing detection quality — v1.8
+- [ ] Migration: move live `todoTasks` rows into unified model; stop dual-writes; preserve Google Tasks IDs — v1.8
 
 ### Out of Scope
 
@@ -155,4 +165,4 @@ The bot replies to WhatsApp messages in the user's authentic voice, so contacts 
 | Hand-written migrations after 0010 | FTS5 virtual tables incompatible with drizzle-kit | ✓ Good — never run db:generate after 0010 |
 
 ---
-*Last updated: 2026-04-12 — milestone v1.7 LinkedIn Bot Dashboard Integration started*
+*Last updated: 2026-04-19 — milestone v1.8 Task Approval & Context Enrichment started*

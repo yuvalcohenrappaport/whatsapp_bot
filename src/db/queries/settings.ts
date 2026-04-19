@@ -6,6 +6,7 @@ const DEFAULTS: Record<string, string> = {
   ai_provider: 'gemini',
   voice_replies_enabled: 'false', // global master switch — 'true' | 'false'
   commitment_detection_enabled: 'true', // master switch for commitment detection
+  v1_8_detection_pipeline: 'dark_launch', // 'legacy' | 'dark_launch' — Phase 40 gate: dark_launch writes to actionables (v1.8), legacy keeps the pre-v1.8 split commitments→{reminders,todoTasks} path
 };
 
 export function getSetting(key: string): string | null {
