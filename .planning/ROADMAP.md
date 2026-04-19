@@ -161,6 +161,10 @@ Plans:
   3. The Google Tasks note records contact name, a chat snippet, and the original trigger message text so the task is auditable from the Google Tasks UI alone
   4. Enrichment failures (Gemini error, empty response, Zod validation fail) fall back to the originally detected task plus a basic note, and the Google Tasks push still succeeds
   5. The Google Tasks entry is created at approval time (not detection time) and its `taskId` + `listId` are stored on the actionable row before the approval confirmation is sent to self-chat
+**Plans:** 2 plans
+Plans:
+- [ ] 42-01-PLAN.md — enrichmentService (Gemini + Zod + safe fallback) + approvalHandler wiring + vitest
+- [ ] 42-02-PLAN.md — Live prod verification + STATE/REQUIREMENTS/ROADMAP closeout
 
 ### Phase 43: Dashboard Pending Tasks View
 **Goal**: A read-only dashboard page lists pending actionables and a recent-audit-trail view so the owner can audit detection quality and approval outcomes without touching WhatsApp
