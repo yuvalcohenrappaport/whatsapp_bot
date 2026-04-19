@@ -104,7 +104,7 @@
 
 - [x] **Phase 39: Actionables Data Model & Migration** (3/3 plans) — completed 2026-04-19
 - [x] **Phase 40: Unified Detection Pipeline** (3/3 plans) — completed 2026-04-19
-- [ ] **Phase 41: WhatsApp Approval UX** — Per-detection self-chat preview + quoted-reply approve/reject/edit grammar + 7-day auto-expiry + self-chat direct commands bypass (4/5 plans shipped; Plan 41-05 live verification pending)
+- [x] **Phase 41: WhatsApp Approval UX** — Per-detection self-chat preview + quoted-reply approve/reject/edit grammar + 7-day auto-expiry + self-chat direct commands bypass (5/5 plans shipped, live verified on prod) (completed 2026-04-19)
 - [ ] **Phase 42: Context Enrichment at Approval** — Gemini second pass with last ~10 chat messages produces self-contained Google Tasks title + rich note at approval time; safe fallback on enrichment failure
 - [ ] **Phase 43: Dashboard Pending Tasks View** — Read-only dashboard page for auditing pending + recent approved/rejected/expired actionables
 
@@ -143,13 +143,13 @@
   4. A WhatsApp quoted-reply of `edit: <new task>` replaces the detected task with the provided text and then runs the approval path end-to-end
   5. An hourly scan moves pending actionables older than 7 days to status `expired` without pushing anything to Google Tasks
   6. Typing `remind me to X at Y` in the owner's self-chat creates an actionable with status `approved` directly, skipping the approval preview entirely
-**Plans:** 4/5 plans complete
+**Plans:** 5/5 plans complete
 Plans:
 - [x] 41-01-PLAN.md — Preview composer + reply parser (pure TS modules; EN/HE grammar; 34/34 vitest green; see `.planning/phases/41-whatsapp-approval-ux/41-01-SUMMARY.md`)
 - [x] 41-02-PLAN.md — Debounce bucket + preview sender + detectionService `interactive` gate value (18 new vitest cases green; 70/70 approval+detection suites; see `.planning/phases/41-whatsapp-approval-ux/41-02-SUMMARY.md`)
 - [x] 41-03-PLAN.md — Reply handler: quoted-reply routing to approve/reject/edit (tryHandleApprovalReply + messageHandler wiring + 13 vitest cases; 65/65 approval suite green; see `.planning/phases/41-whatsapp-approval-ux/41-03-SUMMARY.md`)
 - [x] 41-04-PLAN.md — Hourly 7-day expiry scan + first-boot digest + gate flip + self-chat dual-write (17 new approval vitest cases + 3 reminderService cases green; 81/81 approval suite; see `.planning/phases/41-whatsapp-approval-ux/41-04-SUMMARY.md`)
-- [ ] 41-05-PLAN.md — Live verification + phase close
+- [x] 41-05-PLAN.md — Live verification on prod (SC1-SC3 directly verified, SC2 organic, SC4+SC5 accepted via test coverage); gap-fix for baileys 7 LID self-chat mismatch (commit 3702a56) + Node 20 pin (commit f045cf9); see `.planning/phases/41-whatsapp-approval-ux/41-05-SUMMARY.md`
 
 ### Phase 42: Context Enrichment at Approval
 **Goal**: On approval, a Gemini call that uses the last ~10 messages from the source chat produces a self-contained Google Tasks title plus a rich note, and Google Tasks receives the task at approval time instead of detection time
@@ -398,7 +398,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 38. New Lesson Run Form | v1.7 | 3/3 | Complete | 2026-04-17 |
 | 39. Actionables Data Model & Migration | v1.8 | 3/3 | Complete | 2026-04-19 |
 | 40. Unified Detection Pipeline | v1.8 | 3/3 | Complete | 2026-04-19 |
-| 41. WhatsApp Approval UX | v1.8 | 2/5 | In Progress | — |
+| 41. WhatsApp Approval UX | v1.8 | 5/5 | Complete | 2026-04-19 |
 | 42. Context Enrichment at Approval | v1.8 | 0 | Pending | — |
 | 43. Dashboard Pending Tasks View | v1.8 | 0 | Pending | — |
 
