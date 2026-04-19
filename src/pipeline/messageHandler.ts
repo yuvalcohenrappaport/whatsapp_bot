@@ -351,7 +351,12 @@ async function processMessage(sock: WASocket, msg: WAMessage): Promise<void> {
   const contactJid = remoteJid;
 
   // Self-message to own chat: route to owner command handler (draft approval, snooze, etc.)
-  if (fromMe && contactJid === config.USER_JID) {
+  // Baileys 7+ may report self-chat under the owner's LID form — match both.
+  const isSelfChat =
+    fromMe &&
+    (contactJid === config.USER_JID ||
+      (config.USER_LID !== undefined && contactJid === config.USER_LID));
+  if (isSelfChat) {
     await handleOwnerCommand(sock, msg);
     return;
   }
