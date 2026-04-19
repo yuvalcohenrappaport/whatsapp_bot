@@ -410,12 +410,23 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 41. WhatsApp Approval UX | v1.8 | 5/5 | Complete | 2026-04-19 |
 | 42. Context Enrichment at Approval | v1.8 | 2/2 | Complete | 2026-04-20 |
 | 43. Dashboard Pending Tasks View | v1.8 | 0 | Pending | — |
+| 44. Unified Editable Calendar | v1.8 | 0 | Pending | — |
 
-### Phase 44: LinkedIn Post Calendar View
+### Phase 44: Unified Editable Calendar (Tasks + Events + LinkedIn)
 
-**Goal:** [To be planned]
+**Goal:** An editable dashboard calendar view renders tasks (approved actionables / Google Tasks), personal events, and LinkedIn scheduled posts side-by-side on a single timeline — matching the visual language planned for the LinkedIn post calendar — so the owner sees every committed-to item in one place.
 **Depends on:** Phase 43
+**Requirements:** _TBD — define via `/gsd:discuss-phase 44` before planning_
+**Success Criteria** (what must be TRUE):
+  1. A new dashboard route (e.g. `/calendar`) renders a month / week / day calendar showing three overlaid sources: approved actionables (tasks with deadlines), personal events, and LinkedIn scheduled posts, each visually distinguished
+  2. Drag-and-drop on any item reschedules it — the drop target's date/time persists to the source-of-truth backend (Google Tasks for tasks, personal_events table for events, pm-authority schedule for LinkedIn posts)
+  3. Clicking an item opens an inline edit affordance for its title; committing the edit persists to the correct source-of-truth
+  4. A "create" affordance on any empty slot lets the owner choose which type to create (task / event / LinkedIn post) and drops it on the clicked date/time
+  5. Clicking the body of an existing item opens the full edit dialog (the existing dialogs from Tasks / Events / LinkedIn pages) — calendar is an entry point, not a parallel edit surface
+  6. Live updates via SSE — external changes (WhatsApp approval firing a Google Task, a scheduled message firing) reflect on the calendar without reload
+  7. Month / week / day view toggle; week is the default landing view
+
 **Plans:** 0 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 44 to break down)
+- [ ] TBD (run `/gsd:discuss-phase 44` to lock design decisions, then `/gsd:plan-phase 44`)
