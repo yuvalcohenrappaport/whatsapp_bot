@@ -11,6 +11,7 @@ import settingsRoutes from './routes/settings.js';
 import statusRoutes from './routes/status.js';
 import personalCalendarRoutes from './routes/personalCalendar.js';
 import reminderRoutes from './routes/reminders.js';
+import actionablesRoutes from './routes/actionables.js';
 import integrationsRoutes from './routes/integrations.js';
 import taskRoutes from './routes/tasks.js';
 import scheduledMessageRoutes from './routes/scheduledMessages.js';
@@ -45,6 +46,7 @@ export async function createServer() {
   await fastify.register(statusRoutes);
   await fastify.register(personalCalendarRoutes);
   await fastify.register(reminderRoutes);
+  await fastify.register(actionablesRoutes);
   await fastify.register(integrationsRoutes);
   await fastify.register(taskRoutes);
   await fastify.register(scheduledMessageRoutes);
