@@ -163,7 +163,7 @@ Plans:
   5. The Google Tasks entry is created at approval time (not detection time) and its `taskId` + `listId` are stored on the actionable row before the approval confirmation is sent to self-chat
 **Plans:** 2 plans
 Plans:
-- [ ] 42-01-PLAN.md — enrichmentService (Gemini + Zod + safe fallback) + approvalHandler wiring + vitest
+- [x] 42-01-PLAN.md — enrichmentService (Gemini + Zod + safe fallback) + approvalHandler wiring + vitest
 - [ ] 42-02-PLAN.md — Live prod verification + STATE/REQUIREMENTS/ROADMAP closeout
 
 ### Phase 43: Dashboard Pending Tasks View
@@ -403,7 +403,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 39. Actionables Data Model & Migration | v1.8 | 3/3 | Complete | 2026-04-19 |
 | 40. Unified Detection Pipeline | v1.8 | 3/3 | Complete | 2026-04-19 |
 | 41. WhatsApp Approval UX | v1.8 | 5/5 | Complete | 2026-04-19 |
-| 42. Context Enrichment at Approval | v1.8 | 0 | Pending | — |
+| 42. Context Enrichment at Approval | v1.8 | 1/2 | In Progress | — |
 | 43. Dashboard Pending Tasks View | v1.8 | 0 | Pending | — |
 
 ### Phase 44: LinkedIn Post Calendar View
