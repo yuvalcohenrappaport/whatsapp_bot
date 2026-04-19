@@ -246,6 +246,43 @@ export const todoTasks = sqliteTable(
   ],
 );
 
+// Unified detected-or-requested actionable item (Phase 39, v1.8).
+// Replaces the split commitment→reminders(source=commitment) + todoTasks write paths
+// with one table that carries the full lifecycle: pending_approval → approved → fired
+// (terminals: rejected, expired). See .planning/phases/39-actionables-data-model/39-CONTEXT.md.
+export const actionables = sqliteTable(
+  'actionables',
+  {
+    id: text('id').primaryKey(), // UUID
+    sourceType: text('source_type').notNull(), // 'commitment' | 'task' | 'user_command'
+    sourceContactJid: text('source_contact_jid').notNull(), // config.USER_JID for user_command
+    sourceContactName: text('source_contact_name'), // snapshot at detection time
+    sourceMessageId: text('source_message_id'), // WhatsApp trigger message id; null for user_command
+    sourceMessageText: text('source_message_text').notNull().default(''), // full trigger snapshot
+    detectedLanguage: text('detected_language').notNull().default('en'), // 'he' | 'en'
+    originalDetectedTask: text('original_detected_task').notNull(), // IMMUTABLE — what was first extracted/typed
+    task: text('task').notNull(), // mutable; replaced by `edit: <text>` approval grammar (Phase 41)
+    status: text('status').notNull().default('pending_approval'), // 'pending_approval' | 'approved' | 'rejected' | 'fired' | 'expired'
+    detectedAt: integer('detected_at').notNull(),
+    fireAt: integer('fire_at'), // Unix ms; null for timeless tasks
+    enrichedTitle: text('enriched_title'), // populated by Phase 42 on approval
+    enrichedNote: text('enriched_note'), // populated by Phase 42 on approval
+    todoTaskId: text('todo_task_id'), // Google Tasks id, set on approval+sync
+    todoListId: text('todo_list_id'), // Google Tasks list id
+    approvalPreviewMessageId: text('approval_preview_message_id'), // WhatsApp self-chat msg id for Phase 41 quoted-reply matching
+    createdAt: integer('created_at')
+      .notNull()
+      .$defaultFn(() => Date.now()),
+    updatedAt: integer('updated_at')
+      .notNull()
+      .$defaultFn(() => Date.now()),
+  },
+  (table) => [
+    index('idx_actionables_status_detected').on(table.status, table.detectedAt),
+    index('idx_actionables_preview_msg').on(table.approvalPreviewMessageId),
+  ],
+);
+
 export const personalPendingEvents = sqliteTable(
   'personal_pending_events',
   {
