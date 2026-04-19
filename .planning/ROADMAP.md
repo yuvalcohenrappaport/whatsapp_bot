@@ -143,11 +143,11 @@
   4. A WhatsApp quoted-reply of `edit: <new task>` replaces the detected task with the provided text and then runs the approval path end-to-end
   5. An hourly scan moves pending actionables older than 7 days to status `expired` without pushing anything to Google Tasks
   6. Typing `remind me to X at Y` in the owner's self-chat creates an actionable with status `approved` directly, skipping the approval preview entirely
-**Plans:** 2/5 plans complete
+**Plans:** 3/5 plans complete
 Plans:
 - [x] 41-01-PLAN.md — Preview composer + reply parser (pure TS modules; EN/HE grammar; 34/34 vitest green; see `.planning/phases/41-whatsapp-approval-ux/41-01-SUMMARY.md`)
 - [x] 41-02-PLAN.md — Debounce bucket + preview sender + detectionService `interactive` gate value (18 new vitest cases green; 70/70 approval+detection suites; see `.planning/phases/41-whatsapp-approval-ux/41-02-SUMMARY.md`)
-- [ ] 41-03-PLAN.md — Reply handler: quoted-reply routing to approve/reject/edit
+- [x] 41-03-PLAN.md — Reply handler: quoted-reply routing to approve/reject/edit (tryHandleApprovalReply + messageHandler wiring + 13 vitest cases; 65/65 approval suite green; see `.planning/phases/41-whatsapp-approval-ux/41-03-SUMMARY.md`)
 - [ ] 41-04-PLAN.md — Hourly 7-day expiry scan + self-chat direct-command bypass
 - [ ] 41-05-PLAN.md — Live verification + phase close
 
