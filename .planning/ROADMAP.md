@@ -394,3 +394,12 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 41. WhatsApp Approval UX | v1.8 | 0 | Pending | — |
 | 42. Context Enrichment at Approval | v1.8 | 0 | Pending | — |
 | 43. Dashboard Pending Tasks View | v1.8 | 0 | Pending | — |
+
+### Phase 44: LinkedIn Post Calendar View
+
+**Goal:** [To be planned]
+**Depends on:** Phase 43
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 44 to break down)

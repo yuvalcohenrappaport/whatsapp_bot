@@ -47,6 +47,10 @@ Progress: [####......] 40% (v1.8: 2/5 phases complete — Phase 39 + 40 shipped 
 
 ## Accumulated Context
 
+### Roadmap Evolution
+
+- Phase 44 added (2026-04-19): LinkedIn Post Calendar View — added to end of v1.8 (thematically a v1.7 LinkedIn extension, not tied to v1.8 actionables goal). Scope intent captured for `/gsd:plan-phase 44`: month/week grid on the dashboard LinkedIn section; APPROVED posts only (not draft/pending/published); drag-and-drop reschedule; inline date-time edit; status color coding. Writes go through existing pm-authority HTTP service + Fastify proxy (v1.7 plumbing); no direct state.db access from dashboard.
+
 ### Decisions
 
 Full decision log in PROJECT.md Key Decisions table.
