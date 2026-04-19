@@ -27,11 +27,12 @@ import { insertGroupMessage } from '../db/queries/groupMessages.js';
 import { processPrivateMessage } from '../calendar/personalCalendarPipeline.js';
 import { isForwardedMessage } from '../calendar/calendarDedup.js';
 import { getPersonalPendingEventByNotificationMsgId } from '../db/queries/personalPendingEvents.js';
-import { handleCalendarApproval } from '../calendar/calendarApproval.js';
+import { handleCalendarApproval, detectMessageLanguage } from '../calendar/calendarApproval.js';
 import { tryHandleReminder } from '../reminders/reminderService.js';
 import { routeDetection } from '../actionables/detectionRouter.js';
 import { handleTaskCancel } from '../todo/todoPipeline.js';
 import { handleScheduledMessageCancel } from '../scheduler/scheduledMessageService.js';
+import { tryHandleApprovalReply } from '../approval/approvalHandler.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
 
@@ -146,10 +147,6 @@ async function handleOwnerCommand(
     }
   }
 
-  // --- Reminder commands ---
-  const reminderHandled = await tryHandleReminder(sock, text);
-  if (reminderHandled) return true;
-
   // --- Task cancel (reply "cancel" to a task notification) ---
   if (stanzaId && trimmed === 'cancel') {
     const taskCancelled = await handleTaskCancel(stanzaId);
@@ -164,6 +161,25 @@ async function handleOwnerCommand(
     const scheduledCancelled = await handleScheduledMessageCancel(sock, stanzaId);
     if (scheduledCancelled) return true;
   }
+
+  // --- Actionables approval reply (Phase 41: quoted-reply to a preview) ---
+  // Must come AFTER calendar + cancel handlers (which gate on their own
+  // preview-id lookups) and BEFORE the generic reminder pipeline so that
+  // ✅/❌ aimed at an actionables preview never reach the reminder parser.
+  if (stanzaId) {
+    const replyLang = detectMessageLanguage(text);
+    const approvalHandled = await tryHandleApprovalReply(
+      sock,
+      text,
+      stanzaId,
+      replyLang,
+    );
+    if (approvalHandled) return true;
+  }
+
+  // --- Reminder commands ---
+  const reminderHandled = await tryHandleReminder(sock, text);
+  if (reminderHandled) return true;
 
   // --- Snooze command ---
   const snoozeMs = parseSnoozeCommand(trimmed);
