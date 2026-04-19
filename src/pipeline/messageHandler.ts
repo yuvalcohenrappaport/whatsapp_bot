@@ -29,7 +29,7 @@ import { isForwardedMessage } from '../calendar/calendarDedup.js';
 import { getPersonalPendingEventByNotificationMsgId } from '../db/queries/personalPendingEvents.js';
 import { handleCalendarApproval } from '../calendar/calendarApproval.js';
 import { tryHandleReminder } from '../reminders/reminderService.js';
-import { processCommitment } from '../commitments/commitmentPipeline.js';
+import { routeDetection } from '../actionables/detectionRouter.js';
 import { handleTaskCancel } from '../todo/todoPipeline.js';
 import { handleScheduledMessageCancel } from '../scheduler/scheduledMessageService.js';
 
@@ -372,15 +372,15 @@ async function processMessage(sock: WASocket, msg: WAMessage): Promise<void> {
         isForwarded: isForwardedMessage(msg),
       }).catch(() => {}); // fire-and-forget, errors logged internally
 
-      // Commitment detection for outgoing messages (async fire-and-forget)
-      processCommitment({
+      // Commitment detection for outgoing messages (routed through v1.8 gate)
+      routeDetection({
         messageId: msg.key.id!,
         contactJid,
         contactName: null,
         text,
         timestamp,
         fromMe: true,
-      }).catch(() => {}); // fire-and-forget
+      });
     }
     return;
   }
@@ -408,15 +408,15 @@ async function processMessage(sock: WASocket, msg: WAMessage): Promise<void> {
     isForwarded: isForwardedMessage(msg),
   }).catch(() => {}); // fire-and-forget, errors logged internally
 
-  // Commitment detection for incoming messages (async fire-and-forget)
-  processCommitment({
+  // Commitment detection for incoming messages (routed through v1.8 gate)
+  routeDetection({
     messageId: msg.key.id!,
     contactJid,
     contactName: pushName,
     text,
     timestamp,
     fromMe: false,
-  }).catch(() => {}); // fire-and-forget
+  });
 
   // Auto-create contact if new
   upsertContact(contactJid, pushName);
