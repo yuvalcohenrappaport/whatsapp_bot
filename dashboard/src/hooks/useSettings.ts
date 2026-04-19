@@ -3,6 +3,7 @@ import { apiFetch } from '@/api/client';
 
 interface Settings {
   aiProvider: 'gemini' | 'local';
+  globalPersona: string | null;
   localModelOnline: boolean;
 }
 
@@ -25,7 +26,9 @@ export function useSettings() {
       await queryClient.cancelQueries({ queryKey: ['settings'] });
       const prev = queryClient.getQueryData<Settings>(['settings']);
       queryClient.setQueryData<Settings>(['settings'], (old) =>
-        old ? { ...old, aiProvider } : { aiProvider, localModelOnline: false },
+        old
+          ? { ...old, aiProvider }
+          : { aiProvider, globalPersona: null, localModelOnline: false },
       );
       return { prev };
     },
@@ -39,10 +42,25 @@ export function useSettings() {
     },
   });
 
+  const regenerateMutation = useMutation({
+    mutationFn: () =>
+      apiFetch<{ globalPersona: string }>('/api/settings/persona/regenerate', {
+        method: 'POST',
+      }),
+    onSuccess: ({ globalPersona }) => {
+      queryClient.setQueryData<Settings>(['settings'], (old) =>
+        old ? { ...old, globalPersona } : old,
+      );
+      queryClient.invalidateQueries({ queryKey: ['settings'] });
+    },
+  });
+
   return {
     settings: query.data,
     isLoading: query.isLoading,
     setProvider: mutation.mutate,
     isSwitching: mutation.isPending,
+    regeneratePersona: regenerateMutation.mutate,
+    isRegeneratingPersona: regenerateMutation.isPending,
   };
 }
