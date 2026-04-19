@@ -105,7 +105,7 @@
 - [x] **Phase 39: Actionables Data Model & Migration** (3/3 plans) — completed 2026-04-19
 - [x] **Phase 40: Unified Detection Pipeline** (3/3 plans) — completed 2026-04-19
 - [x] **Phase 41: WhatsApp Approval UX** — Per-detection self-chat preview + quoted-reply approve/reject/edit grammar + 7-day auto-expiry + self-chat direct commands bypass (5/5 plans shipped, live verified on prod) (completed 2026-04-19)
-- [ ] **Phase 42: Context Enrichment at Approval** — Gemini second pass with last ~10 chat messages produces self-contained Google Tasks title + rich note at approval time; safe fallback on enrichment failure
+- [x] **Phase 42: Context Enrichment at Approval** — Gemini second pass with last ~10 chat messages produces self-contained Google Tasks title + rich note at approval time; safe fallback on enrichment failure (completed 2026-04-20)
 - [ ] **Phase 43: Dashboard Pending Tasks View** — Read-only dashboard page for auditing pending + recent approved/rejected/expired actionables
 
 ## Phase Details
@@ -161,10 +161,10 @@ Plans:
   3. The Google Tasks note records contact name, a chat snippet, and the original trigger message text so the task is auditable from the Google Tasks UI alone
   4. Enrichment failures (Gemini error, empty response, Zod validation fail) fall back to the originally detected task plus a basic note, and the Google Tasks push still succeeds
   5. The Google Tasks entry is created at approval time (not detection time) and its `taskId` + `listId` are stored on the actionable row before the approval confirmation is sent to self-chat
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 Plans:
-- [x] 42-01-PLAN.md — enrichmentService (Gemini + Zod + safe fallback) + approvalHandler wiring + vitest
-- [ ] 42-02-PLAN.md — Live prod verification + STATE/REQUIREMENTS/ROADMAP closeout
+- [x] 42-01-PLAN.md — enrichmentService (Gemini + Zod + safe fallback) + approvalHandler wiring + vitest (see `.planning/phases/42-context-enrichment-at-approval/42-01-SUMMARY.md`)
+- [x] 42-02-PLAN.md — Live prod verification + STATE/REQUIREMENTS/ROADMAP closeout (see `.planning/phases/42-context-enrichment-at-approval/42-02-SUMMARY.md`)
 
 ### Phase 43: Dashboard Pending Tasks View
 **Goal**: A read-only dashboard page lists pending actionables and a recent-audit-trail view so the owner can audit detection quality and approval outcomes without touching WhatsApp
@@ -403,7 +403,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 39. Actionables Data Model & Migration | v1.8 | 3/3 | Complete | 2026-04-19 |
 | 40. Unified Detection Pipeline | v1.8 | 3/3 | Complete | 2026-04-19 |
 | 41. WhatsApp Approval UX | v1.8 | 5/5 | Complete | 2026-04-19 |
-| 42. Context Enrichment at Approval | v1.8 | 1/2 | In Progress | — |
+| 42. Context Enrichment at Approval | v1.8 | 2/2 | Complete | 2026-04-20 |
 | 43. Dashboard Pending Tasks View | v1.8 | 0 | Pending | — |
 
 ### Phase 44: LinkedIn Post Calendar View

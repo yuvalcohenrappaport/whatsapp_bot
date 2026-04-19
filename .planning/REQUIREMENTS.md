@@ -28,10 +28,10 @@ Requirements for the **Task Approval & Context Enrichment** milestone. Turn comm
 
 ### Context Enrichment (at approval)
 
-- [ ] **ENRI-01**: On approval, a Gemini call uses the most recent ~10 messages from the source chat to produce an enriched, self-contained Google Tasks title
-- [ ] **ENRI-02**: The enriched title resolves pronouns and vague references, includes the contact's name, and includes a concrete deadline when a time was detected
-- [ ] **ENRI-03**: The Google Tasks note records contact name, source chat snippet, and original trigger message text so the task is auditable from the Google Tasks UI alone
-- [ ] **ENRI-04**: Enrichment failures (Gemini error, empty response, validation fail) fall back to the originally detected task + basic note and never block approval
+- [x] **ENRI-01**: On approval, a Gemini call uses the most recent ~10 messages from the source chat to produce an enriched, self-contained Google Tasks title
+- [x] **ENRI-02**: The enriched title resolves pronouns and vague references, includes the contact's name, and includes a concrete deadline when a time was detected
+- [x] **ENRI-03**: The Google Tasks note records contact name, source chat snippet, and original trigger message text so the task is auditable from the Google Tasks UI alone
+- [x] **ENRI-04**: Enrichment failures (Gemini error, empty response, validation fail) fall back to the originally detected task + basic note and never block approval
 
 ### Dashboard
 
@@ -166,10 +166,10 @@ Requirements for the **Task Approval & Context Enrichment** milestone. Turn comm
 | APPR-04 | Phase 41 | Complete |
 | APPR-05 | Phase 41 | Complete (2026-04-19 — startExpiryScan fires hourly, flips pending>7d to expired silently via updateActionableStatus, idempotent across restarts) |
 | DETC-03 | Phase 41 | Complete (2026-04-19 — reminderService.tryHandleReminder 'set' branch dual-writes approved user_command actionable alongside legacy reminders row) |
-| ENRI-01 | Phase 42 | Pending |
-| ENRI-02 | Phase 42 | Pending |
-| ENRI-03 | Phase 42 | Pending |
-| ENRI-04 | Phase 42 | Pending |
+| ENRI-01 | Phase 42 | Complete (2026-04-20 — enrichmentService.ts calls generateJson with last 10 messages + Zod EnrichmentSchema; 8 vitest cases green; user_command skip confirmed live via NULL enriched_title rows) |
+| ENRI-02 | Phase 42 | Complete (2026-04-20 — EnrichmentSchema describe() strings require contact name + deadline in title; Zod min:1/max:200 enforced; approvalHandler wires enriched title to createTodoTask) |
+| ENRI-03 | Phase 42 | Complete (2026-04-20 — EnrichmentSchema note field requires contact name + snippet + trigger text; buildBasicNote fallback preserves same fields; approvalHandler passes enrichment.note to createTodoTask) |
+| ENRI-04 | Phase 42 | Complete (2026-04-20 — 4 fallback cases tested: null response, safeParse fail, throw, whitespace title; status flipped before enrichActionable called so failure cannot block approval; approvalHandler case (b) confirms flow with Tasks disconnected) |
 | DASH-ACT-01 | Phase 43 | Pending |
 | DASH-ACT-02 | Phase 43 | Pending |
 
