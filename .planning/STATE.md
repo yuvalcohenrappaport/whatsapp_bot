@@ -7,6 +7,14 @@ See: .planning/PROJECT.md (updated 2026-04-19)
 **Core value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
 **Current focus:** Milestone v1.8 Task Approval & Context Enrichment — Phase 40 shipped; Phase 41 Plans 01..04 shipped 2026-04-19 (code-complete). Plan 41-05 live verification is the only remaining work.
 
+## 42-02 Baseline Snapshot (2026-04-20 — before Task 2 verification)
+
+DB path: `/home/yuval/whatsapp-bot/data/bot.db`
+- `actionables WHERE status='approved' AND todo_task_id IS NOT NULL` → **11**
+- `actionables WHERE enriched_title IS NOT NULL` → **0** (no Phase 42 enrichment has run yet)
+
+PM2 restart for 42-02 deploy: pid 2471902, restarted at 2026-04-20 01:44, clean boot (no ERR_DLOPEN_FAILED, `Approval system initialized` confirmed in out.log).
+
 ## Current Position
 
 Milestone: v1.8 Task Approval & Context Enrichment — **IN PROGRESS**
