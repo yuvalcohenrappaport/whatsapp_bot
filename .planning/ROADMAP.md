@@ -104,7 +104,7 @@
 
 - [x] **Phase 39: Actionables Data Model & Migration** (3/3 plans) — completed 2026-04-19
 - [x] **Phase 40: Unified Detection Pipeline** (3/3 plans) — completed 2026-04-19
-- [ ] **Phase 41: WhatsApp Approval UX** — Per-detection self-chat preview + quoted-reply approve/reject/edit grammar + 7-day auto-expiry + self-chat direct commands bypass
+- [ ] **Phase 41: WhatsApp Approval UX** — Per-detection self-chat preview + quoted-reply approve/reject/edit grammar + 7-day auto-expiry + self-chat direct commands bypass (4/5 plans shipped; Plan 41-05 live verification pending)
 - [ ] **Phase 42: Context Enrichment at Approval** — Gemini second pass with last ~10 chat messages produces self-contained Google Tasks title + rich note at approval time; safe fallback on enrichment failure
 - [ ] **Phase 43: Dashboard Pending Tasks View** — Read-only dashboard page for auditing pending + recent approved/rejected/expired actionables
 
@@ -143,12 +143,12 @@
   4. A WhatsApp quoted-reply of `edit: <new task>` replaces the detected task with the provided text and then runs the approval path end-to-end
   5. An hourly scan moves pending actionables older than 7 days to status `expired` without pushing anything to Google Tasks
   6. Typing `remind me to X at Y` in the owner's self-chat creates an actionable with status `approved` directly, skipping the approval preview entirely
-**Plans:** 3/5 plans complete
+**Plans:** 4/5 plans complete
 Plans:
 - [x] 41-01-PLAN.md — Preview composer + reply parser (pure TS modules; EN/HE grammar; 34/34 vitest green; see `.planning/phases/41-whatsapp-approval-ux/41-01-SUMMARY.md`)
 - [x] 41-02-PLAN.md — Debounce bucket + preview sender + detectionService `interactive` gate value (18 new vitest cases green; 70/70 approval+detection suites; see `.planning/phases/41-whatsapp-approval-ux/41-02-SUMMARY.md`)
 - [x] 41-03-PLAN.md — Reply handler: quoted-reply routing to approve/reject/edit (tryHandleApprovalReply + messageHandler wiring + 13 vitest cases; 65/65 approval suite green; see `.planning/phases/41-whatsapp-approval-ux/41-03-SUMMARY.md`)
-- [ ] 41-04-PLAN.md — Hourly 7-day expiry scan + self-chat direct-command bypass
+- [x] 41-04-PLAN.md — Hourly 7-day expiry scan + first-boot digest + gate flip + self-chat dual-write (17 new approval vitest cases + 3 reminderService cases green; 81/81 approval suite; see `.planning/phases/41-whatsapp-approval-ux/41-04-SUMMARY.md`)
 - [ ] 41-05-PLAN.md — Live verification + phase close
 
 ### Phase 42: Context Enrichment at Approval

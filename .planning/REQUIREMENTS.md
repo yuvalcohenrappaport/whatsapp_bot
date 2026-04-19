@@ -16,7 +16,7 @@ Requirements for the **Task Approval & Context Enrichment** milestone. Turn comm
 
 - [x] **DETC-01**: Commitment/task detection in private chats writes a single `actionable` row with status `pending_approval` and stops auto-pushing to Google Tasks
 - [x] **DETC-02**: One detection pipeline covers both commitment-type (with time / involving others) and task-type (solo, no time) items — the parallel `commitments` → `todo` split is retired
-- [ ] **DETC-03**: Self-chat direct reminder commands (`remind me to X at Y`) create an actionable with status `approved` and bypass the approval gate entirely
+- [x] **DETC-03**: Self-chat direct reminder commands (`remind me to X at Y`) create an actionable with status `approved` and bypass the approval gate entirely
 
 ### Approval UX (WhatsApp)
 
@@ -24,7 +24,7 @@ Requirements for the **Task Approval & Context Enrichment** milestone. Turn comm
 - [x] **APPR-02**: User can approve a pending actionable by WhatsApp quoted-reply with ✅ (synonyms: `approve`, `✓`, `ok`)
 - [x] **APPR-03**: User can reject a pending actionable by WhatsApp quoted-reply with ❌ (synonyms: `reject`, `no`, `✗`)
 - [x] **APPR-04**: User can edit the proposed task before approving by WhatsApp quoted-reply with `edit: <new task text>` — the edited text replaces the detected task and then runs enrichment as if approved
-- [ ] **APPR-05**: Pending actionables older than 7 days auto-expire to `expired` state and are removed from the preview backlog
+- [x] **APPR-05**: Pending actionables older than 7 days auto-expire to `expired` state and are removed from the preview backlog
 
 ### Context Enrichment (at approval)
 
@@ -164,8 +164,8 @@ Requirements for the **Task Approval & Context Enrichment** milestone. Turn comm
 | APPR-02 | Phase 41 | Complete |
 | APPR-03 | Phase 41 | Complete |
 | APPR-04 | Phase 41 | Complete |
-| APPR-05 | Phase 41 | Pending |
-| DETC-03 | Phase 41 | Pending |
+| APPR-05 | Phase 41 | Complete (2026-04-19 — startExpiryScan fires hourly, flips pending>7d to expired silently via updateActionableStatus, idempotent across restarts) |
+| DETC-03 | Phase 41 | Complete (2026-04-19 — reminderService.tryHandleReminder 'set' branch dual-writes approved user_command actionable alongside legacy reminders row) |
 | ENRI-01 | Phase 42 | Pending |
 | ENRI-02 | Phase 42 | Pending |
 | ENRI-03 | Phase 42 | Pending |
