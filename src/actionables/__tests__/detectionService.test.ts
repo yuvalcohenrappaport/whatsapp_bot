@@ -22,6 +22,11 @@ vi.mock('../../db/queries/actionables.js', () => ({
   createActionable: createActionableMock,
 }));
 
+const enqueueForPreviewMock = vi.fn();
+vi.mock('../../approval/debounceBuckets.js', () => ({
+  enqueueForPreview: enqueueForPreviewMock,
+}));
+
 const detectMessageLanguageMock = vi.fn(() => 'en' as 'he' | 'en');
 vi.mock('../../calendar/calendarApproval.js', () => ({
   detectMessageLanguage: detectMessageLanguageMock,
@@ -232,6 +237,85 @@ describe('detectionService.processDetection', () => {
       extractCommitmentsMock.mockResolvedValue([]);
       await processDetection(baseParams);
       expect(createActionableMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Phase 41 pipeline gate (v1_8_detection_pipeline)', () => {
+    it('dark_launch writes actionable but does NOT enqueue into the bucket', async () => {
+      defaultSettings({ v1_8_detection_pipeline: 'dark_launch' });
+      extractCommitmentsMock.mockResolvedValue([
+        {
+          task: 'send it',
+          dateTime: null,
+          confidence: 'high',
+          originalText: 'send it',
+          type: 'commitment',
+        },
+      ]);
+      await processDetection(baseParams);
+      expect(createActionableMock).toHaveBeenCalledOnce();
+      expect(enqueueForPreviewMock).not.toHaveBeenCalled();
+    });
+
+    it('interactive writes actionable AND enqueues it with contactJid', async () => {
+      defaultSettings({ v1_8_detection_pipeline: 'interactive' });
+      extractCommitmentsMock.mockResolvedValue([
+        {
+          task: 'send it',
+          dateTime: null,
+          confidence: 'high',
+          originalText: 'send it',
+          type: 'commitment',
+        },
+      ]);
+      await processDetection(baseParams);
+      expect(createActionableMock).toHaveBeenCalledOnce();
+      expect(enqueueForPreviewMock).toHaveBeenCalledOnce();
+      const [id, jid] = enqueueForPreviewMock.mock.calls[0];
+      expect(typeof id).toBe('string');
+      expect(id.length).toBeGreaterThan(0);
+      // Must match the id that was passed to createActionable
+      expect(id).toBe(createActionableMock.mock.calls[0][0].id);
+      expect(jid).toBe('lee@s.whatsapp.net');
+    });
+
+    it('interactive enqueues once per extracted item', async () => {
+      defaultSettings({ v1_8_detection_pipeline: 'interactive' });
+      extractCommitmentsMock.mockResolvedValue([
+        {
+          task: 'a',
+          dateTime: null,
+          confidence: 'high',
+          originalText: 'a',
+          type: 'commitment',
+        },
+        {
+          task: 'b',
+          dateTime: null,
+          confidence: 'high',
+          originalText: 'b',
+          type: 'task',
+        },
+      ]);
+      await processDetection(baseParams);
+      expect(createActionableMock).toHaveBeenCalledTimes(2);
+      expect(enqueueForPreviewMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('unset gate defaults to dark_launch (no enqueue)', async () => {
+      // getSettingMock returns null for v1_8_detection_pipeline by default
+      extractCommitmentsMock.mockResolvedValue([
+        {
+          task: 'x',
+          dateTime: null,
+          confidence: 'high',
+          originalText: 'x',
+          type: 'commitment',
+        },
+      ]);
+      await processDetection(baseParams);
+      expect(createActionableMock).toHaveBeenCalledOnce();
+      expect(enqueueForPreviewMock).not.toHaveBeenCalled();
     });
   });
 

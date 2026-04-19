@@ -5,6 +5,7 @@ import { getSetting } from '../db/queries/settings.js';
 import { commitmentDetection } from '../commitments/CommitmentDetectionService.js';
 import { detectMessageLanguage } from '../calendar/calendarApproval.js';
 import { createActionable } from '../db/queries/actionables.js';
+import { enqueueForPreview } from '../approval/debounceBuckets.js';
 
 // Phase 40 (v1.8): Unified detection pipeline.
 //
@@ -97,6 +98,13 @@ export async function processDetection(params: {
     if (results.length === 0) return;
 
     // Single write path: one actionable per extracted item.
+    //
+    // Pipeline gate (v1_8_detection_pipeline):
+    //   - 'legacy'      → handled elsewhere (commitmentPipeline); not reached here
+    //   - 'dark_launch' → write to actionables silently; NO preview bucket
+    //   - 'interactive' → write AND enqueue into the 2-min debounce bucket so
+    //                     the Phase 41 preview UX fires.
+    const pipelineMode = getSetting('v1_8_detection_pipeline') ?? 'dark_launch';
     const detectedLanguage = detectMessageLanguage(text);
     for (const item of results) {
       const id = randomUUID();
@@ -121,9 +129,13 @@ export async function processDetection(params: {
           sourceType: item.type,
           contactJid,
           language: detectedLanguage,
+          pipelineMode,
         },
         'Actionable detected (pending_approval)',
       );
+      if (pipelineMode === 'interactive') {
+        enqueueForPreview(id, contactJid);
+      }
     }
   } catch (err) {
     logger.error(
