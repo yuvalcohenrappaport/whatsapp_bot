@@ -176,6 +176,11 @@ Plans:
   3. The page is backed by a new Fastify REST route against the `actionables` query layer, JWT-gated in the same style as existing `/api/linkedin/*` routes
   4. The view updates live via the existing SSE channel (or a minimal manual-refresh fallback) — approving something in WhatsApp causes the row to move to the audit section without a page reload
   5. The page performs no mutations — approve/reject/edit remain WhatsApp-only per the milestone scope
+**Plans:** 3 plans
+Plans:
+- [ ] 43-01-PLAN.md — Fastify REST + SSE routes for actionables (/api/actionables/pending, /recent, /stream) JWT-gated like /api/linkedin/*
+- [ ] 43-02-PLAN.md — /pending-tasks dashboard page: pending list + audit list + filter chips + sidebar entry + RTL/LTR mirroring + absolute IST timestamps + 300ms amber arrival flash
+- [ ] 43-03-PLAN.md — Live verification (PM2 restart + owner walk-through) + ROADMAP/REQUIREMENTS/STATE closeout
 
 ### Phase 27: DB Foundation
 **Goal**: The scheduled_messages table exists with all columns needed by every downstream phase, and a complete query layer is ready to use
