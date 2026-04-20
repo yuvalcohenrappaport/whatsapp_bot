@@ -11,7 +11,7 @@
 - [x] **v1.6 Scheduled Replies** — Phases 27-32 (shipped 2026-03-30)
 - [x] **v1.7 LinkedIn Bot Dashboard Integration** — Phases 33-38 (shipped 2026-04-17)
 - [x] **v1.8 Task Approval & Context Enrichment** — Phases 39-43 (shipped 2026-04-20) — [archive](milestones/v1.8-ROADMAP.md)
-- [ ] **v1.9 Unified Editable Calendar** — Phase 44 shipped 2026-04-20 (milestone planning TBD)
+- [ ] **v1.9 Dashboard Expansion** — Phases 44-49 (Phase 44 shipped 2026-04-20 as seed; planned 2026-04-20)
 
 ## Phases
 
@@ -108,6 +108,12 @@
 - [x] **Phase 41: WhatsApp Approval UX** — Per-detection self-chat preview + quoted-reply approve/reject/edit grammar + 7-day auto-expiry + self-chat direct commands bypass (5/5 plans shipped, live verified on prod) (completed 2026-04-19)
 - [x] **Phase 42: Context Enrichment at Approval** — Gemini second pass with last ~10 chat messages produces self-contained Google Tasks title + rich note at approval time; safe fallback on enrichment failure (completed 2026-04-20)
 - [x] **Phase 43: Dashboard Pending Tasks View** — Read-only dashboard page for auditing pending + recent approved/rejected/expired actionables (completed 2026-04-20)
+- [x] **Phase 44: Unified Editable Calendar** — /calendar surface merging tasks + personal events + LinkedIn posts with drag-reschedule, inline title edit, create-from-slot popover, delete-with-undo, SSE live sync, month/week/day views (completed 2026-04-20 — v1.9 seed)
+- [ ] **Phase 45: Dashboard Pending-Tasks Write Actions** — Approve/Reject/Edit buttons on /pending-tasks page, routed through the Phase 41 `approvalHandler` with Phase 42 Gemini enrichment
+- [ ] **Phase 46: Google Tasks Full-List Sync** — Pull all owner's Google Tasks lists into the unified calendar with per-list color + sidebar filter; de-dup against actionables
+- [ ] **Phase 47: Google Calendar Events Sync** — Pull all owner's Google Calendar events into the unified calendar (read-only); de-dup against personal_pending_events; sidebar filter mechanism extends to gcal
+- [ ] **Phase 48: LinkedIn Post Composer (Dashboard)** — "New Post" action on /linkedin queue page that composes via pm-authority's POST /v1/posts and returns the post in PENDING_REVIEW
+- [ ] **Phase 49: Deploy + Verify + Close v1.9** — PM2 redeploy both services, dashboard bundle ship, owner walkthrough on all new requirements, milestone closeout
 
 ## Phase Details
 
@@ -412,6 +418,69 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 42. Context Enrichment at Approval | v1.8 | 2/2 | Complete | 2026-04-20 |
 | 43. Dashboard Pending Tasks View | v1.8 | 3/3 | Complete | 2026-04-20 |
 | 44. Unified Editable Calendar | v1.9 | 6/6 | Complete | 2026-04-20 |
+| 45. Dashboard Pending-Tasks Write Actions | v1.9 | 0/? | Not started | — |
+| 46. Google Tasks Full-List Sync | v1.9 | 0/? | Not started | — |
+| 47. Google Calendar Events Sync | v1.9 | 0/? | Not started | — |
+| 48. LinkedIn Post Composer (Dashboard) | v1.9 | 0/? | Not started | — |
+| 49. Deploy + Verify + Close v1.9 | v1.9 | 0/? | Not started | — |
+
+### Phase 45: Dashboard Pending-Tasks Write Actions
+
+**Goal:** The dashboard `/pending-tasks` page exposes Approve / Reject / Edit buttons per pending actionable row, routed through the Phase 41 `approvalHandler` so the outcome is identical to a WhatsApp quoted-reply — including Phase 42 Gemini enrichment and Google Tasks sync on approve.
+**Depends on:** Phase 43 (pending-tasks read surface)
+**Requirements:** DASH-APP-01, DASH-APP-02, DASH-APP-03
+**Success Criteria:**
+  1. Each `status='pending_approval'` row renders Approve + Reject + Edit controls
+  2. Approve button triggers `approveAndSync` (Phase 42 enrichment + createTodoTask), row flips to `approved` in SSE within 3s
+  3. Reject button flips to `rejected`, row disappears from pending list
+  4. Edit opens an inline editor; save rewrites `task` then falls through to Approve
+  5. All write routes JWT-gated and idempotent against concurrent WhatsApp replies on the same row
+
+### Phase 46: Google Tasks Full-List Sync
+
+**Goal:** Every Google Tasks list the owner maintains (not just the one configured for bot-driven task sync) appears in the dashboard calendar, with its own color stripe and a sidebar filter to toggle visibility per list.
+**Depends on:** Phase 44 (unified calendar surface)
+**Requirements:** GTASKS-01..05
+**Success Criteria:**
+  1. `GET /api/google-tasks/lists` returns the owner's task lists; `GET /api/google-tasks/items?from&to` returns CalendarItems for every list in window
+  2. Unified aggregator + SSE stream include gtasks; per-source failure isolated from other sources
+  3. Calendar page shows gtasks pills with stable per-list color (hash→palette)
+  4. Sidebar filter panel lets owner toggle each list on/off; preference persisted to localStorage
+  5. Google Tasks rows already mirrored into `actionables` (matching `todoTaskId`) render once — from the `actionables` row; gtasks payload drops the duplicate
+
+### Phase 47: Google Calendar Events Sync
+
+**Goal:** Every Google Calendar event the owner has access to (owned or writer role) appears in the dashboard calendar read-only, with its own color stripe and sidebar filter. Bot-detected events already in `personal_pending_events` take precedence (de-dup via calendar_event_id).
+**Depends on:** Phase 44 (unified calendar surface), Phase 46 (sidebar filter mechanism established)
+**Requirements:** GCAL-01..06
+**Success Criteria:**
+  1. `GET /api/google-calendar/calendars` lists calendars; `GET /api/google-calendar/events?from&to` returns CalendarItems in window across all owned/writable calendars
+  2. Recurring events expanded via `singleEvents: true`; all-day events carry `isAllDay: true`
+  3. Unified aggregator + SSE stream include gcal with partial-failure tolerance
+  4. Sidebar filter extends to gcal calendars
+  5. A gcal event whose id matches `personal_pending_events.calendar_event_id` is dropped — the bot-owned row renders instead
+  6. gcal pills are read-only — drag disabled, no inline edit, no delete
+
+### Phase 48: LinkedIn Post Composer (Dashboard)
+
+**Goal:** The dashboard `/linkedin` queue page gets a "New Post" action that composes a new LinkedIn post end-to-end (title, content, language, project) via pm-authority's `POST /v1/posts` endpoint through the existing Fastify proxy pattern.
+**Depends on:** Phase 36 (LinkedIn proxy pattern), Phase 38 (new lesson run form as compose-dialog reference)
+**Requirements:** LIN-NEW-01
+**Success Criteria:**
+  1. "New Post" button on the LinkedIn queue page opens a modal with all required pm-authority fields
+  2. Submit POSTs to the proxy → pm-authority → new post in `PENDING_REVIEW` status
+  3. SSE-refreshed queue shows the new post within 3s without reload
+  4. Form validation inline; errors map via `mapUpstreamErrorToReply`
+
+### Phase 49: Deploy + Verify + Close v1.9
+
+**Goal:** Both PM2 services (whatsapp-bot + pm-authority-http) ship v1.9 code, the dashboard bundle deploys, and the owner walks through every new requirement against live data. ROADMAP + REQUIREMENTS + STATE + MILESTONES reflect v1.9 closure.
+**Depends on:** Phases 45, 46, 47, 48
+**Requirements:** VER-01
+**Success Criteria:**
+  1. PM2 services restarted, fresh bundle served, sanity curls green
+  2. Owner walkthrough covers DASH-APP-01..03, GTASKS-01..05, GCAL-01..06, LIN-NEW-01
+  3. Milestone archived via `/gsd:complete-milestone v1.9`; git tag `v1.9` created
 
 ### Phase 44: Unified Editable Calendar (Tasks + Events + LinkedIn)
 

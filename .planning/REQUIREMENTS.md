@@ -1,7 +1,42 @@
 # Requirements: WhatsApp Bot
 
-**Defined:** 2026-03-30 (v1.6) · updated 2026-04-19 (v1.8)
+**Defined:** 2026-03-30 (v1.6) · updated 2026-04-20 (v1.9)
 **Core Value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
+
+## v1.9 Requirements
+
+Requirements for the **Dashboard Expansion** milestone. Bring the whole dashboard to parity with the editable calendar shipped in Phase 44 — surface write actions on the pending-tasks view, pull external Google sources (Tasks lists + Calendar events) into the unified calendar with per-source colors and sidebar filters, and let the owner compose LinkedIn posts directly from the dashboard.
+
+### Dashboard Approvals
+
+- [ ] **DASH-APP-01**: Pending-tasks dashboard page (`/pending-tasks`) exposes Approve + Reject + Edit buttons per row, calling a JWT-gated mutation API and triggering the same `approveAndSync` / rejection flow used by the WhatsApp quoted-reply path (Phase 41's `approvalHandler`)
+- [ ] **DASH-APP-02**: Approve from dashboard runs Phase 42 Gemini enrichment before pushing to Google Tasks (identical behavior to WhatsApp approve), with safe fallback on enrichment failure
+- [ ] **DASH-APP-03**: Edit action opens an inline or dialog editor — saves replace the detected task text, then fall through to Approve. SSE updates every open dashboard session within ~3 s.
+
+### Google Tasks Full Sync
+
+- [ ] **GTASKS-01**: Backend exposes `GET /api/google-tasks/lists` returning every list the owner has access to, and `GET /api/google-tasks/items?from=<ms>&to=<ms>` returning CalendarItems with `source: 'gtasks'` and `sourceFields: { listId, listName }` spanning all lists
+- [ ] **GTASKS-02**: The unified `/api/calendar/items` aggregator + SSE include gtasks; per-source partial-failure tolerance covers gtasks (other sources still render if the Google Tasks API is down)
+- [ ] **GTASKS-03**: Dashboard renders gtasks as a new CalendarPill variant with a color assigned per list (stable hash → palette, with a dashboard setting page deferred to a later milestone)
+- [ ] **GTASKS-04**: Calendar page has a sidebar filter panel listing every gtasks list with a checkbox + color swatch; toggles persist to localStorage; hidden lists are excluded from the grid
+- [ ] **GTASKS-05**: A Google Tasks row already mirrored into `actionables` (via `todoTaskId`) renders from the `actionables` row only — gtasks de-dup prefers the richer bot-owned row
+
+### Google Calendar Full Sync
+
+- [ ] **GCAL-01**: Backend exposes `GET /api/google-calendar/calendars` returning every calendar the owner has access to, and `GET /api/google-calendar/events?from=<ms>&to=<ms>` returning CalendarItems with `source: 'gcal'` and `sourceFields: { calendarId, calendarName, colorId }` spanning every owned/writable calendar
+- [ ] **GCAL-02**: Recurring events are expanded via `events.list(singleEvents: true)`; all-day events set `isAllDay: true`; `end` is mapped to millis (event end exclusive → inclusive delta if needed)
+- [ ] **GCAL-03**: The unified aggregator + SSE include gcal with per-source partial-failure tolerance
+- [ ] **GCAL-04**: Calendar page's sidebar filter extends to gcal calendars (same checkbox + swatch + localStorage pattern as gtasks)
+- [ ] **GCAL-05**: A gcal event whose Google id matches an existing `personal_pending_events.calendar_event_id` is dropped from the gcal payload — the bot-owned row wins (editable, richer metadata)
+- [ ] **GCAL-06**: gcal pills are read-only in the dashboard calendar — no drag, no inline edit, no delete (writing back to Google Calendar is out of scope for this milestone)
+
+### LinkedIn Post Composer (Dashboard)
+
+- [ ] **LIN-NEW-01**: Dashboard `/linkedin` queue page exposes a "New Post" action that opens a composer with title/content/language/project fields, POSTs to pm-authority's `/v1/posts` endpoint via the existing proxy pattern (JWT-gated, sync-mutation), and returns the created post to the queue in status `PENDING_REVIEW`
+
+### Deploy & Verification
+
+- [ ] **VER-01**: Both PM2 services (whatsapp-bot + pm-authority-http) redeploy with v1.9 code; dashboard bundle ships; owner walks through every new requirement against live data; ROADMAP + REQUIREMENTS + STATE + MILESTONES reflect v1.9 closure
 
 ## v1.8 Requirements
 
@@ -149,6 +184,32 @@ Requirements for the **Task Approval & Context Enrichment** milestone. Turn comm
 | react-js-cron component | Requires Ant Design peer dep, incompatible with shadcn/Tailwind stack |
 
 ## Traceability
+
+### v1.9 Traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| DASH-APP-01 | Phase 45 | Not started |
+| DASH-APP-02 | Phase 45 | Not started |
+| DASH-APP-03 | Phase 45 | Not started |
+| GTASKS-01 | Phase 46 | Not started |
+| GTASKS-02 | Phase 46 | Not started |
+| GTASKS-03 | Phase 46 | Not started |
+| GTASKS-04 | Phase 46 | Not started |
+| GTASKS-05 | Phase 46 | Not started |
+| GCAL-01 | Phase 47 | Not started |
+| GCAL-02 | Phase 47 | Not started |
+| GCAL-03 | Phase 47 | Not started |
+| GCAL-04 | Phase 47 | Not started |
+| GCAL-05 | Phase 47 | Not started |
+| GCAL-06 | Phase 47 | Not started |
+| LIN-NEW-01 | Phase 48 | Not started |
+| VER-01 | Phase 49 | Not started |
+
+**v1.9 Coverage:**
+- v1.9 requirements: 16 total
+- Mapped to phases: 16 (Phases 45-49)
+- Unmapped: 0 ✓
 
 ### v1.8 Traceability
 

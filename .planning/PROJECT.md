@@ -90,18 +90,19 @@ Turned commitment/task detection into a *draft → approve → sync* workflow. D
 - ✓ Lesson-mode phase-2 UI: 2 variant picker with image prompt previews — v1.7
 - ✓ Post-queue status strip: next publish slot, pending count, approved queue, last N published — v1.7
 - ✓ Telegram bot continues to work unchanged as a fallback review UX — v1.7
+- ✓ Unified `actionables` data model replacing split `reminders` (commitment source) + `todoTasks` — v1.8
+- ✓ Detection pipeline stops auto-push to Google Tasks; writes `pending_approval` rows — v1.8
+- ✓ Self-chat approval preview per detection with task + contact + snippet + trigger timestamp — v1.8
+- ✓ Quoted-reply approval grammar: ✅ approve, ❌ reject, `edit: <new task>` — v1.8
+- ✓ Context-aware enrichment on approval using last ~10 messages from the source chat — v1.8
+- ✓ Enriched Google Tasks title is self-contained: resolves pronouns, includes contact name and deadline — v1.8
+- ✓ Self-chat direct commands (`remind me to X`) auto-approve and bypass the gate — v1.8
+- ✓ Dashboard "Pending Tasks" read-only view for auditing detection quality — v1.8
+- ✓ Unified editable calendar (tasks + events + LinkedIn posts) with drag-reschedule, inline edit, create-from-slot, delete, SSE — v1.9 seed (Phase 44)
 
 ### Active
 
-- [ ] Unified `actionables` data model replacing split `reminders` (commitment source) + `todoTasks` — v1.8
-- [ ] Detection pipeline stops auto-push to Google Tasks; writes `pending_approval` rows — v1.8
-- [ ] Self-chat approval preview per detection with task + contact + snippet + trigger timestamp — v1.8
-- [ ] Quoted-reply approval grammar: ✅ approve, ❌ reject, `edit: <new task>` — v1.8
-- [ ] Context-aware enrichment on approval using last ~10 messages from the source chat — v1.8
-- [ ] Enriched Google Tasks title is self-contained: resolves pronouns, includes contact name and deadline — v1.8
-- [ ] Self-chat direct commands (`remind me to X`) auto-approve and bypass the gate — v1.8
-- [ ] Dashboard "Pending Tasks" read-only view for auditing detection quality — v1.8
-- [ ] Migration: move live `todoTasks` rows into unified model; stop dual-writes; preserve Google Tasks IDs — v1.8
+(No committed requirements yet — v1.9 scope gathering in progress. See `.planning/todos/pending/` for candidate items.)
 
 ### Out of Scope
 

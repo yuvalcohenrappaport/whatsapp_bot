@@ -85,10 +85,18 @@
 
 ## v1.8 Task Approval & Context Enrichment (Shipped: 2026-04-20)
 
-**Phases completed:** 35 phases, 93 plans, 23 tasks
+**Phases completed:** 5 phases (39-43), 16 plans. Plus Phase 44 (Unified Editable Calendar, 6 plans) shipped as a v1.9 seed on the same day.
+**Timeline:** 2 days (2026-04-19 to 2026-04-20)
+**Tag:** v1.8
 
 **Key accomplishments:**
-- (none recorded)
+- Unified `actionables` table replaces split `reminders(source=commitment)` + `todoTasks` pipelines behind one pending/approved/rejected lifecycle (Phase 39)
+- Detection pipeline gated on `v1_8_detection_pipeline` setting (`legacy | dark_launch | interactive`); dark-launch rollout + first-boot digest flips to interactive on success (Phase 40)
+- Per-item WhatsApp self-chat approval preview with debounce bucketing; quoted-reply grammar `✅ / ❌ / edit: <new>` including bulk + indexed directives (Phase 41)
+- Baileys-7 LID self-chat migration fix (`USER_LID` config) unblocking all owner-command paths (commit `3702a56`, surfaced during Phase 41-05 live verification)
+- Gemini context-aware enrichment at approval time using last ~10 chat messages; safe fallback to raw task on failure; `user_command` short-circuit preserves dual-write path (Phase 42)
+- Read-only dashboard `/pending-tasks` view with SSE live updates, per-row RTL/LTR, filter chips, arrival flash (Phase 43)
+- **v1.9 seed — Phase 44 Unified Editable Calendar:** single `/calendar` surface merging tasks + personal events + LinkedIn posts, with drag-reschedule, inline title edit, create-from-empty-slot popover, delete-with-undo, body-click → edit dialog, SSE live sync, month/week/day views, per-source parallel initial fetch + independent skeletons, partial per-source failure tolerance
 
 ---
 
