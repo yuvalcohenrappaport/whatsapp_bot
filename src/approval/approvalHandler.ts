@@ -159,24 +159,33 @@ async function applyDirective(
   }
 
   if (directive.action === 'approve' || directive.action === 'edit') {
-    await approveAndSync(sock, actionable);
+    await approveActionable(sock, actionable);
     return;
   }
 
   if (directive.action === 'reject') {
-    updateActionableStatus(actionable.id, 'rejected');
-    await sock.sendMessage(config.USER_JID, {
-      text: rejectedConfirmation(
-        (actionable.detectedLanguage ?? 'en') as 'he' | 'en',
-      ),
-    });
+    await rejectActionable(sock, actionable);
     return;
   }
 }
 
 // ─── Approve + Google Tasks sync ─────────────────────────────────────────────
 
-async function approveAndSync(
+/**
+ * Shared approve primitive — flips an actionable pending_approval → approved,
+ * runs Phase 42 Gemini enrichment (with safe fallback), pushes the enriched
+ * title+note to Google Tasks (swallowing sync errors), and sends the
+ * `✅ Added` / `✅ נוסף` self-chat echo to the owner.
+ *
+ * Exported for reuse by BOTH the WhatsApp quoted-reply path (via applyDirective)
+ * AND the Phase 45 dashboard HTTP write route. No global state — caller passes
+ * in the live baileys `sock`.
+ *
+ * Throws only on the initial `updateActionableStatus` call if the row is not
+ * in `pending_approval` (callers should surface as "already handled" UX).
+ * Enrichment + Google Tasks errors are swallowed — they never block approval.
+ */
+export async function approveActionable(
   sock: WASocket,
   actionable: Actionable,
 ): Promise<void> {
@@ -216,6 +225,74 @@ async function approveAndSync(
     text: approvedConfirmation(actionable),
   });
 }
+
+// ─── Reject + Unreject primitives ────────────────────────────────────────────
+
+/**
+ * Shared reject primitive — flips an actionable pending_approval → rejected
+ * and sends the symmetric `❌ Dismissed` / `❌ בוטל` self-chat echo so the
+ * WhatsApp surface has a complete audit trail regardless of which surface
+ * (quoted-reply or dashboard HTTP route) initiated the reject.
+ *
+ * Throws when the row is not in `pending_approval` per ALLOWED_TRANSITIONS
+ * (callers should surface as "already handled" UX).
+ */
+export async function rejectActionable(
+  sock: WASocket,
+  actionable: Actionable,
+): Promise<void> {
+  updateActionableStatus(actionable.id, 'rejected');
+  await sock.sendMessage(config.USER_JID, {
+    text: rejectedConfirmation(
+      (actionable.detectedLanguage ?? 'en') as 'he' | 'en',
+    ),
+  });
+}
+
+/**
+ * Thrown by `unrejectActionable` when the server-enforced grace window has
+ * closed. Route handlers catch this and surface a terminal "too late" response
+ * to the dashboard.
+ */
+export class GraceExpiredError extends Error {
+  constructor(msg: string) {
+    super(msg);
+    this.name = 'GraceExpiredError';
+  }
+}
+
+/**
+ * Flip a `rejected` actionable back to `pending_approval` IFF `updatedAt`
+ * is within `graceMs`. Silent on WhatsApp per CONTEXT §Undo for Reject —
+ * no compensating self-chat message is sent; the original ❌ Dismissed
+ * echo (if already delivered) stays visible.
+ *
+ * Throws:
+ *   - GraceExpiredError when the grace window has closed
+ *   - Error from updateActionableStatus when the row is no longer in
+ *     status='rejected' (e.g. a concurrent WhatsApp re-handle) — caller
+ *     should surface as "already handled" UX
+ *
+ * The `_sock` parameter is kept for signature symmetry with approve/reject
+ * (callers shouldn't need to know which primitives speak to WhatsApp and
+ * which don't) — the `_` prefix signals "unused but intentional".
+ */
+export async function unrejectActionable(
+  _sock: WASocket,
+  actionable: Actionable,
+  graceMs: number,
+): Promise<void> {
+  const age = Date.now() - actionable.updatedAt;
+  if (age > graceMs) {
+    throw new GraceExpiredError(
+      `unreject grace window expired (age ${age}ms > ${graceMs}ms)`,
+    );
+  }
+  updateActionableStatus(actionable.id, 'pending_approval');
+  // Deliberate: NO sock.sendMessage here. CONTEXT §Undo lock is "silent in WhatsApp".
+}
+
+// ─── Shared helpers ──────────────────────────────────────────────────────────
 
 export function buildBasicNote(actionable: Actionable): string {
   const who =
