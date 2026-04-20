@@ -271,6 +271,8 @@ Legacy decisions from v1.6 (see phase 27-32 archive):
 - [Phase 50-dashboard-mobile-ui-polish]: VIEWPORT_BREAKPOINTS.mobile==768 locked to match MOBILE_BREAKPOINT in use-mobile.ts per design spec
 - [Phase 50-dashboard-mobile-ui-polish]: 3-day implemented as three stacked DayViews in scrollable flex row — cheaper than adding mode prop to DayView
 - [Phase 50-dashboard-mobile-ui-polish]: CalendarView type moved to useCalendarViewMode.ts and re-exported from CalendarHeader; colorForItem.ts shared palette util extracted
+- [Phase 50]: isMobile branch pattern: uniform approach across 6 calendar components — early return for mobile layout, existing desktop layout unchanged
+- [Phase 50]: Bottom-sheet Dialog: DialogContent fixed bottom-0 left-0 right-0 override pattern established as reusable mobile overlay primitive
 
 ### Pending Todos
 
