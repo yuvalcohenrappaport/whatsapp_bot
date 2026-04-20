@@ -19,12 +19,16 @@
  *   linkedin → violet-500 stripe + Linkedin
  *
  * Plan 44-04 (base), extended in Plan 44-05 (drag + click split + ghost mode),
- * extended in Plan 50-03 (mobile: min-h-7, no tooltip, full-pill tap target).
+ * extended in Plan 50-03 (mobile: min-h-7, no tooltip, full-pill tap target),
+ * extended in Plan 50-04 (mobile: long-press → PillActionSheet; drag gate !isMobile && !past && !ghost).
  */
+import { useState } from 'react';
 import { CheckCircle2, Calendar, Linkedin, Trash2 } from 'lucide-react';
 import { formatIstTime } from '@/lib/ist';
 import { useViewport } from '@/hooks/useViewport';
+import { useLongPress } from '@/hooks/useLongPress';
 import { InlineTitleEdit } from './InlineTitleEdit';
+import { PillActionSheet } from './PillActionSheet';
 import type { CalendarItem } from '@/api/calendarSchemas';
 
 // -----------------------------------------------------------------------
@@ -123,6 +127,26 @@ export function CalendarPill({
   // Mobile: 28px min-height, smaller padding — source color left bar preserved.
   const mobileClasses = isMobile ? 'min-h-7 text-xs px-2 py-1' : '';
 
+  // Mobile long-press → action sheet. Desktop: not attached (drag/click unaffected).
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const longPressHandlers = useLongPress(() => {
+    if (ghost) return; // ghost pills don't open action sheet
+    const vibrate = typeof window !== 'undefined' && typeof window.navigator?.vibrate === 'function';
+    if (vibrate) window.navigator.vibrate(10);
+    setSheetOpen(true);
+  }, { ms: 500 });
+  const phoneInteractionProps = isMobile ? longPressHandlers : {};
+
+  // openInlineEdit: triggers the title-click handler to enter inline-edit mode.
+  // On mobile, InlineTitleEdit immediately shows as a Dialog bottom-sheet (Plan 50-03).
+  function openInlineEdit() {
+    if (onTitleClick) {
+      // Create a synthetic MouseEvent — InlineTitleEdit's mobile branch ignores the event object.
+      const syntheticEvent = new MouseEvent('click', { bubbles: false }) as unknown as React.MouseEvent;
+      onTitleClick(syntheticEvent);
+    }
+  }
+
   function handleDragStart(e: React.DragEvent) {
     if (past) {
       e.preventDefault();
@@ -143,12 +167,14 @@ export function CalendarPill({
   }
 
   const pillContent = (
+    <>
     <button
       type="button"
       dir={isRtl ? 'rtl' : 'ltr'}
-      draggable={!past && !ghost && !isMobile}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
+      draggable={!isMobile && !past && !ghost}
+      onDragStart={isMobile ? undefined : handleDragStart}
+      onDragEnd={isMobile ? undefined : handleDragEnd}
+      {...phoneInteractionProps}
       onClick={ghost ? undefined : onOpenDetails}
       // On mobile, suppress title attribute — tooltip would block tap action.
       title={isMobile ? undefined : past ? 'Past item' : item.title}
@@ -216,6 +242,16 @@ export function CalendarPill({
         </span>
       )}
     </button>
+    {isMobile && sheetOpen && (
+      <PillActionSheet
+        item={item}
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        onEditTitle={openInlineEdit}
+        onDelete={onDelete}
+      />
+    )}
+    </>
   );
 
   // On mobile: return the pill directly (no tooltip wrapper — tap = action).
