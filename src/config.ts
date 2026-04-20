@@ -4,7 +4,7 @@ import { z } from 'zod';
 dotenvConfig();
 
 const envSchema = z.object({
-  NODE_ENV: z.enum(['development', 'production']).default('development'),
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   LOG_LEVEL: z
     .enum(['silent', 'error', 'warn', 'info', 'debug'])
     .default('info'),
