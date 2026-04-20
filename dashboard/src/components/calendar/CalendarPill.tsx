@@ -18,10 +18,12 @@
  *   event    → indigo-500 stripe + Calendar
  *   linkedin → violet-500 stripe + Linkedin
  *
- * Plan 44-04 (base), extended in Plan 44-05 (drag + click split + ghost mode).
+ * Plan 44-04 (base), extended in Plan 44-05 (drag + click split + ghost mode),
+ * extended in Plan 50-03 (mobile: min-h-7, no tooltip, full-pill tap target).
  */
 import { CheckCircle2, Calendar, Linkedin, Trash2 } from 'lucide-react';
 import { formatIstTime } from '@/lib/ist';
+import { useViewport } from '@/hooks/useViewport';
 import { InlineTitleEdit } from './InlineTitleEdit';
 import type { CalendarItem } from '@/api/calendarSchemas';
 
@@ -108,6 +110,7 @@ export function CalendarPill({
   onDragEnd,
   onDelete,
 }: CalendarPillProps) {
+  const { isMobile } = useViewport();
   const Icon = SOURCE_ICON[item.source];
   const stripeClass = SOURCE_STRIPE[item.source];
   const bgClass = SOURCE_BG[item.source];
@@ -116,6 +119,9 @@ export function CalendarPill({
 
   // Origin pill fades to 40% during drag; ghost pill is 70% (stable).
   const isDraggingOrigin = draggingId === item.id;
+
+  // Mobile: 28px min-height, smaller padding — source color left bar preserved.
+  const mobileClasses = isMobile ? 'min-h-7 text-xs px-2 py-1' : '';
 
   function handleDragStart(e: React.DragEvent) {
     if (past) {
@@ -136,19 +142,21 @@ export function CalendarPill({
     onDragEnd?.(e, item);
   }
 
-  return (
+  const pillContent = (
     <button
       type="button"
       dir={isRtl ? 'rtl' : 'ltr'}
-      draggable={!past && !ghost}
+      draggable={!past && !ghost && !isMobile}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       onClick={ghost ? undefined : onOpenDetails}
-      title={past ? 'Past item' : item.title}
+      // On mobile, suppress title attribute — tooltip would block tap action.
+      title={isMobile ? undefined : past ? 'Past item' : item.title}
       className={[
         'group relative w-full rounded-sm text-left border-l-[3px] px-1.5 py-0.5 text-xs',
         stripeClass,
         bgClass,
+        mobileClasses,
         'transition-colors duration-[300ms]',
         flashing ? 'bg-amber-100 dark:bg-amber-900/30' : '',
         past ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer',
@@ -209,4 +217,9 @@ export function CalendarPill({
       )}
     </button>
   );
+
+  // On mobile: return the pill directly (no tooltip wrapper — tap = action).
+  // On desktop: return the pill as-is (tooltip was never a wrapper here; it's
+  // driven by the `title` attribute which is suppressed on mobile above).
+  return pillContent;
 }
