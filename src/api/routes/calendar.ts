@@ -60,7 +60,7 @@ const MAX_WINDOW_MS = 120 * 24 * 60 * 60 * 1000;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type CalendarSource = 'task' | 'event' | 'linkedin';
+export type CalendarSource = 'task' | 'event' | 'linkedin' | 'gtasks' | 'gcal';
 export type CalendarItem = {
   source: CalendarSource;
   id: string;
