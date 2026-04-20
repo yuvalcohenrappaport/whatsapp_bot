@@ -267,6 +267,8 @@ Legacy decisions from v1.6 (see phase 27-32 archive):
 - [Phase 44]: Option A hybrid: unified /api/calendar/items for SSE + 3 per-source GETs for dashboard initial-load; /api/personal-calendar/events/window sub-path used (base occupied by status-filter route)
 - [Phase 44-unified-editable-calendar]: SC5 narrowing: task/event body-click uses calendar-local dialogs (title+date+time); LinkedIn uses existing EditPostDialog from Phase 36. Rationale: Tasks.tsx+Events.tsx have no full-edit dialogs as of Phase 43. Owner sign-off requested at 44-06 walkthrough.
 - [Phase 44-unified-editable-calendar]: LinkedIn create-navigate: pm-authority has no direct 'create post at scheduled_at' endpoint. CreateItemPopover navigates to /linkedin/queue?intent=create for LinkedIn type.
+- [Phase 50-dashboard-mobile-ui-polish]: vitest.config.ts separate from vite.config.ts to prevent test deps leaking into production bundle
+- [Phase 50-dashboard-mobile-ui-polish]: VIEWPORT_BREAKPOINTS.mobile==768 locked to match MOBILE_BREAKPOINT in use-mobile.ts per design spec
 
 ### Pending Todos
 
