@@ -45,7 +45,7 @@ Requirements for the **Dashboard Expansion** milestone. Bring the whole dashboar
 
 ### LinkedIn Post Composer (Dashboard)
 
-- [ ] **LIN-NEW-01**: Dashboard `/linkedin` queue page exposes a "New Post" action that opens a composer with title/content/language/project fields, POSTs to pm-authority's `/v1/posts` endpoint via the existing proxy pattern (JWT-gated, sync-mutation), and returns the created post to the queue in status `PENDING_REVIEW`
+- [x] **LIN-NEW-01**: Dashboard `/linkedin` queue page exposes a "New Post" action that opens a composer with title/content/language/project fields, POSTs to pm-authority's `/v1/posts` endpoint via the existing proxy pattern (JWT-gated, sync-mutation), and returns the created post to the queue in status `PENDING_REVIEW`
 
 ### Deploy & Verification
 
