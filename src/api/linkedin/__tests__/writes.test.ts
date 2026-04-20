@@ -1079,4 +1079,73 @@ describe('linkedin write routes — Plan 38-01 lesson-runs/generate', () => {
     expect(res.statusCode).toBe(409);
     expect(res.json().error.code).toBe('STATE_VIOLATION');
   });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // DELETE /api/linkedin/posts/:id — proxy to DELETE /v1/posts/:id
+  // ═══════════════════════════════════════════════════════════════════════
+
+  it('DELETE /posts/:id with JWT, upstream returns 204 → proxy returns 204', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(null, { status: 204 }),
+    );
+
+    const res = await server.inject({
+      method: 'DELETE',
+      url: '/api/linkedin/posts/post-xyz',
+    });
+
+    expect(res.statusCode).toBe(204);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [calledUrl, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(String(calledUrl)).toContain('/v1/posts/post-xyz');
+    expect(init.method).toBe('DELETE');
+  });
+
+  it('DELETE /posts/:id with JWT, upstream returns 409 STATE_VIOLATION → passthrough 409', async () => {
+    const upstreamError = {
+      error: {
+        code: 'STATE_VIOLATION',
+        message: 'cannot delete post in status PUBLISHED',
+        details: { post_id: 'post-xyz', current_status: 'PUBLISHED' },
+      },
+    };
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify(upstreamError), {
+        status: 409,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+
+    const res = await server.inject({
+      method: 'DELETE',
+      url: '/api/linkedin/posts/post-xyz',
+    });
+
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error.code).toBe('STATE_VIOLATION');
+  });
+
+  it('DELETE /posts/:id with JWT, upstream returns 404 NOT_FOUND → passthrough 404', async () => {
+    const upstreamError = {
+      error: {
+        code: 'NOT_FOUND',
+        message: 'post not found',
+        details: { post_id: 'unknown-id' },
+      },
+    };
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify(upstreamError), {
+        status: 404,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+
+    const res = await server.inject({
+      method: 'DELETE',
+      url: '/api/linkedin/posts/unknown-id',
+    });
+
+    expect(res.statusCode).toBe(404);
+    expect(res.json().error.code).toBe('NOT_FOUND');
+  });
 });

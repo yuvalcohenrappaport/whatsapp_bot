@@ -24,6 +24,7 @@ const mockUpdateActionableTask = vi.fn();
 const mockUpdateActionableFireAt = vi.fn();
 const mockUpdateActionableTodoIds = vi.fn();
 const mockCreateApprovedActionable = vi.fn<() => Actionable>();
+const mockDeleteActionable = vi.fn();
 const mockGetPendingActionables = vi.fn<() => Actionable[]>(() => []);
 const mockGetRecentTerminalActionables = vi.fn<() => Actionable[]>(() => []);
 
@@ -35,6 +36,7 @@ vi.mock('../../db/queries/actionables.js', () => ({
   updateActionableFireAt: (...args: unknown[]) => mockUpdateActionableFireAt(...args),
   updateActionableTodoIds: (...args: unknown[]) => mockUpdateActionableTodoIds(...args),
   createApprovedActionable: (...args: unknown[]) => mockCreateApprovedActionable(...args),
+  deleteActionable: (...args: unknown[]) => mockDeleteActionable(...args),
 }));
 
 const mockGetSetting = vi.fn<(key: string) => string | null>(() => null);
@@ -45,9 +47,11 @@ vi.mock('../../db/queries/settings.js', () => ({
 
 const mockCreateTodoTask = vi.fn<() => Promise<{ taskId: string; listId: string }>>();
 const mockUpdateTodoTask = vi.fn<() => Promise<boolean>>(() => Promise.resolve(true));
+const mockDeleteTodoTask = vi.fn<() => Promise<void>>(() => Promise.resolve());
 vi.mock('../../todo/todoService.js', () => ({
   createTodoTask: (...args: unknown[]) => mockCreateTodoTask(...args),
   updateTodoTask: (...args: unknown[]) => mockUpdateTodoTask(...args),
+  deleteTodoTask: (...args: unknown[]) => mockDeleteTodoTask(...args),
 }));
 
 vi.mock('../../config.js', () => ({
@@ -60,6 +64,7 @@ vi.mock('../../config.js', () => ({
 // Personal calendar service mocks
 const mockCreatePersonalCalendarEvent = vi.fn<() => Promise<string | null>>(() => Promise.resolve('google-event-id-123'));
 const mockUpdatePersonalCalendarEvent = vi.fn<() => Promise<boolean>>(() => Promise.resolve(true));
+const mockDeletePersonalCalendarEvent = vi.fn<() => Promise<boolean>>(() => Promise.resolve(true));
 const mockGetSelectedCalendarId = vi.fn<() => string | null>(() => 'primary');
 vi.mock('../../calendar/personalCalendarService.js', () => ({
   isPersonalCalendarConnected: vi.fn(() => true),
@@ -67,6 +72,7 @@ vi.mock('../../calendar/personalCalendarService.js', () => ({
   handleAuthCallback: vi.fn(),
   createPersonalCalendarEvent: (...args: unknown[]) => mockCreatePersonalCalendarEvent(...args),
   updatePersonalCalendarEvent: (...args: unknown[]) => mockUpdatePersonalCalendarEvent(...args),
+  deletePersonalCalendarEvent: (...args: unknown[]) => mockDeletePersonalCalendarEvent(...args),
   listUserCalendars: vi.fn(() => Promise.resolve([])),
   getSelectedCalendarId: () => mockGetSelectedCalendarId(),
 }));
@@ -75,6 +81,7 @@ const mockGetPersonalPendingEvent = vi.fn<(id: string) => ReturnType<() => typeo
 const mockUpdatePersonalPendingEventFields = vi.fn();
 const mockLinkCalendarEventId = vi.fn();
 const mockInsertApprovedPersonalEvent = vi.fn<() => ReturnType<() => typeof personalEventFixture | undefined>>();
+const mockDeletePersonalPendingEvent = vi.fn();
 const mockGetPendingPersonalEvents = vi.fn(() => []);
 const mockGetPersonalEventsByStatus = vi.fn(() => []);
 const mockUpdatePersonalPendingEventStatus = vi.fn();
@@ -108,6 +115,7 @@ vi.mock('../../db/queries/personalPendingEvents.js', () => ({
   updatePersonalPendingEventFields: (...args: unknown[]) => mockUpdatePersonalPendingEventFields(...args),
   linkCalendarEventId: (...args: unknown[]) => mockLinkCalendarEventId(...args),
   insertApprovedPersonalEvent: (...args: unknown[]) => mockInsertApprovedPersonalEvent(...args),
+  deletePersonalPendingEvent: (...args: unknown[]) => mockDeletePersonalPendingEvent(...args),
 }));
 
 // ─── Import routes AFTER mocks ──────────────────────────────────────────
@@ -335,5 +343,137 @@ describe('calendarMutations routes (plan 44-02)', () => {
     );
     const body = res.json() as { event: typeof personalEventFixture };
     expect(body.event.title).toBe('Lunch');
+  });
+
+  // ─── DELETE /api/actionables/:id ─────────────────────────────────────────
+
+  // 11. DELETE /api/actionables/:id without JWT → 401
+  it('DELETE /api/actionables/:id without JWT → 401', async () => {
+    const res = await serverNoAuth.inject({
+      method: 'DELETE',
+      url: '/api/actionables/act-1',
+    });
+    expect(res.statusCode).toBe(401);
+  });
+
+  // 12. DELETE /api/actionables/:id, unknown id → 404
+  it('DELETE /api/actionables/:id with unknown id → 404', async () => {
+    mockGetActionableById.mockReturnValue(undefined);
+    const res = await serverAuth.inject({
+      method: 'DELETE',
+      url: '/api/actionables/does-not-exist',
+    });
+    expect(res.statusCode).toBe(404);
+    expect(mockDeleteActionable).not.toHaveBeenCalled();
+  });
+
+  // 13. DELETE /api/actionables/:id, no todoTaskId → 204, deleteTodoTask NOT called
+  it('DELETE /api/actionables/:id happy path (no Google Tasks link) → 204', async () => {
+    const row = fixtureActionable({ id: 'act-1', todoTaskId: null, todoListId: null });
+    mockGetActionableById.mockReturnValue(row);
+
+    const res = await serverAuth.inject({
+      method: 'DELETE',
+      url: '/api/actionables/act-1',
+    });
+    expect(res.statusCode).toBe(204);
+    expect(mockDeleteTodoTask).not.toHaveBeenCalled();
+    expect(mockDeleteActionable).toHaveBeenCalledWith('act-1');
+  });
+
+  // 14. DELETE /api/actionables/:id, row has todoTaskId → deleteTodoTask called, then deleteActionable
+  it('DELETE /api/actionables/:id with Google Tasks link → deleteTodoTask called, then 204', async () => {
+    const row = fixtureActionable({ id: 'act-1', todoTaskId: 'gtask-1', todoListId: 'glist-1' });
+    mockGetActionableById.mockReturnValue(row);
+    mockDeleteTodoTask.mockResolvedValue(undefined);
+
+    const res = await serverAuth.inject({
+      method: 'DELETE',
+      url: '/api/actionables/act-1',
+    });
+    expect(res.statusCode).toBe(204);
+    expect(mockDeleteTodoTask).toHaveBeenCalledWith('gtask-1', 'glist-1');
+    expect(mockDeleteActionable).toHaveBeenCalledWith('act-1');
+  });
+
+  // 15. DELETE /api/actionables/:id, Google Tasks fails → still 204 (best-effort)
+  it('DELETE /api/actionables/:id with Google Tasks failure → still deletes locally, 204', async () => {
+    const row = fixtureActionable({ id: 'act-1', todoTaskId: 'gtask-fail', todoListId: 'glist-1' });
+    mockGetActionableById.mockReturnValue(row);
+    mockDeleteTodoTask.mockRejectedValue(new Error('network error'));
+
+    const res = await serverAuth.inject({
+      method: 'DELETE',
+      url: '/api/actionables/act-1',
+    });
+    expect(res.statusCode).toBe(204);
+    expect(mockDeleteActionable).toHaveBeenCalledWith('act-1');
+  });
+
+  // ─── DELETE /api/personal-calendar/events/:id ────────────────────────────
+
+  // 16. DELETE /api/personal-calendar/events/:id without JWT → 401
+  it('DELETE /api/personal-calendar/events/:id without JWT → 401', async () => {
+    const res = await serverNoAuth.inject({
+      method: 'DELETE',
+      url: '/api/personal-calendar/events/evt-1',
+    });
+    expect(res.statusCode).toBe(401);
+  });
+
+  // 17. DELETE /api/personal-calendar/events/:id, unknown id → 404
+  it('DELETE /api/personal-calendar/events/:id with unknown id → 404', async () => {
+    mockGetPersonalPendingEvent.mockReturnValue(undefined);
+    const res = await serverAuth.inject({
+      method: 'DELETE',
+      url: '/api/personal-calendar/events/nope',
+    });
+    expect(res.statusCode).toBe(404);
+    expect(mockDeletePersonalPendingEvent).not.toHaveBeenCalled();
+  });
+
+  // 18. DELETE /api/personal-calendar/events/:id, no calendarEventId → 204, Google not called
+  it('DELETE /api/personal-calendar/events/:id happy path (no Google Calendar link) → 204', async () => {
+    mockGetPersonalPendingEvent.mockReturnValue({ ...personalEventFixture, calendarEventId: null });
+
+    const res = await serverAuth.inject({
+      method: 'DELETE',
+      url: '/api/personal-calendar/events/evt-1',
+    });
+    expect(res.statusCode).toBe(204);
+    expect(mockDeletePersonalCalendarEvent).not.toHaveBeenCalled();
+    expect(mockDeletePersonalPendingEvent).toHaveBeenCalledWith('evt-1');
+  });
+
+  // 19. DELETE /api/personal-calendar/events/:id, has calendarEventId → deletePersonalCalendarEvent called
+  it('DELETE /api/personal-calendar/events/:id with Google link → deletePersonalCalendarEvent called, 204', async () => {
+    mockGetPersonalPendingEvent.mockReturnValue({
+      ...personalEventFixture,
+      calendarEventId: 'gcal-event-id',
+    });
+
+    const res = await serverAuth.inject({
+      method: 'DELETE',
+      url: '/api/personal-calendar/events/evt-1',
+    });
+    expect(res.statusCode).toBe(204);
+    expect(mockDeletePersonalCalendarEvent).toHaveBeenCalledWith('primary', 'gcal-event-id');
+    expect(mockDeletePersonalPendingEvent).toHaveBeenCalledWith('evt-1');
+  });
+
+  // 20. DELETE /api/personal-calendar/events/:id, Google fails → still 204
+  it('DELETE /api/personal-calendar/events/:id with Google Calendar failure → still deletes locally, 204', async () => {
+    mockGetPersonalPendingEvent.mockReturnValue({
+      ...personalEventFixture,
+      calendarEventId: 'gcal-event-id',
+    });
+    mockDeletePersonalCalendarEvent.mockResolvedValue(false); // simulates failure (returns false, not throws)
+
+    const res = await serverAuth.inject({
+      method: 'DELETE',
+      url: '/api/personal-calendar/events/evt-1',
+    });
+    expect(res.statusCode).toBe(204);
+    expect(mockDeletePersonalPendingEvent).toHaveBeenCalledWith('evt-1');
   });
 });
