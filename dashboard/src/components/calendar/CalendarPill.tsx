@@ -23,7 +23,7 @@
  * extended in Plan 50-04 (mobile: long-press → PillActionSheet; drag gate !isMobile && !past && !ghost).
  */
 import { useState } from 'react';
-import { CheckCircle2, Calendar, Linkedin, Trash2 } from 'lucide-react';
+import { CheckCircle2, Calendar, Linkedin, ListTodo, CalendarClock, Trash2 } from 'lucide-react';
 import { formatIstTime } from '@/lib/ist';
 import { useViewport } from '@/hooks/useViewport';
 import { useLongPress } from '@/hooks/useLongPress';
@@ -44,28 +44,39 @@ TRANSPARENT_PNG.src =
 // Source → visual config
 // -----------------------------------------------------------------------
 
+// Source-level visual fallbacks. For gtasks/gcal the real color comes from
+// `item.sourceFields.color` (hashed per listId/calendarId on the server);
+// the map entries below are defaults applied when a color override is absent.
 const SOURCE_STRIPE = {
   task: 'border-emerald-500',
   event: 'border-indigo-500',
   linkedin: 'border-violet-500',
+  gtasks: 'border-sky-500',
+  gcal: 'border-rose-500',
 } as const;
 
 const SOURCE_BG = {
   task: 'bg-emerald-500/10 hover:bg-emerald-500/20',
   event: 'bg-indigo-500/10 hover:bg-indigo-500/20',
   linkedin: 'bg-violet-500/10 hover:bg-violet-500/20',
+  gtasks: 'bg-sky-500/10 hover:bg-sky-500/20',
+  gcal: 'bg-rose-500/10 hover:bg-rose-500/20',
 } as const;
 
 const SOURCE_ICON = {
   task: CheckCircle2,
   event: Calendar,
   linkedin: Linkedin,
+  gtasks: ListTodo,
+  gcal: CalendarClock,
 } as const;
 
 const SOURCE_ICON_COLOR = {
   task: 'text-emerald-500',
   event: 'text-indigo-500',
   linkedin: 'text-violet-500',
+  gtasks: 'text-sky-500',
+  gcal: 'text-rose-500',
 } as const;
 
 // -----------------------------------------------------------------------
@@ -121,6 +132,13 @@ export function CalendarPill({
   const iconColor = SOURCE_ICON_COLOR[item.source];
   const isRtl = item.language === 'he';
 
+  // GCAL-06 — gcal items are read-only in the dashboard calendar. The server
+  // also marks sourceFields.readOnly=true, but the source check is the
+  // authoritative guard since any future read-only source can opt in the same
+  // way the gtasks source does NOT.
+  const isReadOnly =
+    item.source === 'gcal' || (item.sourceFields as Record<string, unknown>)?.readOnly === true;
+
   // Origin pill fades to 40% during drag; ghost pill is 70% (stable).
   const isDraggingOrigin = draggingId === item.id;
 
@@ -171,9 +189,9 @@ export function CalendarPill({
     <button
       type="button"
       dir={isRtl ? 'rtl' : 'ltr'}
-      draggable={!isMobile && !past && !ghost}
-      onDragStart={isMobile ? undefined : handleDragStart}
-      onDragEnd={isMobile ? undefined : handleDragEnd}
+      draggable={!isMobile && !past && !ghost && !isReadOnly}
+      onDragStart={isMobile || isReadOnly ? undefined : handleDragStart}
+      onDragEnd={isMobile || isReadOnly ? undefined : handleDragEnd}
       {...phoneInteractionProps}
       onClick={ghost ? undefined : onOpenDetails}
       // On mobile, suppress title attribute — tooltip would block tap action.
@@ -185,7 +203,7 @@ export function CalendarPill({
         mobileClasses,
         'transition-colors duration-[300ms]',
         flashing ? 'bg-amber-100 dark:bg-amber-900/30' : '',
-        past ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer',
+        past ? 'opacity-70 cursor-not-allowed' : isReadOnly ? 'cursor-default' : 'cursor-pointer',
         isDraggingOrigin ? 'opacity-40' : '',
         ghost ? 'pointer-events-none opacity-90' : '',
       ]
@@ -205,7 +223,13 @@ export function CalendarPill({
         ) : (
           <span
             className={compact ? 'line-clamp-1' : 'line-clamp-2'}
-            onClick={onTitleClick ? (e) => { e.stopPropagation(); onTitleClick(e); } : undefined}
+            onClick={
+              isReadOnly
+                ? undefined  // GCAL-06 — read-only pills do not open the inline title editor
+                : onTitleClick
+                ? (e) => { e.stopPropagation(); onTitleClick(e); }
+                : undefined
+            }
           >
             {item.title}
           </span>
@@ -216,10 +240,11 @@ export function CalendarPill({
           {formatIstTime(item.start)}
         </div>
       )}
-      {/* Trash icon — visible on every non-ghost pill (including compact month pills
-          and short week/day pills). Uses span (not button) because the outer element
-          is already a <button> and HTML5 forbids nested interactive buttons. */}
-      {!ghost && onDelete && (
+      {/* Trash icon — visible on every non-ghost, non-read-only pill (including
+          compact month pills and short week/day pills). Uses span (not button)
+          because the outer element is already a <button> and HTML5 forbids
+          nested interactive buttons. Gcal pills suppress this — GCAL-06. */}
+      {!ghost && !isReadOnly && onDelete && (
         <span
           role="button"
           tabIndex={0}

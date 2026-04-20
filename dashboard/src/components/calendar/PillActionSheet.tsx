@@ -35,6 +35,12 @@ export function PillActionSheet({ item, open, onOpenChange, onEditTitle, onDelet
   const { mutate: reschedule } = useRescheduleMutation();
   const [showPicker, setShowPicker] = React.useState(false);
 
+  // GCAL-06 — gcal items are read-only: no Reschedule / Edit / Delete,
+  // only an "Open in Google Calendar" link + Cancel. htmlLink is populated
+  // by the server projection in googleCalendar.ts.
+  const isGcal = item.source === 'gcal';
+  const htmlLink = isGcal ? ((item.sourceFields as Record<string, unknown>)?.htmlLink as string | undefined) : undefined;
+
   // Pre-fill picker with current slot in the device's local timezone (IST on Yuval's device).
   const initialValue = React.useMemo(() => formatLocalDateTimeInput(item.start), [item.start]);
   const [picked, setPicked] = React.useState(initialValue);
@@ -74,9 +80,14 @@ export function PillActionSheet({ item, open, onOpenChange, onEditTitle, onDelet
 
         {!showPicker && (
           <div className="grid gap-2">
-            <Button onClick={() => { vibrate(); setShowPicker(true); }}>Reschedule</Button>
-            <Button onClick={() => { vibrate(); onEditTitle(); onOpenChange(false); }} variant="outline">Edit title</Button>
-            {onDelete && (
+            {/* Reschedule / Edit title / Delete — suppressed entirely for gcal (GCAL-06) */}
+            {!isGcal && (
+              <Button onClick={() => { vibrate(); setShowPicker(true); }}>Reschedule</Button>
+            )}
+            {!isGcal && (
+              <Button onClick={() => { vibrate(); onEditTitle(); onOpenChange(false); }} variant="outline">Edit title</Button>
+            )}
+            {!isGcal && onDelete && (
               <Button
                 onClick={() => {
                   vibrate();
@@ -88,6 +99,22 @@ export function PillActionSheet({ item, open, onOpenChange, onEditTitle, onDelet
                 Delete
               </Button>
             )}
+
+            {/* Gcal pills — single view-only action linking to Google Calendar.
+                Absent htmlLink (birthdays/holidays) → just the Cancel button. */}
+            {isGcal && htmlLink && (
+              <Button variant="outline" asChild>
+                <a
+                  href={htmlLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => onOpenChange(false)}
+                >
+                  Open in Google Calendar
+                </a>
+              </Button>
+            )}
+
             <DialogClose asChild>
               <Button variant="ghost">Cancel</Button>
             </DialogClose>
