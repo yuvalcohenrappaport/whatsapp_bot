@@ -502,7 +502,7 @@ Plans:
 
 **Goal:** The dashboard is first-class usable on a phone (≤768px). The Calendar is the showcase fix (currently 680 lines with zero responsive code); a shared set of global mobile primitives uplifts every other page in one pass.
 **Depends on:** Phase 45 (pending-tasks write-actions; dashboard card pattern established)
-**Requirements:** _TBD — define via `/gsd:discuss-phase 50` before planning_
+**Requirements:** MOBILE-01, MOBILE-02, MOBILE-03, MOBILE-04, MOBILE-05, MOBILE-06
 **Design:** `docs/superpowers/specs/2026-04-20-dashboard-mobile-ui-design.md`
 **Success Criteria:**
   1. Global primitives shipped: tap-target floor (44px), iOS zoom kill (≥16px inputs), safe-area insets, `<StickyActionBar>`, `useViewport()` hook
@@ -511,6 +511,16 @@ Plans:
   4. Long-press → action sheet replaces touch drag-and-drop for reschedule on phone; desktop drag preserved
   5. Overview / PendingTasks / Drafts pages audited for mobile crowding; stacked columns, full-width textareas, sticky action bars where appropriate
   6. Live walkthrough on a real phone passes against PM2 bot (swipe nav, dot-month tap, long-press sheet reschedule, iOS zoom-on-focus test, safe-area verification on notched device)
+
+**Plans:** 6 plans
+
+Plans:
+- [ ] 50-01-PLAN.md — Global mobile primitives: useViewport hook + StickyActionBar + safe-area insets on AppLayout + Button tap-target floor + Input/Textarea iOS auto-zoom kill (regression-frozen) + vitest install
+- [ ] 50-02-PLAN.md — Calendar view router (useCalendarViewMode) + useHorizontalSwipe (60px / 30px-drift) + new MonthDotsView phone-only month component + Calendar.tsx wire-up (DayView default, WeekView desktop-only)
+- [ ] 50-03-PLAN.md — Calendar components responsive pass: CalendarHeader compact row + CalendarPill 28px min + DayView FAB + DayOverflowPopover/CreateItemPopover/InlineTitleEdit as bottom sheets on phone
+- [ ] 50-04-PLAN.md — Long-press → PillActionSheet (Reschedule via native datetime-local in IST + Edit + Delete + Cancel) + useLongPress hook; touch DnD removed on phone via draggable={!isMobile}; desktop drag preserved
+- [ ] 50-05-PLAN.md — Daily-driver pages mobile audit: Overview metric grid + PendingTasks 320px-safe action row + Drafts primary actions in StickyActionBar
+- [ ] 50-06-PLAN.md — Live verification on real phone via Tailscale to PM2 bot (24-check protocol incl. IST sqlite-correctness check) + ROADMAP/REQUIREMENTS/STATE closeout (autonomous: false)
 
 ### Phase 44: Unified Editable Calendar (Tasks + Events + LinkedIn)
 

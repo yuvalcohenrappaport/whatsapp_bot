@@ -1,7 +1,20 @@
 # Requirements: WhatsApp Bot
 
-**Defined:** 2026-03-30 (v1.6) · updated 2026-04-20 (v1.9)
+**Defined:** 2026-03-30 (v1.6) · updated 2026-04-20 (v1.9 + v2.0 seed)
 **Core Value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
+
+## v2.0 Requirements
+
+Requirements for the **Dashboard UX Polish** milestone. Lift the dashboard's UX quality across surfaces, starting with a phone-first mobile pass — Calendar as showcase + global mobile primitives + daily-driver polish. Inverts the v1.x "Mobile / small-screen optimization" out-of-scope row (the dashboard is now used from a phone via Tailscale, not just laptop).
+
+### Mobile UI Polish
+
+- [ ] **MOBILE-01**: Global mobile primitives shipped — 44px-floor tap targets on shadcn `<Button>`, ≥16px input font (`text-base md:text-sm`) on `<Input>` + `<Textarea>` to suppress iOS Safari focus auto-zoom, safe-area insets (`env(safe-area-inset-*)`) on `AppLayout`, new `<StickyActionBar>` primitive, new `useViewport()` hook returning `{isMobile, isTablet, isDesktop}` (extends rather than replaces existing `useIsMobile()` in `use-mobile.ts`)
+- [ ] **MOBILE-02**: Calendar phone view router — on `<768px`, default to `DayView` with horizontal swipe prev/next (60px threshold, <30px vertical drift, handwritten `useHorizontalSwipe` — no gesture library); 3-Day scrollable; new `MonthDotsView` (read-only 7-col dot grid, tap-day → DayView) replaces `MonthView`; `WeekView` is desktop-only and never reachable from the phone view toggle
+- [ ] **MOBILE-03**: Calendar components responsive on phone — `CalendarHeader` collapses to a single compact row with a 3-segment view-toggle pill; `CalendarPill` ≥28px min-height with no hover tooltip; `DayView` single-column with a floating `+ New` FAB (safe-area-inset-aware); `DayOverflowPopover`, `CreateItemPopover`, `InlineTitleEdit` all switch from Radix Popover to Radix Dialog in bottom-sheet mode below 768px
+- [ ] **MOBILE-04**: Long-press → `<PillActionSheet>` replaces touch drag-and-drop on phone (desktop drag preserved via `draggable={!isMobile}` gate); `useLongPress` hook fires on ≥500ms hold with <8px movement, ignores mouse pointers; PillActionSheet exposes Reschedule / Edit title / Delete / Cancel; Reschedule uses native `<input type="datetime-local">` interpreted as IST (canonical bot timezone) and dispatches the existing `useCalendarMutations.reschedule()` — no new mutation, no new error handling, no new date-picker library; haptic via `navigator.vibrate(10)` when available
+- [ ] **MOBILE-05**: Daily-driver pages mobile audit — `Overview` 2-col metric grid collapses to 1-col on phone with text scaling at <375px to prevent value-text wrap; `PendingTasks` card action row (Approve/Edit/Reject) safely sized for 320px width with full-width inline-edit textarea; `Drafts` primary actions (Send all / Regenerate where applicable) wrapped in `<StickyActionBar>` so they stay reachable while scrolling
+- [ ] **MOBILE-06**: Live walkthrough on a real phone passes against the live PM2 bot via Tailscale URL — 24-check protocol covering swipe nav, dot-month tap-to-day, long-press → PillActionSheet → reschedule with **IST correctness verified by direct sqlite query against the rescheduled item**, iOS zoom-on-focus test on Safari, safe-area-inset verification on a notched device, orientation rotation, and 320px-width regression check on Overview / PendingTasks
 
 ## v1.9 Requirements
 
@@ -149,7 +162,7 @@ Requirements for the **Task Approval & Context Enrichment** milestone. Turn comm
 - **LIN-15** (future): Sequence-mode (4-post narrative arc) generation from the dashboard
 - **LIN-16** (future): LinkedIn analytics charts/graphs (impressions over time, top hooks ranking)
 - **LIN-17** (future): OpenAPI codegen pipeline to keep Python API schemas in sync with TypeScript client types
-- **LIN-18** (future): Mobile-optimized responsive layout for the LinkedIn queue page
+- **LIN-18** (future): Mobile-optimized responsive layout for the LinkedIn queue page (`LinkedInLessonSelection`, `LinkedInVariantFinalization`, `LinkedInQueue` — Phase 50 explicitly defers these to a future v2.0 polish phase)
 - **LIN-19** (future): Bearer-token auth on the pm-authority HTTP service (if ever exposed beyond 127.0.0.1)
 
 ### Dashboard Integration
@@ -171,7 +184,10 @@ Requirements for the **Task Approval & Context Enrichment** milestone. Turn comm
 | Bearer token / JWT auth on pm-authority service | Binding to 127.0.0.1 is the security boundary; adds complexity without security gain for a single-owner localhost service |
 | OpenAPI codegen across Python ↔ TypeScript | Manual Zod schemas + keep-in-sync discipline; codegen pipeline is overhead for 14 endpoints |
 | Sequence-mode (4-post) generation from dashboard | Lesson mode only via UI; sequence mode stays CLI-only. Can be added later as LIN-15. |
-| Mobile / small-screen optimization | Desktop-first, same as existing dashboard (Tailscale SSH from laptop) |
+| Mobile / small-screen optimization (v1.x stance) | Desktop-first through v1.9. **Inverted by v2.0 milestone — see MOBILE-01..06.** |
+| Tablet-specific layouts (769–1024px) | Phase 50 keeps tablet at desktop layout; revisit if it becomes a friction point |
+| Reduced-motion or haptic-preference UI | Phase 50 has no preference UI — `navigator.vibrate(10)` silently no-ops if API missing |
+| LinkedIn queue mobile pass | Phase 50 explicitly defers `LinkedInLessonSelection`, `LinkedInVariantFinalization`, `LinkedInQueue` to a future v2.0 polish phase (LIN-18) |
 | Multi-user auth / RBAC | Single-owner tool — no multi-tenant use case |
 | Post editing after PUBLISHED | Read-only after LinkedIn publish. No way to patch a posted tweet. |
 | Removing or superseding the Telegram bot | Telegram bot stays as fallback review UX — dashboard is strictly additive |
@@ -184,6 +200,22 @@ Requirements for the **Task Approval & Context Enrichment** milestone. Turn comm
 | react-js-cron component | Requires Ant Design peer dep, incompatible with shadcn/Tailwind stack |
 
 ## Traceability
+
+### v2.0 Traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| MOBILE-01 | Phase 50 | Not started |
+| MOBILE-02 | Phase 50 | Not started |
+| MOBILE-03 | Phase 50 | Not started |
+| MOBILE-04 | Phase 50 | Not started |
+| MOBILE-05 | Phase 50 | Not started |
+| MOBILE-06 | Phase 50 | Not started |
+
+**v2.0 Coverage:**
+- v2.0 requirements: 6 total
+- Mapped to phases: 6 (Phase 50)
+- Unmapped: 0 ✓
 
 ### v1.9 Traceability
 
@@ -286,4 +318,4 @@ Requirements for the **Task Approval & Context Enrichment** milestone. Turn comm
 
 ---
 *Requirements defined: 2026-03-30 (v1.6)*
-*Last updated: 2026-04-19 — v1.8 Task Approval & Context Enrichment requirements added (18 items across ACT / DETC / APPR / ENRI / DASH-ACT / MIGR categories)*
+*Last updated: 2026-04-20 — v2.0 Dashboard UX Polish requirements seeded (6 items: MOBILE-01..06 covering global mobile primitives, calendar mobile strategy, daily-driver page polish, live phone walkthrough)*
