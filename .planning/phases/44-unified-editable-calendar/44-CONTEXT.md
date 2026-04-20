@@ -137,6 +137,21 @@ Calendar is both a viewing surface and an editing entry point. Week view is defa
 
 ---
 
+## Scope Note: SC5 narrowing (added 2026-04-20 during plan revision)
+
+ROADMAP SC5 reads: "Body-click opens the full edit dialog (existing Tasks/Events/LinkedIn dialogs) — calendar is an entry point, not parallel edit surface". At plan-revision time (Phase 44 plans 01-06 already written + committed), a cross-check of Tasks.tsx and Events.tsx showed NEITHER page has a full-edit dialog today (as of Phase 43). Only LinkedIn has one: `dashboard/src/components/linkedin/EditPostDialog.tsx` from Phase 36.
+
+**Decision (needs owner sign-off at 44-06 walkthrough):** Plan 44-05 provides lightweight **calendar-local** dialogs for task + event body-clicks (inline shadcn `Dialog` with title + reschedule date picker for tasks; title + eventDate + location for events). LinkedIn body-click continues to use the existing EditPostDialog.
+
+**Rationale:** Expanding Phase 44 scope to first build page-level dialogs on Tasks.tsx/Events.tsx — along with their own SCs and verification — would be a separate sub-phase. The calendar-local dialogs deliver the SC5 user-visible behavior (body-click opens a full editable surface for every source) without that detour.
+
+**Alternative if owner rejects narrowing:** Open a follow-up phase before closing Phase 44: build full edit dialogs on Tasks.tsx + Events.tsx at page-level, then have the calendar delegate to those instead of its own local dialogs. This would push v1.8 closure.
+
+Check 10 of the 44-06 owner walkthrough explicitly surfaces this question for sign-off.
+
+---
+
 *Phase: 44-unified-editable-calendar*
 *Context gathered: 2026-04-20*
 *Method: owner delegated all design decisions to Claude ("you decide all. i trust you with it")*
+*Revision (2026-04-20): SC5 scope narrowing documented after checker warning surfaced the Tasks/Events dialog gap*
