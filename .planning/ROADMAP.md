@@ -418,7 +418,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 42. Context Enrichment at Approval | v1.8 | 2/2 | Complete | 2026-04-20 |
 | 43. Dashboard Pending Tasks View | v1.8 | 3/3 | Complete | 2026-04-20 |
 | 44. Unified Editable Calendar | v1.9 | 6/6 | Complete | 2026-04-20 |
-| 45. Dashboard Pending-Tasks Write Actions | 1/4 | In Progress|  | — |
+| 45. Dashboard Pending-Tasks Write Actions | 2/4 | In Progress|  | — |
 | 46. Google Tasks Full-List Sync | v1.9 | 0/? | Not started | — |
 | 47. Google Calendar Events Sync | v1.9 | 0/? | Not started | — |
 | 48. LinkedIn Post Composer (Dashboard) | v1.9 | 0/? | Not started | — |
@@ -436,7 +436,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
   4. Edit opens an inline editor; save rewrites `task` then falls through to Approve
   5. All write routes JWT-gated and idempotent against concurrent WhatsApp replies on the same row
 
-**Plans:** 1/4 plans executed
+**Plans:** 2/4 plans executed
 
 Plans:
 - [ ] 45-01-PLAN.md — Extract approve/reject primitives + unreject transition (backend refactor, no behavior drift)
