@@ -251,6 +251,8 @@ Legacy decisions from v1.6 (see phase 27-32 archive):
 - [Phase 44-unified-editable-calendar]: Best-effort Google API mirroring: local DB write always succeeds, upstream failures logged-and-swallowed
 - [Phase 44-unified-editable-calendar]: calendar_event_id column added to personal_pending_events via raw ALTER TABLE migration (no drizzle-kit push in package.json)
 - [Phase 44]: Option A hybrid: unified /api/calendar/items for SSE + 3 per-source GETs for dashboard initial-load; /api/personal-calendar/events/window sub-path used (base occupied by status-filter route)
+- [Phase 44-unified-editable-calendar]: SC5 narrowing: task/event body-click uses calendar-local dialogs (title+date+time); LinkedIn uses existing EditPostDialog from Phase 36. Rationale: Tasks.tsx+Events.tsx have no full-edit dialogs as of Phase 43. Owner sign-off requested at 44-06 walkthrough.
+- [Phase 44-unified-editable-calendar]: LinkedIn create-navigate: pm-authority has no direct 'create post at scheduled_at' endpoint. CreateItemPopover navigates to /linkedin/queue?intent=create for LinkedIn type.
 
 ### Pending Todos
 
