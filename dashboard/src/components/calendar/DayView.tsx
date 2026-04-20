@@ -7,15 +7,23 @@
  *   - Current-time red line when cursor day is today
  *   - Vertical item stack (full detail, no truncation)
  *
- * Plan 44-04.
+ * Drag-and-drop (Plan 44-05):
+ *   - The grid is a drop zone (onDragOver + onDrop)
+ *   - Drop computes target ms from pointer Y position + 15-min snap
+ *   - Ghost position + caption updated from onDragOver
+ *
+ * Plan 44-04 (base), extended in Plan 44-05 (drag/drop).
  */
 import { useMemo, useRef, useEffect, useState } from 'react';
 import { CalendarPill } from './CalendarPill';
 import {
   sameIstDay,
   formatIstDateShort,
+  istDayStartMs,
 } from '@/lib/ist';
 import type { CalendarItem } from '@/api/calendarSchemas';
+import type { CalendarDragGhostControls } from './CalendarDragGhost';
+import type { RescheduleMutationOpts } from '@/hooks/useCalendarMutations';
 
 // -----------------------------------------------------------------------
 // Constants
@@ -23,6 +31,7 @@ import type { CalendarItem } from '@/api/calendarSchemas';
 
 const ROW_H = 48;
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
+const SNAP_MINUTES = 15;
 
 // -----------------------------------------------------------------------
 // Types
@@ -32,8 +41,17 @@ interface DayViewProps {
   items: CalendarItem[];
   cursorMs: number;
   flashingIds?: Set<string>;
+  draggingId?: string | null;
+  ghost: CalendarDragGhostControls;
+  reschedule: RescheduleMutationOpts & { mutate: (args: { item: CalendarItem; toMs: number }) => Promise<void> };
   onSlotClick?: (dayMs: number, hour: number, minute: number) => void;
   onOpenItem?: (item: CalendarItem) => void;
+  editingId?: string | null;
+  onTitleClick?: (item: CalendarItem) => void;
+  onTitleCommit?: (item: CalendarItem, newTitle: string) => void;
+  onTitleCancel?: (item: CalendarItem) => void;
+  onDragStart?: (e: React.DragEvent, item: CalendarItem) => void;
+  onDragEnd?: (e: React.DragEvent, item: CalendarItem) => void;
 }
 
 // -----------------------------------------------------------------------
@@ -50,6 +68,14 @@ function heightPx(startMs: number, endMs: number | null): number {
   return Math.max(24, ((endMs - startMs) / 3_600_000) * ROW_H);
 }
 
+function computeDropTargetMs(dayMs: number, offsetY: number): number {
+  const clampedY = Math.max(0, offsetY);
+  const totalMinutes = (clampedY / ROW_H) * 60;
+  const snapped = Math.floor(totalMinutes / SNAP_MINUTES) * SNAP_MINUTES;
+  const dayStart = istDayStartMs(dayMs);
+  return dayStart + snapped * 60_000;
+}
+
 // -----------------------------------------------------------------------
 // Component
 // -----------------------------------------------------------------------
@@ -58,8 +84,17 @@ export function DayView({
   items,
   cursorMs,
   flashingIds = new Set(),
+  draggingId = null,
+  editingId = null,
+  ghost,
+  reschedule,
   onSlotClick,
   onOpenItem,
+  onTitleClick,
+  onTitleCommit,
+  onTitleCancel,
+  onDragStart,
+  onDragEnd,
 }: DayViewProps) {
   const today = Date.now();
   const isToday = sameIstDay(cursorMs, today);
@@ -104,6 +139,44 @@ export function DayView({
 
   const currentTimePx = (nowMinutes / 60) * ROW_H;
 
+  function parseDragPayload(e: React.DragEvent): { id: string; originStartMs: number } | null {
+    try {
+      const raw = e.dataTransfer.getData('application/calendar-item');
+      if (!raw) return null;
+      return JSON.parse(raw) as { id: string; originStartMs: number };
+    } catch {
+      return null;
+    }
+  }
+
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    ghost.move(e.clientX, e.clientY);
+
+    const rect = gridRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const offsetY = e.clientY - rect.top + (gridRef.current?.scrollTop ?? 0);
+    const targetMs = computeDropTargetMs(cursorMs, offsetY);
+    ghost.setTarget(targetMs);
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    const payload = parseDragPayload(e);
+    if (!payload) return;
+    const item = items.find((i) => i.id === payload.id);
+    if (!item) return;
+
+    const rect = gridRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const offsetY = e.clientY - rect.top + (gridRef.current?.scrollTop ?? 0);
+    const targetMs = computeDropTargetMs(cursorMs, offsetY);
+
+    ghost.hide();
+    void reschedule.mutate({ item, toMs: targetMs });
+  }
+
   return (
     <div className="flex flex-col flex-1 overflow-hidden border border-border rounded-lg">
       {/* Day header */}
@@ -125,14 +198,26 @@ export function DayView({
               item={item}
               flashing={flashingIds.has(item.id)}
               past={item.start < today}
+              draggingId={draggingId}
               onOpenDetails={() => onOpenItem?.(item)}
+              editingId={editingId}
+              onTitleClick={() => onTitleClick?.(item)}
+              onTitleCommit={onTitleCommit}
+              onTitleCancel={onTitleCancel}
+              onDragStart={onDragStart}
+              onDragEnd={onDragEnd}
             />
           ))}
         </div>
       )}
 
       {/* Timed grid */}
-      <div ref={gridRef} className="flex-1 overflow-y-auto">
+      <div
+        ref={gridRef}
+        className="flex-1 overflow-y-auto"
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+      >
         <div
           className="relative"
           style={{ height: `${24 * ROW_H}px` }}
@@ -189,7 +274,11 @@ export function DayView({
                     compact={heightPx(item.start, item.end) < 40}
                     flashing={flashingIds.has(item.id)}
                     past={item.start < today}
+                    draggingId={draggingId}
                     onOpenDetails={() => onOpenItem?.(item)}
+                    onTitleClick={() => onTitleClick?.(item)}
+                    onDragStart={onDragStart}
+                    onDragEnd={onDragEnd}
                   />
                 </div>
               </div>

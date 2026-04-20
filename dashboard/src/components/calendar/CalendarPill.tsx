@@ -2,22 +2,37 @@
  * CalendarPill — reusable calendar item pill.
  *
  * Renders in every view (month compact, week/day full). Accepts:
- *   item:         CalendarItem to display
- *   compact:      true in month view (line-clamp-1, no timestamp)
- *   flashing:     true = 300ms amber arrival flash
- *   past:         true = past-dated item (opacity-70 + cursor-not-allowed)
- *   onOpenDetails: click handler (Plan 44-05 wires popover here)
+ *   item:           CalendarItem to display
+ *   compact:        true in month view (line-clamp-1, no timestamp)
+ *   flashing:       true = 300ms amber arrival flash
+ *   past:           true = past-dated item (opacity-70 + cursor-not-allowed)
+ *   ghost:          true = ghost mode (lower opacity, pointer-events-none — used by CalendarDragGhost)
+ *   draggingId:     id of the item currently being dragged (renders origin at 40% opacity)
+ *   onOpenDetails:  body-click handler (not the title — title has its own click handler)
+ *   onTitleClick:   title-specific click (enters inline-edit mode)
+ *   onDragStart:    drag-start handler (called with the DragEvent and the item)
+ *   onDragEnd:      drag-end handler
  *
  * Source color/icon map:
  *   task     → emerald-500 stripe + CheckCircle2
  *   event    → indigo-500 stripe + Calendar
  *   linkedin → violet-500 stripe + Linkedin
  *
- * Plan 44-04.
+ * Plan 44-04 (base), extended in Plan 44-05 (drag + click split + ghost mode).
  */
 import { CheckCircle2, Calendar, Linkedin } from 'lucide-react';
 import { formatIstTime } from '@/lib/ist';
+import { InlineTitleEdit } from './InlineTitleEdit';
 import type { CalendarItem } from '@/api/calendarSchemas';
+
+// -----------------------------------------------------------------------
+// 1×1 transparent PNG singleton — suppresses native drag-image.
+// Allocated once per module; data-URL is a valid minimal PNG.
+// -----------------------------------------------------------------------
+
+const TRANSPARENT_PNG = new Image();
+TRANSPARENT_PNG.src =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
 
 // -----------------------------------------------------------------------
 // Source → visual config
@@ -56,7 +71,19 @@ interface CalendarPillProps {
   compact?: boolean;
   flashing?: boolean;
   past?: boolean;
+  /** Ghost mode: used by CalendarDragGhost for the floating pill clone. */
+  ghost?: boolean;
+  /** ID of the item currently being dragged; its origin pill renders at 40% opacity. */
+  draggingId?: string | null;
   onOpenDetails?: () => void;
+  /** Title-specific click — enters inline-edit mode (stopPropagation from body click). */
+  onTitleClick?: (e: React.MouseEvent) => void;
+  /** When set to this item's id, renders InlineTitleEdit in place of the title span. */
+  editingId?: string | null;
+  onTitleCommit?: (item: CalendarItem, newTitle: string) => void;
+  onTitleCancel?: (item: CalendarItem) => void;
+  onDragStart?: (e: React.DragEvent, item: CalendarItem) => void;
+  onDragEnd?: (e: React.DragEvent, item: CalendarItem) => void;
 }
 
 // -----------------------------------------------------------------------
@@ -68,7 +95,15 @@ export function CalendarPill({
   compact = false,
   flashing = false,
   past = false,
+  ghost = false,
+  draggingId = null,
   onOpenDetails,
+  onTitleClick,
+  editingId = null,
+  onTitleCommit,
+  onTitleCancel,
+  onDragStart,
+  onDragEnd,
 }: CalendarPillProps) {
   const Icon = SOURCE_ICON[item.source];
   const stripeClass = SOURCE_STRIPE[item.source];
@@ -76,11 +111,36 @@ export function CalendarPill({
   const iconColor = SOURCE_ICON_COLOR[item.source];
   const isRtl = item.language === 'he';
 
+  // Origin pill fades to 40% during drag; ghost pill is 70% (stable).
+  const isDraggingOrigin = draggingId === item.id;
+
+  function handleDragStart(e: React.DragEvent) {
+    if (past) {
+      e.preventDefault();
+      return;
+    }
+    // Suppress browser's native drag image — we render our own portal ghost.
+    e.dataTransfer.setDragImage(TRANSPARENT_PNG, 0, 0);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData(
+      'application/calendar-item',
+      JSON.stringify({ id: item.id, source: item.source, originStartMs: item.start }),
+    );
+    onDragStart?.(e, item);
+  }
+
+  function handleDragEnd(e: React.DragEvent) {
+    onDragEnd?.(e, item);
+  }
+
   return (
     <button
       type="button"
       dir={isRtl ? 'rtl' : 'ltr'}
-      onClick={onOpenDetails}
+      draggable={!past && !ghost}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onClick={ghost ? undefined : onOpenDetails}
       title={past ? 'Past item' : item.title}
       className={[
         'w-full rounded-sm text-left border-l-[3px] px-1.5 py-0.5 text-xs',
@@ -89,15 +149,30 @@ export function CalendarPill({
         'transition-colors duration-[300ms]',
         flashing ? 'bg-amber-100 dark:bg-amber-900/30' : '',
         past ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer',
+        isDraggingOrigin ? 'opacity-40' : '',
+        ghost ? 'pointer-events-none opacity-90' : '',
       ]
         .filter(Boolean)
         .join(' ')}
     >
       <div className={`flex items-start gap-1 ${isRtl ? 'flex-row-reverse' : ''}`}>
         <Icon className={`shrink-0 mt-0.5 size-3 ${iconColor}`} />
-        <span className={compact ? 'line-clamp-1' : 'line-clamp-2'}>
-          {item.title}
-        </span>
+        {/* Title — click enters inline-edit mode (stopPropagation prevents body-click). */}
+        {editingId === item.id ? (
+          <InlineTitleEdit
+            value={item.title}
+            dir={isRtl ? 'rtl' : 'ltr'}
+            onCommit={(v) => onTitleCommit?.(item, v)}
+            onCancel={() => onTitleCancel?.(item)}
+          />
+        ) : (
+          <span
+            className={compact ? 'line-clamp-1' : 'line-clamp-2'}
+            onClick={onTitleClick ? (e) => { e.stopPropagation(); onTitleClick(e); } : undefined}
+          >
+            {item.title}
+          </span>
+        )}
       </div>
       {!compact && !item.isAllDay && (
         <div className="text-muted-foreground mt-0.5 pl-4 text-[10px]">

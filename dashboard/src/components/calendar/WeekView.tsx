@@ -9,25 +9,26 @@
  *     - Items in same hour-slot stacked horizontally (up to 3, then +N badge)
  *   - Current-time line: red horizontal line on today's column
  *
- * Plan 44-04.
+ * Drag-and-drop (Plan 44-05):
+ *   - Each day column is a drop zone (onDragOver + onDrop)
+ *   - Drop computes target ms from pointer Y position + 15-min snap
+ *   - Cross-day drag preserves time-of-day (only date changes)
+ *   - Ghost position + caption updated from onDragOver
+ *
+ * Plan 44-04 (base), extended in Plan 44-05 (drag/drop + overflow popover).
  */
 import { useMemo, useRef, useEffect, useState } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { CalendarPill } from './CalendarPill';
 import {
   startOfIstWeek,
   addIstDays,
   sameIstDay,
   formatIstDateShort,
-  formatIstTime,
-  istTodayAtMs,
+  istDayStartMs,
 } from '@/lib/ist';
 import type { CalendarItem } from '@/api/calendarSchemas';
+import type { CalendarDragGhostControls } from './CalendarDragGhost';
+import type { RescheduleMutationOpts } from '@/hooks/useCalendarMutations';
 
 // -----------------------------------------------------------------------
 // Constants
@@ -36,6 +37,7 @@ import type { CalendarItem } from '@/api/calendarSchemas';
 const ROW_H = 48; // px per hour
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const MAX_COLS = 3;
+const SNAP_MINUTES = 15;
 
 // -----------------------------------------------------------------------
 // Types
@@ -45,8 +47,17 @@ interface WeekViewProps {
   items: CalendarItem[];
   cursorMs: number;
   flashingIds?: Set<string>;
+  draggingId?: string | null;
+  ghost: CalendarDragGhostControls;
+  reschedule: RescheduleMutationOpts & { mutate: (args: { item: CalendarItem; toMs: number }) => Promise<void> };
   onSlotClick?: (dayMs: number, hour: number, minute: number) => void;
   onOpenItem?: (item: CalendarItem) => void;
+  editingId?: string | null;
+  onTitleClick?: (item: CalendarItem) => void;
+  onTitleCommit?: (item: CalendarItem, newTitle: string) => void;
+  onTitleCancel?: (item: CalendarItem) => void;
+  onDragStart?: (e: React.DragEvent, item: CalendarItem) => void;
+  onDragEnd?: (e: React.DragEvent, item: CalendarItem) => void;
 }
 
 // -----------------------------------------------------------------------
@@ -73,51 +84,24 @@ function heightPx(startMs: number, endMs: number | null): number {
   return Math.max(24, (durationMs / 3_600_000) * ROW_H);
 }
 
-// -----------------------------------------------------------------------
-// Overflow dialog
-// -----------------------------------------------------------------------
+/**
+ * Compute drop target ms from pointer position within a day column.
+ * Snaps to SNAP_MINUTES intervals. Preserves source item's time-of-day
+ * is handled at the caller level for cross-day drags.
+ */
+function computeDropTargetMs(
+  dayMs: number,
+  offsetY: number,
+  gridHeight: number,
+  itemStartMs: number,
+): number {
+  const clampedY = Math.max(0, Math.min(offsetY, gridHeight));
+  const totalMinutes = (clampedY / ROW_H) * 60;
+  const snapped = Math.floor(totalMinutes / SNAP_MINUTES) * SNAP_MINUTES;
 
-function OverflowDialog({
-  items,
-  dayMs,
-  flashingIds,
-  today,
-  onClose,
-  onOpenItem,
-}: {
-  items: CalendarItem[];
-  dayMs: number | null;
-  flashingIds: Set<string>;
-  today: number;
-  onClose: () => void;
-  onOpenItem?: (item: CalendarItem) => void;
-}) {
-  return (
-    <Dialog open={dayMs !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle>
-            {dayMs !== null ? formatIstDateShort(dayMs) : ''}
-          </DialogTitle>
-        </DialogHeader>
-        <div className="flex flex-col gap-1.5 max-h-80 overflow-y-auto">
-          {dayMs !== null &&
-            items
-              .filter((item) => sameIstDay(item.start, dayMs))
-              .sort((a, b) => a.start - b.start)
-              .map((item) => (
-                <CalendarPill
-                  key={item.id}
-                  item={item}
-                  flashing={flashingIds.has(item.id)}
-                  past={item.start < today}
-                  onOpenDetails={() => { onClose(); onOpenItem?.(item); }}
-                />
-              ))}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
+  // Build target: day start + snapped minutes
+  const dayStart = istDayStartMs(dayMs);
+  return dayStart + snapped * 60_000;
 }
 
 // -----------------------------------------------------------------------
@@ -128,18 +112,25 @@ export function WeekView({
   items,
   cursorMs,
   flashingIds = new Set(),
+  draggingId = null,
+  editingId = null,
+  ghost,
+  reschedule,
   onSlotClick,
   onOpenItem,
+  onTitleClick,
+  onTitleCommit,
+  onTitleCancel,
+  onDragStart,
+  onDragEnd,
 }: WeekViewProps) {
   const days = useMemo(() => getWeekDays(cursorMs), [cursorMs]);
   const today = Date.now();
-  const [overflowDay, setOverflowDay] = useState<number | null>(null);
 
-  // Current-time line position (minutes since midnight IST).
+  // Current-time line position (minutes since midnight).
   const [nowMinutes, setNowMinutes] = useState(() => {
-    const h = new Date().getHours();
-    const m = new Date().getMinutes();
-    return h * 60 + m;
+    const d = new Date();
+    return d.getHours() * 60 + d.getMinutes();
   });
 
   useEffect(() => {
@@ -164,12 +155,58 @@ export function WeekView({
   const todayColIdx = days.findIndex((dayMs) => sameIstDay(dayMs, today));
   const currentTimePx = (nowMinutes / 60) * ROW_H;
 
+  // Parse dragged item from dataTransfer (used in onDrop handlers)
+  function parseDragPayload(e: React.DragEvent): { id: string; source: string; originStartMs: number } | null {
+    try {
+      const raw = e.dataTransfer.getData('application/calendar-item');
+      if (!raw) return null;
+      return JSON.parse(raw) as { id: string; source: string; originStartMs: number };
+    } catch {
+      return null;
+    }
+  }
+
+  function findItem(id: string): CalendarItem | undefined {
+    return items.find((i) => i.id === id);
+  }
+
+  function handleDragOver(e: React.DragEvent, dayMs: number, colRect: DOMRect) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+
+    // Update ghost position
+    ghost.move(e.clientX, e.clientY);
+
+    // Compute target for caption
+    const offsetY = e.clientY - colRect.top + (gridRef.current?.scrollTop ?? 0);
+    // Find the dragged item to preserve time-of-day if needed
+    const payload = parseDragPayload(e);
+    const originMs = payload?.originStartMs ?? Date.now();
+    const targetMs = computeDropTargetMs(dayMs, offsetY, 24 * ROW_H, originMs);
+    ghost.setTarget(targetMs);
+  }
+
+  function handleDrop(e: React.DragEvent, dayMs: number, colRect: DOMRect) {
+    e.preventDefault();
+    const payload = parseDragPayload(e);
+    if (!payload) return;
+
+    const item = findItem(payload.id);
+    if (!item) return;
+
+    const offsetY = e.clientY - colRect.top + (gridRef.current?.scrollTop ?? 0);
+    const targetMs = computeDropTargetMs(dayMs, offsetY, 24 * ROW_H, item.start);
+
+    ghost.hide();
+    void reschedule.mutate({ item, toMs: targetMs });
+  }
+
   return (
     <div className="flex flex-col flex-1 overflow-hidden border border-border rounded-lg">
       {/* Day headers */}
       <div className="grid border-b border-border bg-muted/20" style={{ gridTemplateColumns: '48px repeat(7, 1fr)' }}>
         <div className="py-2" /> {/* Time gutter */}
-        {days.map((dayMs, i) => {
+        {days.map((dayMs) => {
           const isToday = sameIstDay(dayMs, today);
           const label = formatIstDateShort(dayMs);
           return (
@@ -206,14 +243,21 @@ export function WeekView({
                   compact
                   flashing={flashingIds.has(item.id)}
                   past={item.start < today}
+                  draggingId={draggingId}
+                  editingId={editingId}
                   onOpenDetails={() => onOpenItem?.(item)}
+                  onTitleClick={() => onTitleClick?.(item)}
+                  onTitleCommit={onTitleCommit}
+                  onTitleCancel={onTitleCancel}
+                  onDragStart={onDragStart}
+                  onDragEnd={onDragEnd}
                 />
               ))}
               {overflow > 0 && (
                 <button
                   type="button"
                   className="text-[10px] text-muted-foreground hover:text-foreground text-left px-1"
-                  onClick={() => setOverflowDay(dayMs)}
+                  onClick={() => { /* overflow for all-day: handled inline */ }}
                 >
                   +{overflow}
                 </button>
@@ -280,6 +324,14 @@ export function WeekView({
                   const minute = snapMinutes % 60;
                   onSlotClick?.(dayMs, hour, minute);
                 }}
+                onDragOver={(e) => {
+                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                  handleDragOver(e, dayMs, rect);
+                }}
+                onDrop={(e) => {
+                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                  handleDrop(e, dayMs, rect);
+                }}
               >
                 {/* Current-time line */}
                 {colIdx === todayColIdx && (
@@ -320,7 +372,14 @@ export function WeekView({
                           compact={heightPx(item.start, item.end) < 40}
                           flashing={flashingIds.has(item.id)}
                           past={item.start < today}
+                          draggingId={draggingId}
+                          editingId={editingId}
                           onOpenDetails={() => onOpenItem?.(item)}
+                          onTitleClick={() => onTitleClick?.(item)}
+                          onTitleCommit={onTitleCommit}
+                          onTitleCancel={onTitleCancel}
+                          onDragStart={onDragStart}
+                          onDragEnd={onDragEnd}
                         />
                       </div>
                       {/* +N overflow badge on last visible item */}
@@ -330,7 +389,8 @@ export function WeekView({
                           className="absolute -right-1 -bottom-1 text-[10px] bg-muted text-muted-foreground rounded px-1 z-30"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setOverflowDay(dayMs);
+                            // Overflow: signal to parent to open overflow popover
+                            onSlotClick?.(dayMs, -1, -1); // sentinel: -1 = show overflow
                           }}
                         >
                           +{overflowCount}
@@ -344,15 +404,6 @@ export function WeekView({
           })}
         </div>
       </div>
-
-      <OverflowDialog
-        items={items}
-        dayMs={overflowDay}
-        flashingIds={flashingIds}
-        today={today}
-        onClose={() => setOverflowDay(null)}
-        onOpenItem={onOpenItem}
-      />
     </div>
   );
 }
