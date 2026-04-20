@@ -16,6 +16,11 @@
  *   - Ghost position + caption updated from onDragOver
  *
  * Plan 44-04 (base), extended in Plan 44-05 (drag/drop + overflow popover).
+ *
+ * Responsive note (Plan 50-03):
+ *   WeekView is desktop-only — view router in Calendar.tsx filters it on phone
+ *   (Plan 50-02). No fixed pixel widths found that would crash at narrow widths.
+ *   No functional change in this plan.
  */
 import { useMemo, useRef, useEffect, useState } from 'react';
 import { CalendarPill } from './CalendarPill';
