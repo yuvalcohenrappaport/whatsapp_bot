@@ -160,6 +160,26 @@ export function linkCalendarEventId(id: string, calendarEventId: string): void {
 }
 
 /**
+ * Calendar view: approved personal events whose eventDate falls within
+ * the given window. Phase 44 SC1.
+ */
+export function getApprovedEventsBetween(
+  fromMs: number,
+  toMs: number,
+) {
+  return db
+    .select()
+    .from(personalPendingEvents)
+    .where(
+      and(
+        eq(personalPendingEvents.status, 'approved'),
+        between(personalPendingEvents.eventDate, fromMs, toMs),
+      ),
+    )
+    .all();
+}
+
+/**
  * Insert a new event directly at status='approved' (dashboard create-flow,
  * SC4). The caller is responsible for creating the Google Calendar event
  * first and passing a calendarEventId-bearing identifier if it wants the

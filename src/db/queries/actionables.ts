@@ -1,4 +1,4 @@
-import { eq, and, lt, asc, desc, inArray } from 'drizzle-orm';
+import { eq, and, lt, asc, desc, inArray, isNotNull, gte, lte } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { db } from '../client.js';
 import { actionables } from '../schema.js';
@@ -257,6 +257,30 @@ export function createApprovedActionable(params: {
   };
   db.insert(actionables).values(row).run();
   return row;
+}
+
+/**
+ * Calendar view: approved + fired actionables with a non-null fireAt
+ * inside the window. Untimed approved actionables are excluded from
+ * the calendar (they have nowhere to be placed). Phase 44 SC1.
+ */
+export function getCalendarActionables(
+  fromMs: number,
+  toMs: number,
+): Actionable[] {
+  return db
+    .select()
+    .from(actionables)
+    .where(
+      and(
+        inArray(actionables.status, ['approved', 'fired']),
+        // fireAt IS NOT NULL AND BETWEEN fromMs AND toMs
+        isNotNull(actionables.fireAt),
+        gte(actionables.fireAt, fromMs),
+        lte(actionables.fireAt, toMs),
+      ),
+    )
+    .all();
 }
 
 /**
