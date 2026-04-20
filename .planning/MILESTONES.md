@@ -82,3 +82,13 @@
 
 ---
 
+
+## v1.8 Task Approval & Context Enrichment (Shipped: 2026-04-20)
+
+**Phases completed:** 35 phases, 93 plans, 23 tasks
+
+**Key accomplishments:**
+- (none recorded)
+
+---
+

@@ -8,22 +8,27 @@ An AI-powered WhatsApp bot that impersonates the user in private conversations a
 
 The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
 
-## Current Milestone: v1.8 Task Approval & Context Enrichment
+## Current Milestone: Planning v1.9
 
-**Goal:** Turn commitment/task detection into a *draft → approve → sync* workflow. Detections become pending placeholders in self-chat; the user approves per-item; approved items push to Google Tasks with an LLM-enriched, self-contained title that uses prior conversation context and the other contact's name.
+**Previous (shipped 2026-04-20):** v1.8 Task Approval & Context Enrichment + the Phase 44 unified editable calendar delivered as a v1.9 seed. Self-chat approval UX with Gemini context enrichment, dashboard pending-tasks view, and a unified calendar (tasks + events + LinkedIn posts) with drag-reschedule, inline edit, create-from-slot, delete, SSE live sync. See `milestones/v1.8-ROADMAP.md`.
 
-**Target features:**
-- Unified "actionables" lifecycle — merge the parallel `commitments` and `todo` pipelines behind one pending/approved/rejected model (scheduler stays separate — outgoing messages are a different concern)
-- Pending state on detection — stop auto-pushing detections to Google Tasks; persist them as `pending_approval` instead
-- Per-item inline approval in self-chat — richer preview (task + contact + snippet + trigger timestamp); user replies ✅ / ❌ / `edit: …` via WhatsApp quoted reply
-- Context-aware enrichment at approval time — a second Gemini call reads the last ~10 messages in that chat to produce a self-contained Google Tasks title that resolves pronouns and includes contact name, deadline, and subject matter
-- Self-chat direct commands bypass the gate — `remind me to X at Y` auto-approves (explicit user intent)
-- Dashboard "Pending Tasks" view — read-only list for auditing detection quality; approval remains in WhatsApp
-- Migration & cleanup — retire the `todoTasks` surface, stop dual-write, handle in-flight pending rows
+**v1.9 scope (draft, pending `/gsd:new-milestone`):** extend the calendar + dashboard surface — Google Tasks sync for all lists with per-list color + sidebar filter; approve/reject buttons on pending-tasks dashboard; accumulated backlog in `.planning/todos/pending/`.
+
+### Previous Milestone Goal: v1.8 Task Approval & Context Enrichment
+
+Turned commitment/task detection into a *draft → approve → sync* workflow. Detections become pending placeholders in self-chat; the user approves per-item; approved items push to Google Tasks with an LLM-enriched, self-contained title that uses prior conversation context and the other contact's name.
+
+**Delivered:**
+- Unified "actionables" lifecycle behind one pending/approved/rejected model (Phase 39)
+- Pending state on detection replaces auto-push to Google Tasks (Phase 40)
+- Per-item inline approval in self-chat via ✅ / ❌ / `edit:` quoted reply (Phase 41)
+- Gemini context-aware enrichment at approval time, with safe fallback (Phase 42)
+- Read-only dashboard pending-tasks view with SSE live updates (Phase 43)
+- **Bonus (v1.9 seed):** unified editable calendar with full CRUD across tasks/events/LinkedIn posts (Phase 44)
 
 ## Current State
 
-**Shipped:** v1.0 Foundation + v1.1 Dashboard & Groups + v1.2 Group Auto-Response + v1.3 Voice Responses + v1.4 Travel Agent + v1.5 Personal Assistant + v1.6 Scheduled Replies + v1.7 LinkedIn Bot Dashboard Integration
+**Shipped:** v1.0 Foundation + v1.1 Dashboard & Groups + v1.2 Group Auto-Response + v1.3 Voice Responses + v1.4 Travel Agent + v1.5 Personal Assistant + v1.6 Scheduled Replies + v1.7 LinkedIn Bot Dashboard Integration + v1.8 Task Approval & Context Enrichment
 **Codebase:** ~7,000 LOC TypeScript (src/) + pm-authority Python service consumed via Fastify proxy
 **Tech stack:** Baileys v7 + Gemini 2.5 Flash + Fastify 5 + React 19 + shadcn/ui + Drizzle/SQLite + Commander.js/Ink + googleapis + ElevenLabs + pm-authority FastAPI
 

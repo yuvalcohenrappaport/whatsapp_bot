@@ -10,7 +10,8 @@
 - [x] **v1.5 Personal Assistant** — Phases 22-26 (shipped 2026-03-16)
 - [x] **v1.6 Scheduled Replies** — Phases 27-32 (shipped 2026-03-30)
 - [x] **v1.7 LinkedIn Bot Dashboard Integration** — Phases 33-38 (shipped 2026-04-17)
-- [ ] **v1.8 Task Approval & Context Enrichment** — Phases 39-43 (planning, 2026-04-19)
+- [x] **v1.8 Task Approval & Context Enrichment** — Phases 39-43 (shipped 2026-04-20) — [archive](milestones/v1.8-ROADMAP.md)
+- [ ] **v1.9 Unified Editable Calendar** — Phase 44 shipped 2026-04-20 (milestone planning TBD)
 
 ## Phases
 
@@ -410,7 +411,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 41. WhatsApp Approval UX | v1.8 | 5/5 | Complete | 2026-04-19 |
 | 42. Context Enrichment at Approval | v1.8 | 2/2 | Complete | 2026-04-20 |
 | 43. Dashboard Pending Tasks View | v1.8 | 3/3 | Complete | 2026-04-20 |
-| 44. Unified Editable Calendar | 5/6 | Complete    | 2026-04-20 | — |
+| 44. Unified Editable Calendar | v1.9 | 6/6 | Complete | 2026-04-20 |
 
 ### Phase 44: Unified Editable Calendar (Tasks + Events + LinkedIn)
 
