@@ -410,7 +410,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 41. WhatsApp Approval UX | v1.8 | 5/5 | Complete | 2026-04-19 |
 | 42. Context Enrichment at Approval | v1.8 | 2/2 | Complete | 2026-04-20 |
 | 43. Dashboard Pending Tasks View | v1.8 | 3/3 | Complete | 2026-04-20 |
-| 44. Unified Editable Calendar | 3/6 | In Progress|  | — |
+| 44. Unified Editable Calendar | 4/6 | In Progress|  | — |
 
 ### Phase 44: Unified Editable Calendar (Tasks + Events + LinkedIn)
 
@@ -426,7 +426,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
   6. Live updates via SSE — external changes (WhatsApp approval firing a Google Task, a scheduled message firing) reflect on the calendar without reload
   7. Month / week / day view toggle; week is the default landing view
 
-**Plans:** 3/6 plans executed
+**Plans:** 4/6 plans executed
 
 Plans:
 - [ ] 44-01-PLAN.md — pm-authority POST /v1/posts/:id/reschedule + whatsapp-bot /api/linkedin/posts/:id/reschedule proxy (wave 1)
