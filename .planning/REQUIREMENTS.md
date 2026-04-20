@@ -39,9 +39,9 @@ Requirements for the **Dashboard Expansion** milestone. Bring the whole dashboar
 - [x] **GCAL-01**: Backend exposes `GET /api/google-calendar/calendars` returning every calendar the owner has access to, and `GET /api/google-calendar/events?from=<ms>&to=<ms>` returning CalendarItems with `source: 'gcal'` and `sourceFields: { calendarId, calendarName, colorId }` spanning every owned/writable calendar
 - [x] **GCAL-02**: Recurring events are expanded via `events.list(singleEvents: true)`; all-day events set `isAllDay: true`; `end` is mapped to millis (event end exclusive → inclusive delta if needed)
 - [ ] **GCAL-03**: The unified aggregator + SSE include gcal with per-source partial-failure tolerance
-- [ ] **GCAL-04**: Calendar page's sidebar filter extends to gcal calendars (same checkbox + swatch + localStorage pattern as gtasks)
+- [x] **GCAL-04**: Calendar page's sidebar filter extends to gcal calendars (same checkbox + swatch + localStorage pattern as gtasks)
 - [x] **GCAL-05**: A gcal event whose Google id matches an existing `personal_pending_events.calendar_event_id` is dropped from the gcal payload — the bot-owned row wins (editable, richer metadata)
-- [ ] **GCAL-06**: gcal pills are read-only in the dashboard calendar — no drag, no inline edit, no delete (writing back to Google Calendar is out of scope for this milestone)
+- [x] **GCAL-06**: gcal pills are read-only in the dashboard calendar — no drag, no inline edit, no delete (writing back to Google Calendar is out of scope for this milestone)
 
 ### LinkedIn Post Composer (Dashboard)
 
