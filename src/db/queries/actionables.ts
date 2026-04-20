@@ -22,7 +22,7 @@ export type NewActionable = typeof actionables.$inferInsert;
 const ALLOWED_TRANSITIONS: Record<ActionableStatus, ActionableStatus[]> = {
   pending_approval: ['approved', 'rejected', 'expired'],
   approved: ['fired'],
-  rejected: [],
+  rejected: ['pending_approval'], // undo within the server-enforced grace window (Phase 45)
   fired: [],
   expired: [],
 };
