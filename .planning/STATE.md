@@ -237,6 +237,8 @@ Legacy decisions from v1.6 (see phase 27-32 archive):
 - [Phase 37-lesson-mode-ux]: Plan 37-02: locked-modal pattern (triple-suppressed Radix Dialog) + POST/job-poll mutation hook + auto-navigate page useEffect; reusable template for future pick-* mutations
 - [Phase 37-lesson-mode-ux]: Plan 37-03: useLinkedInPickVariant deliberately bypasses useLinkedInJob (which has POLL_MAX_MS=120_000 hard cap). Uses an `ackSlow()` callback pattern so the page — not the hook — owns the terminal-state observation via useLinkedInQueueStream. The page watches post.image.url AND post.status, calls ackSlow() on transition, then delays navigation by exactly 1500ms via one setTimeout per terminal useEffect so the fal.ai image is visually observable on the focused variant before the router navigates back to the queue. Pattern honors CONTEXT §Area 3 Scenario B "no client-side timeout; trust backend/SSE to surface completion or failure" — the spinner in VariantImageSlot's pending mode literally runs forever until SSE delivers the terminal state.
 - [Phase 38]: RadioGroup created using radix-ui monorepo (not @radix-ui/react-radio-group), matching codebase import pattern
+- [Phase 44-unified-editable-calendar]: Best-effort Google API mirroring: local DB write always succeeds, upstream failures logged-and-swallowed
+- [Phase 44-unified-editable-calendar]: calendar_event_id column added to personal_pending_events via raw ALTER TABLE migration (no drizzle-kit push in package.json)
 
 ### Pending Todos
 
