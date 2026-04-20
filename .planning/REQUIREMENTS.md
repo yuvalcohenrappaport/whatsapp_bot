@@ -9,8 +9,8 @@ Requirements for the **Dashboard Expansion** milestone. Bring the whole dashboar
 
 ### Dashboard Approvals
 
-- [ ] **DASH-APP-01**: Pending-tasks dashboard page (`/pending-tasks`) exposes Approve + Reject + Edit buttons per row, calling a JWT-gated mutation API and triggering the same `approveAndSync` / rejection flow used by the WhatsApp quoted-reply path (Phase 41's `approvalHandler`)
-- [ ] **DASH-APP-02**: Approve from dashboard runs Phase 42 Gemini enrichment before pushing to Google Tasks (identical behavior to WhatsApp approve), with safe fallback on enrichment failure
+- [ ] **DASH-APP-01**: Pending-tasks dashboard page (`/pending-tasks`) exposes Approve + Reject + Edit buttons per row, calling a JWT-gated mutation API and triggering the same `approveAndSync` / rejection flow used by the WhatsApp quoted-reply path (Phase 41's `approvalHandler`) _(substrate shipped 45-01: approveActionable + rejectActionable primitives exported; HTTP routes + UI buttons land in Plans 45-02..45-04)_
+- [ ] **DASH-APP-02**: Approve from dashboard runs Phase 42 Gemini enrichment before pushing to Google Tasks (identical behavior to WhatsApp approve), with safe fallback on enrichment failure _(substrate shipped 45-01: approveActionable IS the Phase 42 enrichment path; HTTP route wiring lands in Plan 45-02)_
 - [ ] **DASH-APP-03**: Edit action opens an inline or dialog editor — saves replace the detected task text, then fall through to Approve. SSE updates every open dashboard session within ~3 s.
 
 ### Google Tasks Full Sync
@@ -189,8 +189,8 @@ Requirements for the **Task Approval & Context Enrichment** milestone. Turn comm
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DASH-APP-01 | Phase 45 | Not started |
-| DASH-APP-02 | Phase 45 | Not started |
+| DASH-APP-01 | Phase 45 | In progress (substrate 45-01 shipped) |
+| DASH-APP-02 | Phase 45 | In progress (substrate 45-01 shipped) |
 | DASH-APP-03 | Phase 45 | Not started |
 | GTASKS-01 | Phase 46 | Not started |
 | GTASKS-02 | Phase 46 | Not started |
