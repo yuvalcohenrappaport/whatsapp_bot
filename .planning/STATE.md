@@ -18,8 +18,10 @@ PM2 restart for 42-02 deploy: pid 2471902, restarted at 2026-04-20 01:44, clean 
 ## Current Position
 
 Milestone: v1.9 Dashboard Expansion — **IN PROGRESS** (Phase 44 shipped 2026-04-20 as seed; Phase 45 shipped 2026-04-20; Phases 46-49 pending — milestone closeout owned by Phase 49 `/gsd:complete-milestone v1.9`)
-Phase: 50 Dashboard Mobile UI Polish — **IN PROGRESS** (Plans 50-01..50-05 shipped 2026-04-20; Plans 50-02..50-04 calendar in parallel)
-Plan: 50-05 shipped (2026-04-20). Overview/PendingTasks/Drafts mobile responsive polish. Metric grid grid-cols-1 sm:grid-cols-2; PendingActionableCard action row grid-cols-3 on phone; Drafts Clear-all in StickyActionBar; 14/14 vitest green, vite build clean (857.48 kB). 2 atomic commits: bcfe195, 6533427. MOBILE-05 covered.
+Phase: 50 Dashboard Mobile UI Polish — **IN PROGRESS** (Plans 50-01..50-06 pending; 50-04 shipped 2026-04-20)
+Plan: 50-04 shipped (2026-04-20). useLongPress hook (500ms/8px, mouse-ignore, 5/5 vitest) + PillActionSheet bottom-sheet (Reschedule via datetime-local/IST-assumption + Edit + Delete-forward + Cancel + haptic) + CalendarPill drag gate (draggable={!isMobile && !past && !ghost}, touch DnD removed, desktop drag intact). 19/19 vitest green, vite build 860.17 kB. 3 atomic commits: 1f7f912, 05b5f5a, 6a1769e. MOBILE-04 covered.
+
+Previous Plan 50-05: shipped (2026-04-20). Overview/PendingTasks/Drafts mobile responsive polish. Metric grid grid-cols-1 sm:grid-cols-2; PendingActionableCard action row grid-cols-3 on phone; Drafts Clear-all in StickyActionBar; 14/14 vitest green, vite build clean (857.48 kB). 2 atomic commits: bcfe195, 6533427. MOBILE-05 covered.
 
 Previous Plan 50-01: shipped (2026-04-20). useViewport hook + StickyActionBar + Button tap-target floors + iOS auto-zoom kill + safe-area insets + vitest 2 test infrastructure. 3 atomic commits: 6eb8b53, ff21804, 1d2674d. MOBILE-01 covered.
 
@@ -277,6 +279,7 @@ Legacy decisions from v1.6 (see phase 27-32 archive):
 - [Phase 50-dashboard-mobile-ui-polish]: CalendarView type moved to useCalendarViewMode.ts and re-exported from CalendarHeader; colorForItem.ts shared palette util extracted
 - [Phase 50]: isMobile branch pattern: uniform approach across 6 calendar components — early return for mobile layout, existing desktop layout unchanged
 - [Phase 50]: Bottom-sheet Dialog: DialogContent fixed bottom-0 left-0 right-0 override pattern established as reusable mobile overlay primitive
+- [Phase 50]: device-is-IST datetime-local: new Date(value).getTime() avoids Intl.DateTimeFormat DST-boundary bug for single-user IST deployment
 
 ### Pending Todos
 

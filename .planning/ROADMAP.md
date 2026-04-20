@@ -430,7 +430,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 47. Google Calendar Events Sync | v1.9 | 0/? | Not started | — |
 | 48. LinkedIn Post Composer (Dashboard) | v1.9 | 0/? | Not started | — |
 | 49. Deploy + Verify + Close v1.9 | v1.9 | 0/? | Not started | — |
-| 50. Dashboard Mobile UI Polish | 4/6 | In Progress|  | — |
+| 50. Dashboard Mobile UI Polish | 5/6 | In Progress|  | — |
 
 ### Phase 45: Dashboard Pending-Tasks Write Actions
 
@@ -512,7 +512,7 @@ Plans:
   5. Overview / PendingTasks / Drafts pages audited for mobile crowding; stacked columns, full-width textareas, sticky action bars where appropriate
   6. Live walkthrough on a real phone passes against PM2 bot (swipe nav, dot-month tap, long-press sheet reschedule, iOS zoom-on-focus test, safe-area verification on notched device)
 
-**Plans:** 4/6 plans executed
+**Plans:** 5/6 plans executed
 
 Plans:
 - [ ] 50-01-PLAN.md — Global mobile primitives: useViewport hook + StickyActionBar + safe-area insets on AppLayout + Button tap-target floor + Input/Textarea iOS auto-zoom kill (regression-frozen) + vitest install
