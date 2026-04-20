@@ -132,7 +132,7 @@ export default function Overview() {
       <h1 className="text-2xl font-semibold mb-1" style={{ fontFamily: 'var(--font-heading)' }}>Overview</h1>
       <p className="text-sm text-muted-foreground mb-6">Your bot at a glance</p>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
         {statConfig.map((stat) => {
           const value = values[stat.key];
           const highlight = (stat.key === 'drafts' || stat.key === 'events' || stat.key === 'reminders' || stat.key === 'tasks') && value > 0;
@@ -147,7 +147,7 @@ export default function Overview() {
                 </div>
                 <span className="text-xs font-medium text-muted-foreground truncate">{stat.title}</span>
               </div>
-              <p className={`text-2xl md:text-3xl font-bold tracking-tight ${highlight ? stat.textClass : ''}`}>{value}</p>
+              <p className={`text-xl sm:text-2xl md:text-3xl font-bold tracking-tight ${highlight ? stat.textClass : ''}`}>{value}</p>
               <p className="text-xs text-muted-foreground mt-1">{stat.description}</p>
             </Card>
           );
