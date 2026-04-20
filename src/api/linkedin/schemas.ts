@@ -173,6 +173,15 @@ export const EditRequestSchema = z
   .strict();
 export type EditRequest = z.infer<typeof EditRequestSchema>;
 
+export const RescheduleRequestSchema = z
+  .object({
+    // ISO8601; allow either "2026-04-29T09:00:00Z" (UTC) or bare naive string.
+    // offset: true means both forms are accepted (Z or +HH:MM or no offset).
+    scheduled_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type RescheduleRequest = z.infer<typeof RescheduleRequestSchema>;
+
 export const ReplaceImageRequestSchema = z
   .object({
     image_path: z.string().min(1),
