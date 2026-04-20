@@ -45,8 +45,16 @@ import { createHash } from 'node:crypto';
 import {
   getPendingActionables,
   getRecentTerminalActionables,
+  getActionableById,
+  updateActionableTask,
+  updateActionableFireAt,
+  updateActionableTodoIds,
+  createApprovedActionable,
   type Actionable,
 } from '../../db/queries/actionables.js';
+import { getSetting } from '../../db/queries/settings.js';
+import { config } from '../../config.js';
+import { createTodoTask, updateTodoTask } from '../../todo/todoService.js';
 
 const POLL_INTERVAL_MS = 3_000;
 const HEARTBEAT_INTERVAL_MS = 15_000;
@@ -195,4 +203,91 @@ export default async function actionablesRoutes(
       clearInterval(heartbeatInterval);
     });
   });
+
+  // ─── PATCH /api/actionables/:id ──────────────────────────────────────
+  fastify.patch<{
+    Params: { id: string };
+    Body: { task?: string; fireAt?: number | null };
+  }>(
+    '/api/actionables/:id',
+    { onRequest: [fastify.authenticate] },
+    async (request, reply) => {
+      const { id } = request.params;
+      const body = (request.body ?? {}) as { task?: string; fireAt?: number | null };
+      const { task, fireAt } = body;
+
+      if (task === undefined && fireAt === undefined) {
+        return reply.status(400).send({ error: 'empty patch' });
+      }
+
+      const row = getActionableById(id);
+      if (!row) {
+        return reply.status(404).send({ error: 'Actionable not found' });
+      }
+
+      if (task !== undefined) updateActionableTask(id, task);
+      if (fireAt !== undefined) updateActionableFireAt(id, fireAt);
+
+      // Best-effort mirror to Google Tasks
+      if (row.todoTaskId && row.todoListId) {
+        void updateTodoTask(row.todoListId, row.todoTaskId, {
+          ...(task !== undefined && { title: task }),
+          ...(fireAt !== undefined && {
+            due: fireAt === null ? null : new Date(fireAt).toISOString(),
+          }),
+        });
+      }
+
+      const fresh = getActionableById(id);
+      return { actionable: fresh };
+    },
+  );
+
+  // ─── POST /api/actionables ───────────────────────────────────────────
+  fastify.post<{
+    Body: { task?: string; fireAt?: number | null; detectedLanguage?: 'he' | 'en'; sourceContactName?: string | null };
+  }>(
+    '/api/actionables',
+    { onRequest: [fastify.authenticate] },
+    async (request, reply) => {
+      const body = (request.body ?? {}) as {
+        task?: string;
+        fireAt?: number | null;
+        detectedLanguage?: 'he' | 'en';
+        sourceContactName?: string | null;
+      };
+
+      if (!body.task || String(body.task).trim() === '') {
+        return reply.status(400).send({ error: 'task is required' });
+      }
+
+      const newRow = createApprovedActionable({
+        task: body.task,
+        fireAt: body.fireAt ?? null,
+        detectedLanguage: body.detectedLanguage,
+        sourceContactJid: config.USER_JID,
+        sourceContactName: body.sourceContactName ?? 'Self',
+      });
+
+      // Best-effort Google Tasks sync
+      const todoListId = getSetting('google_tasks_list_id');
+      if (todoListId) {
+        try {
+          const result = await createTodoTask({
+            title: body.task,
+            note: `Created from dashboard`,
+          });
+          updateActionableTodoIds(newRow.id, {
+            todoTaskId: result.taskId,
+            todoListId: result.listId,
+          });
+        } catch {
+          // Swallow — local row already written
+        }
+      }
+
+      const fresh = getActionableById(newRow.id);
+      return reply.status(201).send({ actionable: fresh });
+    },
+  );
 }
