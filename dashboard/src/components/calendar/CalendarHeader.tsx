@@ -18,12 +18,14 @@
  *     day / 3day   → "Tue 20 Apr 2026"
  *
  * Plan 44-04 (base), extended in Plan 44-05 (drag + click split + ghost mode),
- * extended in Plan 50-02 (availableViews filter for mobile viewport).
+ * extended in Plan 50-02 (availableViews filter for mobile viewport),
+ * extended in Plan 50-03 (mobile compact row layout + 3-segment view pill).
  */
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { startOfIstWeek, addIstDays, formatIstDateShort } from '@/lib/ist';
+import { useViewport } from '@/hooks/useViewport';
 import type { CalendarView } from '@/hooks/useCalendarViewMode';
 
 // -----------------------------------------------------------------------
@@ -38,7 +40,7 @@ const VIEW_LABELS: Record<CalendarView, string> = {
   month: 'Month',
   week: 'Week',
   day: 'Day',
-  '3day': '3 Day',
+  '3day': '3D',
   dots: 'Dots',
 };
 
@@ -85,6 +87,22 @@ function buildDateLabel(view: CalendarView, cursorMs: number): string {
   return `${full} ${year}`;
 }
 
+function buildDateLabelShort(view: CalendarView, cursorMs: number): string {
+  const d = new Date(cursorMs);
+  const tzOpts = { timeZone: 'Asia/Jerusalem' };
+
+  if (view === 'month' || view === 'dots') {
+    return d.toLocaleDateString('en-GB', { ...tzOpts, month: 'short', year: 'numeric' });
+  }
+  if (view === 'week') {
+    const sunMs = startOfIstWeek(cursorMs);
+    const sunD = new Date(sunMs);
+    return sunD.toLocaleDateString('en-GB', { ...tzOpts, day: 'numeric', month: 'short' });
+  }
+  // day / 3day
+  return d.toLocaleDateString('en-GB', { ...tzOpts, day: 'numeric', month: 'short' });
+}
+
 function navigate(view: CalendarView, cursorMs: number, direction: -1 | 1): number {
   const d = new Date(cursorMs);
   if (view === 'month' || view === 'dots') {
@@ -102,6 +120,41 @@ function navigate(view: CalendarView, cursorMs: number, direction: -1 | 1): numb
 }
 
 // -----------------------------------------------------------------------
+// Mobile 3-segment view pill (inline subcomponent)
+// -----------------------------------------------------------------------
+
+function ViewTogglePillMobile({
+  views,
+  value,
+  onChange,
+}: {
+  views: CalendarView[];
+  value: CalendarView;
+  onChange: (v: CalendarView) => void;
+}) {
+  return (
+    <div className="flex items-center bg-muted rounded-full p-0.5 gap-0.5">
+      {views.map((v) => (
+        <button
+          key={v}
+          type="button"
+          onClick={() => onChange(v)}
+          className={[
+            'h-10 px-3 rounded-full text-xs font-medium transition-colors',
+            v === value
+              ? 'bg-background shadow-sm text-foreground'
+              : 'text-muted-foreground',
+          ].join(' ')}
+          aria-pressed={v === value}
+        >
+          {VIEW_LABELS[v]}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// -----------------------------------------------------------------------
 // Component
 // -----------------------------------------------------------------------
 
@@ -113,8 +166,55 @@ export function CalendarHeader({
   setCursorMs,
   reconnecting,
 }: CalendarHeaderProps) {
+  const { isMobile } = useViewport();
   const dateLabel = buildDateLabel(view, cursorMs);
 
+  // -----------------------------------------------------------------------
+  // Phone layout — single compact row
+  // -----------------------------------------------------------------------
+  if (isMobile) {
+    const shortLabel = buildDateLabelShort(view, cursorMs);
+    return (
+      <div className="flex items-center gap-2 px-1 py-1">
+        {/* Prev / Next navigation */}
+        <button
+          type="button"
+          onClick={() => setCursorMs(navigate(view, cursorMs, -1))}
+          className="flex items-center justify-center h-10 w-10 rounded-full hover:bg-muted"
+          aria-label="Previous"
+        >
+          <ChevronLeft className="size-5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setCursorMs(navigate(view, cursorMs, 1))}
+          className="flex items-center justify-center h-10 w-10 rounded-full hover:bg-muted"
+          aria-label="Next"
+        >
+          <ChevronRight className="size-5" />
+        </button>
+
+        {/* Date label — truncated if narrow */}
+        <span className="flex-1 truncate text-sm font-medium min-w-0">
+          {shortLabel}
+          {reconnecting && (
+            <span className="ml-1 text-xs text-amber-500 animate-pulse">…</span>
+          )}
+        </span>
+
+        {/* View toggle as 3-segment pill */}
+        <ViewTogglePillMobile
+          views={availableViews}
+          value={view}
+          onChange={setView}
+        />
+      </div>
+    );
+  }
+
+  // -----------------------------------------------------------------------
+  // Desktop layout — unchanged from Plan 44-04 / 50-02
+  // -----------------------------------------------------------------------
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       {/* Title block */}
