@@ -1149,3 +1149,164 @@ describe('linkedin write routes — Plan 38-01 lesson-runs/generate', () => {
     expect(res.json().error.code).toBe('NOT_FOUND');
   });
 });
+
+// ═════════════════════════════════════════════════════════════════════════
+// Plan 48-02 — POST /api/linkedin/posts (dashboard composer proxy)
+// ═════════════════════════════════════════════════════════════════════════
+
+describe('linkedin write routes — Plan 48-02 POST /api/linkedin/posts', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+  let server: FastifyInstance;
+
+  beforeEach(async () => {
+    fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    server = await buildTestServer();
+  });
+
+  afterEach(async () => {
+    await server.close();
+    vi.unstubAllGlobals();
+  });
+
+  it('POST /api/linkedin/posts happy path → 201 + PostSchema, upstream body forwarded', async () => {
+    const created = fixturePost({
+      id: 'post-new-1',
+      status: 'PENDING_REVIEW',
+      project_name: 'my-project',
+      content: 'hello world',
+      language: 'en',
+      content_he: null,
+    });
+    fetchMock.mockResolvedValueOnce(jsonResponse(created, 201));
+
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/linkedin/posts',
+      payload: {
+        title: 'smoke test',
+        content: 'hello world',
+        language: 'en',
+        project_name: 'my-project',
+        perspective: 'yuval',
+      },
+    });
+
+    expect(res.statusCode).toBe(201);
+    const body = res.json();
+    expect(body.id).toBe('post-new-1');
+    expect(body.status).toBe('PENDING_REVIEW');
+    expect(body.project_name).toBe('my-project');
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [calledUrl, init] = fetchMock.mock.calls[0] as [URL, RequestInit];
+    expect(calledUrl.pathname).toBe('/v1/posts');
+    expect(init.method).toBe('POST');
+    const sent = JSON.parse(init.body as string);
+    expect(sent.title).toBe('smoke test');
+    expect(sent.content).toBe('hello world');
+    expect(sent.project_name).toBe('my-project');
+    expect(sent.perspective).toBe('yuval');
+  });
+
+  it('POST /api/linkedin/posts with empty content → 400 VALIDATION_ERROR, fetch NEVER called', async () => {
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/linkedin/posts',
+      payload: {
+        title: 't',
+        content: '',
+        language: 'en',
+        project_name: 'p',
+      },
+    });
+
+    expect(res.statusCode).toBe(400);
+    const body = res.json();
+    expect(body.error.code).toBe('VALIDATION_ERROR');
+    expect(body.error.message).toBe('invalid request body');
+    expect(body.error.details.issues).toBeDefined();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('POST /api/linkedin/posts with language=he and no content_he → 400 VALIDATION_ERROR citing content_he', async () => {
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/linkedin/posts',
+      payload: {
+        title: 't',
+        content: 'en body',
+        content_he: null,
+        language: 'he',
+        project_name: 'p',
+      },
+    });
+
+    expect(res.statusCode).toBe(400);
+    const body = res.json();
+    expect(body.error.code).toBe('VALIDATION_ERROR');
+    // Cross-field refine puts path:['content_he'] on the issue.
+    const issues = body.error.details.issues as Array<{
+      path: unknown[];
+      message: string;
+    }>;
+    const hebrewIssue = issues.find((i) => i.path.includes('content_he'));
+    expect(hebrewIssue).toBeDefined();
+    expect(hebrewIssue!.message).toMatch(/content_he/);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('POST /api/linkedin/posts upstream 400 VALIDATION_ERROR → pass-through verbatim', async () => {
+    const upstreamEnvelope = {
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'project not found',
+        details: { project_name: 'unknown' },
+      },
+    };
+    fetchMock.mockResolvedValueOnce(jsonResponse(upstreamEnvelope, 400));
+
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/linkedin/posts',
+      payload: {
+        title: 'smoke',
+        content: 'hi',
+        language: 'en',
+        project_name: 'unknown',
+        perspective: 'yuval',
+      },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toEqual(upstreamEnvelope);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('POST /api/linkedin/posts without auth → 401, upstream fetch NEVER called', async () => {
+    const unauthServer = await buildTestServer(async (_req: unknown, reply: unknown) => {
+      await (reply as { code: (n: number) => { send: (b: unknown) => void } })
+        .code(401)
+        .send({
+          error: { code: 'UNAUTHORIZED', message: 'missing token', details: {} },
+        });
+    });
+    try {
+      const res = await unauthServer.inject({
+        method: 'POST',
+        url: '/api/linkedin/posts',
+        payload: {
+          title: 't',
+          content: 'hi',
+          language: 'en',
+          project_name: 'p',
+          perspective: 'yuval',
+        },
+      });
+      expect(res.statusCode).toBe(401);
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      await unauthServer.close();
+    }
+  });
+});
