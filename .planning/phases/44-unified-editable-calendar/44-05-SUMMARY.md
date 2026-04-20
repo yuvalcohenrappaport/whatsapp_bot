@@ -220,3 +220,56 @@ Commits verified:
 ---
 *Phase: 44-unified-editable-calendar*
 *Completed: 2026-04-20*
+
+## Delete extension
+
+Added 2026-04-20 as a post-plan extension. Implements hard-delete for all three calendar sources — tasks, personal-calendar events, and LinkedIn posts — with backend enforcement, best-effort Google API cleanup, optimistic UI removal, and 5-second undo toast.
+
+### New endpoints
+
+| Method | Path | Notes |
+|--------|------|-------|
+| DELETE | `/v1/posts/:id` | pm-authority FastAPI; APPROVED/PENDING_REVIEW only (STATE_VIOLATION 409 on PUBLISHED); hard-delete |
+| DELETE | `/api/actionables/:id` | whatsapp-bot Fastify; JWT-gated; best-effort Google Tasks delete then local hard-delete; 204 |
+| DELETE | `/api/personal-calendar/events/:id` | whatsapp-bot Fastify; JWT-gated; best-effort Google Calendar delete (tolerates 404/410) then local hard-delete; 204 |
+| DELETE | `/api/linkedin/posts/:id` | whatsapp-bot Fastify; JWT-gated proxy to upstream DELETE /v1/posts/:id; 5s timeout; passes error body verbatim |
+
+### New / modified files
+
+**pm-authority:**
+- `services/http/routers/mutations_fast.py` — added `@router.delete("/{post_id}")` inline with existing mutations
+- `tests/test_delete_post_endpoint.py` — 5 pytest cases: approved 204, pending_review 204, published 409, missing 404, row-actually-gone
+
+**whatsapp-bot backend:**
+- `src/db/queries/actionables.ts` — added `deleteActionable(id)`
+- `src/db/queries/personalPendingEvents.ts` — added `deletePersonalPendingEvent(id)`
+- `src/calendar/personalCalendarService.ts` — added `deletePersonalCalendarEvent(calendarId, eventId)` (best-effort, tolerates 404/410)
+- `src/api/routes/actionables.ts` — added `DELETE /api/actionables/:id` route
+- `src/api/routes/personalCalendar.ts` — added `DELETE /api/personal-calendar/events/:id` route
+- `src/api/linkedin/routes/writes.ts` — added `DELETE /api/linkedin/posts/:id` proxy route
+- `src/api/__tests__/calendarMutations.test.ts` — 10 new vitest cases (11-20): 401 guard, 404 missing, happy path 204, Google-side failure still 204
+- `src/api/linkedin/__tests__/writes.test.ts` — 3 new vitest cases: 204 happy path, 409 STATE_VIOLATION, 404 NOT_FOUND passthrough
+
+**whatsapp-bot dashboard:**
+- `dashboard/src/hooks/useCalendarMutations.ts` — added `useDeleteMutation`: confirm → optimistic remove → DELETE → undo toast (5s) with re-create
+- `dashboard/src/components/calendar/CalendarPill.tsx` — added `Trash2` icon on hover (non-compact, non-ghost); `group` class for CSS hover
+- `dashboard/src/pages/Calendar.tsx` — added `deletedIds: Set<string>` state, `applyDeleteOptimistic`/`rollbackDelete`, `useDeleteMutation`, `deletedIds` filter in `allItems`, `onDelete` in `sharedViewProps`
+- `dashboard/src/components/calendar/MonthView.tsx` — added `onDelete` prop, passed to CalendarPill + DayOverflowPopover
+- `dashboard/src/components/calendar/WeekView.tsx` — added `onDelete` prop, passed to CalendarPills (all-day row + timed grid)
+- `dashboard/src/components/calendar/DayView.tsx` — added `onDelete` prop, passed to CalendarPills (all-day row + timed grid)
+- `dashboard/src/components/calendar/DayOverflowPopover.tsx` — added `onDelete` prop, passed to CalendarPill
+
+### Commits
+
+| # | Repo | Hash | Message |
+|---|------|------|---------|
+| 1 | pm-authority | `ed9a9bd` | feat(44-delete): add DELETE /v1/posts/:id endpoint + pytest |
+| 2 | whatsapp-bot | `124c25b` | feat(44-delete): add DELETE routes for actionables, personal-calendar events, and LinkedIn posts |
+| 3 | whatsapp-bot | `da24d8c` | test(44-delete): vitest for delete routes — actionables, personal-calendar, LinkedIn proxy |
+| 4 | whatsapp-bot | `c3e929e` | feat(44-delete): dashboard delete affordance — useDeleteMutation + CalendarPill Trash2 + Calendar wiring |
+
+### Test results
+
+- vitest calendarMutations.test.ts: 20/20 passed (10 new delete cases)
+- vitest writes.test.ts: 45/45 passed (3 new delete proxy cases)
+- tsc --noEmit: clean (src/ — no errors)
