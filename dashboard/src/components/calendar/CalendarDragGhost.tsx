@@ -81,13 +81,14 @@ export interface CalendarDragGhostControls {
 }
 
 /**
- * Hook that exposes ghost controls + current state.
- * Components that only drive the ghost (pill, views) call this to get
- * { show, hide, move, setTarget }.
+ * Hook that exposes ghost controls. Does NOT subscribe to ghost state, so
+ * callers (Calendar page, views, pills) don't re-render on every pointer
+ * move during drag — only the portal component below subscribes.
+ *
+ * The returned `state` is a stale snapshot (fine for read-at-call, never for
+ * render-driven reads).
  */
 export function useCalendarDragGhost(): CalendarDragGhostControls {
-  const state = useSyncExternalStore(_subscribe, _getSnapshot, _getSnapshot);
-
   return {
     show(item: CalendarItem) {
       _setState({ visible: true, item, captionMs: item.start });
@@ -101,7 +102,9 @@ export function useCalendarDragGhost(): CalendarDragGhostControls {
     setTarget(captionMs: number | null) {
       _setState({ captionMs });
     },
-    state,
+    get state() {
+      return _state;
+    },
   };
 }
 

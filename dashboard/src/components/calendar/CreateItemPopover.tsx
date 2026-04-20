@@ -206,7 +206,7 @@ export function CreateItemPopover({
           fields: {
             task: title.trim(),
             fireAt: targetMs,
-            sourceContactName: contactJid || undefined,
+            sourceContactName: contactJid && contactJid !== '__self__' ? contactJid : undefined,
           },
           onCreated: () => {
             onOpenChange(false);
@@ -339,12 +339,12 @@ export function CreateItemPopover({
         {type === 'task' && contacts && contacts.length > 0 && (
           <div className="flex items-center gap-2 mb-2">
             <label className="text-xs text-muted-foreground w-20 shrink-0">Contact</label>
-            <Select value={contactJid} onValueChange={setContactJid}>
+            <Select value={contactJid || '__self__'} onValueChange={setContactJid}>
               <SelectTrigger className="h-7 text-xs flex-1">
                 <SelectValue placeholder="Optional" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None</SelectItem>
+                <SelectItem value="__self__">None</SelectItem>
                 {contacts.map((c) => (
                   <SelectItem key={c.jid} value={c.jid}>
                     {c.name ?? c.jid}
