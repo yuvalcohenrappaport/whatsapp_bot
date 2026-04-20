@@ -18,8 +18,8 @@ PM2 restart for 42-02 deploy: pid 2471902, restarted at 2026-04-20 01:44, clean 
 ## Current Position
 
 Milestone: v1.9 Dashboard Expansion — **IN PROGRESS** (Phase 44 shipped 2026-04-20 as seed; Phase 45 shipped 2026-04-20; Phases 46-49 pending — milestone closeout owned by Phase 49 `/gsd:complete-milestone v1.9`)
-Phase: 50 Dashboard Mobile UI Polish — **IN PROGRESS** (Plans 50-01..50-06 pending; 50-04 shipped 2026-04-20)
-Plan: 50-04 shipped (2026-04-20). useLongPress hook (500ms/8px, mouse-ignore, 5/5 vitest) + PillActionSheet bottom-sheet (Reschedule via datetime-local/IST-assumption + Edit + Delete-forward + Cancel + haptic) + CalendarPill drag gate (draggable={!isMobile && !past && !ghost}, touch DnD removed, desktop drag intact). 19/19 vitest green, vite build 860.17 kB. 3 atomic commits: 1f7f912, 05b5f5a, 6a1769e. MOBILE-04 covered.
+Phase: 50 Dashboard Mobile UI Polish — **COMPLETE 2026-04-20** (6/6 plans shipped; 26/26 live walkthrough checks PASS on real iPhone via Tailscale to PM2 bot; all MOBILE-01..06 requirements verified; v2.0 milestone seeded; next target: Phase 46 Google Tasks Full-List Sync (v1.9 backfill, GTASKS-01..05) OR Phase 51 (next v2.0 polish phase, TBD — deferred items: LinkedIn workflow mobile pass, theme refresh, perf). Full commit chain: 6eb8b53..71a9b37. StatusStrip hotfix (71a9b37) mid-walkthrough — md:sticky md:top-0 gate on phone.)
+Plan: 50-06 closeout shipped (2026-04-20). Planning docs updated: ROADMAP.md Phase 50 checkbox [x] + Progress table 6/6 Complete; REQUIREMENTS.md MOBILE-06 flipped to [x] + all v2.0 Traceability rows updated to Complete with evidence; STATE.md updated.
 
 Previous Plan 50-05: shipped (2026-04-20). Overview/PendingTasks/Drafts mobile responsive polish. Metric grid grid-cols-1 sm:grid-cols-2; PendingActionableCard action row grid-cols-3 on phone; Drafts Clear-all in StickyActionBar; 14/14 vitest green, vite build clean (857.48 kB). 2 atomic commits: bcfe195, 6533427. MOBILE-05 covered.
 

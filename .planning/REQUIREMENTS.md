@@ -14,7 +14,7 @@ Requirements for the **Dashboard UX Polish** milestone. Lift the dashboard's UX 
 - [x] **MOBILE-03**: Calendar components responsive on phone — `CalendarHeader` collapses to a single compact row with a 3-segment view-toggle pill; `CalendarPill` ≥28px min-height with no hover tooltip; `DayView` single-column with a floating `+ New` FAB (safe-area-inset-aware); `DayOverflowPopover`, `CreateItemPopover`, `InlineTitleEdit` all switch from Radix Popover to Radix Dialog in bottom-sheet mode below 768px
 - [x] **MOBILE-04**: Long-press → `<PillActionSheet>` replaces touch drag-and-drop on phone (desktop drag preserved via `draggable={!isMobile}` gate); `useLongPress` hook fires on ≥500ms hold with <8px movement, ignores mouse pointers; PillActionSheet exposes Reschedule / Edit title / Delete / Cancel; Reschedule uses native `<input type="datetime-local">` interpreted as IST (canonical bot timezone) and dispatches the existing `useCalendarMutations.reschedule()` — no new mutation, no new error handling, no new date-picker library; haptic via `navigator.vibrate(10)` when available
 - [x] **MOBILE-05**: Daily-driver pages mobile audit — `Overview` 2-col metric grid collapses to 1-col on phone with text scaling at <375px to prevent value-text wrap; `PendingTasks` card action row (Approve/Edit/Reject) safely sized for 320px width with full-width inline-edit textarea; `Drafts` primary actions (Send all / Regenerate where applicable) wrapped in `<StickyActionBar>` so they stay reachable while scrolling
-- [ ] **MOBILE-06**: Live walkthrough on a real phone passes against the live PM2 bot via Tailscale URL — 24-check protocol covering swipe nav, dot-month tap-to-day, long-press → PillActionSheet → reschedule with **IST correctness verified by direct sqlite query against the rescheduled item**, iOS zoom-on-focus test on Safari, safe-area-inset verification on a notched device, orientation rotation, and 320px-width regression check on Overview / PendingTasks
+- [x] **MOBILE-06**: Live walkthrough on a real phone passes against the live PM2 bot via Tailscale URL — 26-check protocol covering swipe nav, dot-month tap-to-day, long-press → PillActionSheet → reschedule with **IST correctness verified by direct sqlite query against the rescheduled item**, iOS zoom-on-focus test on Safari, safe-area-inset verification on a notched device, orientation rotation, and 320px-width regression check on Overview / PendingTasks _(Plan 50-06 — 26/26 PASS on real iPhone via Tailscale to PM2 bot; see 50-06-SUMMARY.md walkthrough log)_
 
 ## v1.9 Requirements
 
@@ -205,12 +205,12 @@ Requirements for the **Task Approval & Context Enrichment** milestone. Turn comm
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| MOBILE-01 | Phase 50 | Not started |
-| MOBILE-02 | Phase 50 | Not started |
-| MOBILE-03 | Phase 50 | Not started |
-| MOBILE-04 | Phase 50 | Not started |
-| MOBILE-05 | Phase 50 | Not started |
-| MOBILE-06 | Phase 50 | Not started |
+| MOBILE-01 | Phase 50 | Complete (2026-04-20 — useViewport hook + StickyActionBar + Button 44px tap-target floor + Input/Textarea text-base iOS zoom kill + AppLayout safe-area insets; all live-verified on iPhone via Tailscale; commits 6eb8b53..1d2674d; see 50-06-SUMMARY.md MOBILE-01) |
+| MOBILE-02 | Phase 50 | Complete (2026-04-20 — Day default on phone + horizontal swipe prev/next (60px/30px-drift) + vertical-scroll preservation + 3-Day scrollable + MonthDotsView dot grid (7-col) + tap-day→DayView; WeekView never mounts on phone; live-verified; commits cdc2179..44c3dda; see 50-06-SUMMARY.md MOBILE-02) |
+| MOBILE-03 | Phase 50 | Complete (2026-04-20 — CalendarHeader compact row + CalendarPill 28px min + DayView +New FAB + DayOverflowPopover/CreateItemPopover/InlineTitleEdit as bottom sheets; live-verified; commits 087f2c1..0dce2b9; see 50-06-SUMMARY.md MOBILE-03) |
+| MOBILE-04 | Phase 50 | Complete (2026-04-20 — useLongPress 500ms/8px + PillActionSheet (Reschedule/Edit/Delete/Cancel) + datetime-local IST reschedule + haptic; touch drag dead; desktop drag intact; **CONTEXT risk #4 IST correctness verified by sqlite query against actionables.due_at**; commits 1f7f912..6a1769e; see 50-06-SUMMARY.md MOBILE-04) |
+| MOBILE-05 | Phase 50 | Complete (2026-04-20 — Overview 1-col metric grid at phone width + PendingTasks grid-cols-3 action row 320px-safe + Drafts Clear-all in StickyActionBar; live-verified; commits bcfe195..6533427; see 50-06-SUMMARY.md MOBILE-05) |
+| MOBILE-06 | Phase 50 | Complete (2026-04-20 — 26/26 walkthrough checks PASS on real iPhone via Tailscale to PM2 bot; StatusStrip hotfix commit 71a9b37 applied mid-walkthrough + re-verified; full commit chain 6eb8b53..71a9b37; see 50-06-SUMMARY.md walkthrough log) |
 
 **v2.0 Coverage:**
 - v2.0 requirements: 6 total

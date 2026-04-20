@@ -120,7 +120,7 @@
 
 **Milestone Goal:** Lift the dashboard's UX quality across surfaces. Starts with a phone-first mobile pass (Calendar as showcase + global primitives + daily-driver polish), with room for follow-up polish phases (LinkedIn workflow mobile pass, theme refresh, perf) added as they surface.
 
-- [ ] **Phase 50: Dashboard Mobile UI Polish** — Phone-first dashboard pass: global mobile primitives, Calendar mobile strategy (day-default + MonthDotsView + long-press action sheet), daily-driver page polish (Overview/PendingTasks/Drafts). Design: `docs/superpowers/specs/2026-04-20-dashboard-mobile-ui-design.md`.
+- [x] **Phase 50: Dashboard Mobile UI Polish** — Phone-first dashboard pass: global mobile primitives, Calendar mobile strategy (day-default + MonthDotsView + long-press action sheet), daily-driver page polish (Overview/PendingTasks/Drafts). Design: `docs/superpowers/specs/2026-04-20-dashboard-mobile-ui-design.md`.
 
 ## Phase Details
 
@@ -430,7 +430,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 47. Google Calendar Events Sync | v1.9 | 0/? | Not started | — |
 | 48. LinkedIn Post Composer (Dashboard) | v1.9 | 0/? | Not started | — |
 | 49. Deploy + Verify + Close v1.9 | v1.9 | 0/? | Not started | — |
-| 50. Dashboard Mobile UI Polish | 5/6 | In Progress|  | — |
+| 50. Dashboard Mobile UI Polish | v2.0 | 6/6 | Complete | 2026-04-20 |
 
 ### Phase 45: Dashboard Pending-Tasks Write Actions
 
@@ -512,15 +512,15 @@ Plans:
   5. Overview / PendingTasks / Drafts pages audited for mobile crowding; stacked columns, full-width textareas, sticky action bars where appropriate
   6. Live walkthrough on a real phone passes against PM2 bot (swipe nav, dot-month tap, long-press sheet reschedule, iOS zoom-on-focus test, safe-area verification on notched device)
 
-**Plans:** 5/6 plans executed
+**Plans:** 6/6 plans complete
 
 Plans:
-- [ ] 50-01-PLAN.md — Global mobile primitives: useViewport hook + StickyActionBar + safe-area insets on AppLayout + Button tap-target floor + Input/Textarea iOS auto-zoom kill (regression-frozen) + vitest install
-- [ ] 50-02-PLAN.md — Calendar view router (useCalendarViewMode) + useHorizontalSwipe (60px / 30px-drift) + new MonthDotsView phone-only month component + Calendar.tsx wire-up (DayView default, WeekView desktop-only)
-- [ ] 50-03-PLAN.md — Calendar components responsive pass: CalendarHeader compact row + CalendarPill 28px min + DayView FAB + DayOverflowPopover/CreateItemPopover/InlineTitleEdit as bottom sheets on phone
-- [ ] 50-04-PLAN.md — Long-press → PillActionSheet (Reschedule via native datetime-local in IST + Edit + Delete + Cancel) + useLongPress hook; touch DnD removed on phone via draggable={!isMobile}; desktop drag preserved
-- [ ] 50-05-PLAN.md — Daily-driver pages mobile audit: Overview metric grid + PendingTasks 320px-safe action row + Drafts primary actions in StickyActionBar
-- [ ] 50-06-PLAN.md — Live verification on real phone via Tailscale to PM2 bot (24-check protocol incl. IST sqlite-correctness check) + ROADMAP/REQUIREMENTS/STATE closeout (autonomous: false)
+- [x] 50-01-PLAN.md — Global mobile primitives: useViewport hook + StickyActionBar + safe-area insets on AppLayout + Button tap-target floor + Input/Textarea iOS auto-zoom kill (regression-frozen) + vitest install (see `.planning/phases/50-dashboard-mobile-ui-polish/50-01-SUMMARY.md`)
+- [x] 50-02-PLAN.md — Calendar view router (useCalendarViewMode) + useHorizontalSwipe (60px / 30px-drift) + new MonthDotsView phone-only month component + Calendar.tsx wire-up (DayView default, WeekView desktop-only) (see `.planning/phases/50-dashboard-mobile-ui-polish/50-02-SUMMARY.md`)
+- [x] 50-03-PLAN.md — Calendar components responsive pass: CalendarHeader compact row + CalendarPill 28px min + DayView FAB + DayOverflowPopover/CreateItemPopover/InlineTitleEdit as bottom sheets on phone (see `.planning/phases/50-dashboard-mobile-ui-polish/50-03-SUMMARY.md`)
+- [x] 50-04-PLAN.md — Long-press → PillActionSheet (Reschedule via native datetime-local in IST + Edit + Delete + Cancel) + useLongPress hook; touch DnD removed on phone via draggable={!isMobile}; desktop drag preserved (see `.planning/phases/50-dashboard-mobile-ui-polish/50-04-SUMMARY.md`)
+- [x] 50-05-PLAN.md — Daily-driver pages mobile audit: Overview metric grid + PendingTasks 320px-safe action row + Drafts primary actions in StickyActionBar (see `.planning/phases/50-dashboard-mobile-ui-polish/50-05-SUMMARY.md`)
+- [x] 50-06-PLAN.md — Live verification on real phone via Tailscale to PM2 bot (26/26 checks PASS incl. IST sqlite-correctness check + StatusStrip hotfix mid-walkthrough) + ROADMAP/REQUIREMENTS/STATE closeout (see `.planning/phases/50-dashboard-mobile-ui-polish/50-06-SUMMARY.md`)
 
 ### Phase 44: Unified Editable Calendar (Tasks + Events + LinkedIn)
 
