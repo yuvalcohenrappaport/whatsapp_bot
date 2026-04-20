@@ -235,7 +235,7 @@ Requirements for the **Task Approval & Context Enrichment** milestone. Turn comm
 | GCAL-04 | Phase 47 | Not started |
 | GCAL-05 | Phase 47 | Complete (Plan 47-01, 2026-04-20) |
 | GCAL-06 | Phase 47 | Not started |
-| LIN-NEW-01 | Phase 48 | Not started |
+| LIN-NEW-01 | Phase 48 | In Progress (Plans 48-01 pm-authority + 48-02 proxy shipped 2026-04-20; awaits Plan 48-03 dashboard UI) |
 | VER-01 | Phase 49 | Not started |
 
 **v1.9 Coverage:**
