@@ -49,6 +49,7 @@ import { callUpstream } from '../linkedin/client.js';
 import { mapUpstreamErrorToReply } from '../linkedin/errors.js';
 import { PostSchema } from '../linkedin/schemas.js';
 import { z } from 'zod';
+import { fetchGcalCalendarItems } from './googleCalendar.js';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -74,7 +75,12 @@ export type CalendarItem = {
 export type SourceStatus = 'ok' | 'error';
 export type CalendarEnvelope = {
   items: CalendarItem[];
-  sources: { tasks: SourceStatus; events: SourceStatus; linkedin: SourceStatus };
+  sources: {
+    tasks: SourceStatus;
+    events: SourceStatus;
+    linkedin: SourceStatus;
+    gcal: SourceStatus; // NEW — GCAL-03
+  };
 };
 
 // ─── Window parser (shared across all five routes) ───────────────────────────
@@ -158,7 +164,7 @@ function projectLinkedin(posts: Post[], fromMs: number, toMs: number): CalendarI
 // ─── Aggregator ───────────────────────────────────────────────────────────────
 
 async function fetchCalendarWindow(fromMs: number, toMs: number): Promise<CalendarEnvelope> {
-  const [tasksRes, eventsRes, linkedinRes] = await Promise.allSettled([
+  const [tasksRes, eventsRes, linkedinRes, gcalRes] = await Promise.allSettled([
     Promise.resolve().then(() => getCalendarActionables(fromMs, toMs)),
     Promise.resolve().then(() => getApprovedEventsBetween(fromMs, toMs)),
     callUpstream({
@@ -167,10 +173,16 @@ async function fetchCalendarWindow(fromMs: number, toMs: number): Promise<Calend
       timeoutMs: 5_000,
       responseSchema: z.array(PostSchema),
     }).then(({ data }) => data),
+    fetchGcalCalendarItems(fromMs, toMs),
   ]);
 
   const items: CalendarItem[] = [];
-  const sources: CalendarEnvelope['sources'] = { tasks: 'ok', events: 'ok', linkedin: 'ok' };
+  const sources: CalendarEnvelope['sources'] = {
+    tasks: 'ok',
+    events: 'ok',
+    linkedin: 'ok',
+    gcal: 'ok',
+  };
 
   if (tasksRes.status === 'fulfilled') {
     items.push(...projectTasks(tasksRes.value));
@@ -188,6 +200,12 @@ async function fetchCalendarWindow(fromMs: number, toMs: number): Promise<Calend
     items.push(...projectLinkedin(linkedinRes.value, fromMs, toMs));
   } else {
     sources.linkedin = 'error';
+  }
+
+  if (gcalRes.status === 'fulfilled') {
+    items.push(...gcalRes.value);
+  } else {
+    sources.gcal = 'error';
   }
 
   // Sort by start asc so the client can binary-search into the day grid.
@@ -210,7 +228,7 @@ export function hashCalendarEnvelope(env: CalendarEnvelope): string {
     i.end,
     i.isAllDay ? 1 : 0,
   ]);
-  const statusBits = `${env.sources.tasks}:${env.sources.events}:${env.sources.linkedin}`;
+  const statusBits = `${env.sources.tasks}:${env.sources.events}:${env.sources.linkedin}:${env.sources.gcal}`;
   return createHash('sha1').update(JSON.stringify([compact, statusBits])).digest('hex');
 }
 
