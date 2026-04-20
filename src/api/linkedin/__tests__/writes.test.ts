@@ -993,4 +993,90 @@ describe('linkedin write routes — Plan 38-01 lesson-runs/generate', () => {
     const [calledUrl] = fetchMock.mock.calls[0] as [URL, RequestInit];
     expect(calledUrl.pathname).toBe('/v1/projects');
   });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Plan 44-01 — Route 11: POST /api/linkedin/posts/:id/reschedule
+  // ═══════════════════════════════════════════════════════════════════════
+
+  it('POST /posts/:id/reschedule without JWT → 401', async () => {
+    // Build a fresh server that always rejects auth (401 response).
+    const unauthServer = await buildTestServer(async () => {
+      throw Object.assign(new Error('Unauthorized'), { statusCode: 401 });
+    });
+    try {
+      const res = await unauthServer.inject({
+        method: 'POST',
+        url: '/api/linkedin/posts/abc/reschedule',
+        payload: { scheduled_at: '2026-04-29T09:00:00Z' },
+      });
+      expect(res.statusCode).toBe(401);
+      // fetch must NOT be called — auth gate fired before upstream call
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      await unauthServer.close();
+    }
+  });
+
+  it('POST /posts/:id/reschedule with JWT + empty body → 400 VALIDATION_ERROR', async () => {
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/linkedin/posts/abc/reschedule',
+      payload: {},
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error.code).toBe('VALIDATION_ERROR');
+    // fetch must NOT be called — Zod validation fired before upstream call
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('POST /posts/:id/reschedule with JWT + valid body → 200 + upstream PostDTO', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(
+        fixturePost({ id: 'abc', status: 'APPROVED', scheduled_at: '2026-04-28T03:30:00+00:00' }),
+      ),
+    );
+
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/linkedin/posts/abc/reschedule',
+      payload: { scheduled_at: '2026-04-25T12:00:00Z' },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().id).toBe('abc');
+    expect(res.json().status).toBe('APPROVED');
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [calledUrl, init] = fetchMock.mock.calls[0] as [URL, RequestInit];
+    expect(calledUrl.pathname).toBe('/v1/posts/abc/reschedule');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string)).toEqual({
+      scheduled_at: '2026-04-25T12:00:00Z',
+    });
+  });
+
+  it('POST /posts/:id/reschedule with JWT + valid body, upstream returns 409 STATE_VIOLATION → passthrough 409', async () => {
+    const upstreamError = {
+      error: {
+        code: 'STATE_VIOLATION',
+        message: 'cannot reschedule post in status PUBLISHED',
+        details: { post_id: 'abc', current_status: 'PUBLISHED' },
+      },
+    };
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify(upstreamError), {
+        status: 409,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/linkedin/posts/abc/reschedule',
+      payload: { scheduled_at: '2026-04-29T09:00:00Z' },
+    });
+
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error.code).toBe('STATE_VIOLATION');
+  });
 });

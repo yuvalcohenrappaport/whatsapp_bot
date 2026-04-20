@@ -48,6 +48,7 @@ import {
   PickVariantRequestSchema,
   PostSchema,
   ReplaceImageRequestSchema,
+  RescheduleRequestSchema,
   StartLessonRunRequestSchema,
 } from '../schemas.js';
 
@@ -425,6 +426,33 @@ export async function registerWriteRoutes(
             },
           });
         }
+        return mapUpstreamErrorToReply(err, reply);
+      }
+    },
+  );
+
+  // ─── Route 11: reschedule (sync, body: {scheduled_at}) ─────────────────
+  fastify.post<{ Params: { id: string }; Body: unknown }>(
+    '/api/linkedin/posts/:id/reschedule',
+    { onRequest: [fastify.authenticate] },
+    async (request, reply) => {
+      const body = await validateBody(
+        RescheduleRequestSchema,
+        request.body,
+        reply,
+      );
+      if (body === null) return;
+      const { id } = request.params;
+      try {
+        const { status, data } = await callUpstream({
+          method: 'POST',
+          path: `/v1/posts/${encodeURIComponent(id)}/reschedule`,
+          body,
+          timeoutMs: FAST_MUTATION_TIMEOUT_MS,
+          responseSchema: PostSchema,
+        });
+        return reply.status(status).send(data);
+      } catch (err) {
         return mapUpstreamErrorToReply(err, reply);
       }
     },
