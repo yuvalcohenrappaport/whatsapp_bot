@@ -1,28 +1,45 @@
 /**
- * /pending-tasks — read-only dashboard view of the actionables lifecycle.
+ * /pending-tasks — dashboard view of the actionables lifecycle.
  *
  * Two stacked sections (NOT tabs per CONTEXT reasoning — Phase 37 tabs
  * separated distinct data universes; Pending + Recent here are one
  * entity's lifecycle):
- *   - Pending — every `status='pending_approval'` row as a card, with
- *     per-row RTL mirroring for Hebrew, absolute IST timestamp, full
- *     multi-line source snippet (line-clamp-6), amber arrival flash.
+ *   - Pending — every `status='pending_approval'` row as a card with
+ *     per-row Approve / Edit / Reject controls (Phase 45-03), per-row
+ *     RTL mirroring for Hebrew, absolute IST timestamp, full multi-line
+ *     source snippet (line-clamp-6), amber arrival flash.
  *   - Recent — 50 most-recent terminal rows (approved/rejected/expired/
  *     fired) with filter chips (All / Approved / Rejected / Expired).
  *
- * No mutation affordances anywhere — approve/reject/edit stay in WhatsApp
- * (v1.8 milestone scope lock from 43-CONTEXT.md). A footer line makes the
- * read-only nature visible.
+ * Plan 43-02 originally shipped /pending-tasks as read-only. Plan 45-03
+ * adds write actions funneled through the Plan 45-02 HTTP routes. UX
+ * discipline per CONTEXT:
  *
- * Plan 43-02.
+ *   - Approve + Edit: optimistic remove + silent success (SSE re-
+ *     materializes the row into Recent within 3s via the hash-poll
+ *     from Plan 43-02 — that IS the feedback; no success toast).
+ *   - Reject: optimistic remove + sonner Undo toast (5s, mirrors
+ *     useCalendarMutations reschedule-undo shape).
+ *   - 409 already_handled: neutral toast, row stays gone (end state
+ *     correct; do NOT rollback).
+ *   - Any other error (network / 500 / 503 bot_disconnected):
+ *     rollback the optimistic remove + error toast.
+ *
+ * Plan: 43-02 (read surface) → 45-03 (write actions).
  */
 import { useMemo, useState } from 'react';
 import { Inbox, User, ExternalLink } from 'lucide-react';
+import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { useActionablesStream } from '@/hooks/useActionablesStream';
 import { useActionableArrivalFlash } from '@/hooks/useActionableArrivalFlash';
+import {
+  useActionableActions,
+  actionableErrorToToastText,
+} from '@/hooks/useActionableActions';
+import { PendingActionableCard } from '@/components/actionables/PendingActionableCard';
 import type { Actionable } from '@/api/actionablesSchemas';
 
 // -----------------------------------------------------------------------
@@ -35,6 +52,10 @@ type RecentFilter = 'all' | 'approved' | 'rejected' | 'expired';
  * Absolute IST timestamp — `YYYY-MM-DD HH:mm`. CONTEXT lock: absolute,
  * NOT relative. Uses the en-GB locale as a deterministic source for the
  * `DD/MM/YYYY, HH:MM` shape, then reformats to ISO-date order.
+ *
+ * (Still lives here because AuditActionableCard also uses it. The
+ * PendingActionableCard extracted in Plan 45-03 has its own byte-identical
+ * copy for independence.)
  */
 function formatIstAbsolute(ts: number): string {
   const formatted = new Date(ts).toLocaleString('en-GB', {
@@ -94,40 +115,6 @@ function auditStatusBadge(status: Actionable['status']): {
 
 function contactDisplay(actionable: Actionable): string {
   return actionable.sourceContactName ?? actionable.sourceContactJid;
-}
-
-// -----------------------------------------------------------------------
-// Pending card
-// -----------------------------------------------------------------------
-
-function PendingActionableCard({
-  actionable,
-  flashing,
-}: {
-  actionable: Actionable;
-  flashing: boolean;
-}) {
-  const isRtl = actionable.detectedLanguage === 'he';
-  return (
-    <Card
-      dir={isRtl ? 'rtl' : 'ltr'}
-      className={`px-6 gap-3 transition-colors duration-[300ms] ${
-        flashing ? 'bg-amber-100 dark:bg-amber-900/30' : ''
-      }`}
-    >
-      <div className="text-lg font-medium leading-snug">{actionable.task}</div>
-      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-        <User className="size-3.5" />
-        <span>{contactDisplay(actionable)}</span>
-      </div>
-      <div className="border-l-2 border-muted pl-3 whitespace-pre-wrap line-clamp-6 text-sm text-muted-foreground">
-        {actionable.sourceMessageText}
-      </div>
-      <div className="text-xs text-muted-foreground">
-        {formatIstAbsolute(actionable.detectedAt)}
-      </div>
-    </Card>
-  );
 }
 
 // -----------------------------------------------------------------------
@@ -196,6 +183,51 @@ export default function PendingTasksPage() {
   const flashingIds = useActionableArrivalFlash(pending);
   const [recentFilter, setRecentFilter] = useState<RecentFilter>('all');
 
+  // Write-actions wiring (Plan 45-03)
+  const {
+    approveActionable,
+    rejectActionable,
+    editActionable,
+    unrejectActionable,
+  } = useActionableActions();
+
+  /**
+   * Ids the user has initiated a mutation on — we optimistically drop
+   * them from the rendered list until SSE re-materializes the terminal
+   * state into `recent`. On error we un-suppress (rollback).
+   *
+   * A 409 `already_handled` response does NOT trigger rollback: the
+   * end state is correct (the row was handled in WhatsApp), we just
+   * surface a neutral toast.
+   */
+  const [suppressedIds, setSuppressedIds] = useState<Set<string>>(new Set());
+  /** Ids with a mutation in flight — card buttons render disabled. */
+  const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
+
+  const suppress = (id: string) =>
+    setSuppressedIds((prev) => {
+      if (prev.has(id)) return prev;
+      const n = new Set(prev);
+      n.add(id);
+      return n;
+    });
+  const unsuppress = (id: string) =>
+    setSuppressedIds((prev) => {
+      if (!prev.has(id)) return prev;
+      const n = new Set(prev);
+      n.delete(id);
+      return n;
+    });
+  const setBusy = (id: string, b: boolean) =>
+    setBusyIds((prev) => {
+      const has = prev.has(id);
+      if (b === has) return prev;
+      const n = new Set(prev);
+      if (b) n.add(id);
+      else n.delete(id);
+      return n;
+    });
+
   // `fired` rolls up under `approved` in the audit filter per CONTEXT.
   const filteredRecent = useMemo(() => {
     if (!recent) return null;
@@ -208,6 +240,89 @@ export default function PendingTasksPage() {
     return recent.filter((a) => a.status === recentFilter);
   }, [recent, recentFilter]);
 
+  /**
+   * Optimistic pending list — strips anything the user clicked
+   * Approve/Edit/Reject on. SSE will authoritatively remove it (or put
+   * it back in the rare rollback case).
+   */
+  const optimisticPending = useMemo(() => {
+    if (!pending) return null;
+    if (suppressedIds.size === 0) return pending;
+    return pending.filter((a) => !suppressedIds.has(a.id));
+  }, [pending, suppressedIds]);
+
+  async function handleApprove(a: Actionable) {
+    suppress(a.id);
+    setBusy(a.id, true);
+    const result = await approveActionable(a.id);
+    setBusy(a.id, false);
+    if (result.ok) return; // silent success — SSE re-materializes in Recent
+    if (result.reason === 'already_handled') {
+      toast(actionableErrorToToastText(result));
+      return; // row stays gone — end state correct
+    }
+    unsuppress(a.id); // rollback
+    toast.error(actionableErrorToToastText(result));
+  }
+
+  async function handleReject(a: Actionable) {
+    suppress(a.id);
+    setBusy(a.id, true);
+    const result = await rejectActionable(a.id);
+    setBusy(a.id, false);
+
+    if (!result.ok) {
+      if (result.reason === 'already_handled') {
+        toast(actionableErrorToToastText(result));
+        return;
+      }
+      unsuppress(a.id);
+      toast.error(actionableErrorToToastText(result));
+      return;
+    }
+
+    // Success — only write action with a toast, because of Undo.
+    // Shape mirrors useCalendarMutations reschedule-undo (lines 107-143).
+    const truncTask = a.task.slice(0, 40);
+    const label = `Rejected: ${truncTask}${a.task.length > 40 ? '…' : ''}`;
+    toast(label, {
+      duration: 5000,
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          void (async () => {
+            const undo = await unrejectActionable(a.id);
+            if (undo.ok) {
+              unsuppress(a.id);
+              return;
+            }
+            if (undo.reason === 'grace_expired') {
+              // Server says too late — don't restore the row visually,
+              // just inform the user with a neutral toast.
+              toast(actionableErrorToToastText(undo));
+              return;
+            }
+            toast.error(actionableErrorToToastText(undo));
+          })();
+        },
+      },
+    });
+  }
+
+  async function handleEditSave(a: Actionable, newTask: string) {
+    suppress(a.id);
+    setBusy(a.id, true);
+    const result = await editActionable(a.id, newTask);
+    setBusy(a.id, false);
+    if (result.ok) return; // silent — SSE re-materializes with edited title
+    if (result.reason === 'already_handled') {
+      toast(actionableErrorToToastText(result));
+      return;
+    }
+    unsuppress(a.id);
+    toast.error(actionableErrorToToastText(result));
+  }
+
   return (
     <div>
       <div className="flex items-start justify-between gap-3">
@@ -219,8 +334,7 @@ export default function PendingTasksPage() {
             Pending Tasks
           </h1>
           <p className="text-sm text-muted-foreground">
-            Auditing detection quality and approval outcomes — approve or
-            reject in WhatsApp.
+            Approve, reject, or edit here or in WhatsApp — both surfaces stay in sync.
           </p>
         </div>
         {status === 'reconnecting' && (
@@ -233,15 +347,15 @@ export default function PendingTasksPage() {
       {/* --- Pending section --- */}
       <section className="mt-8">
         <h2 className="text-lg font-semibold mb-3">
-          Pending ({pending?.length ?? 0})
+          Pending ({optimisticPending?.length ?? 0})
         </h2>
-        {pending === null ? (
+        {optimisticPending === null ? (
           <div className="space-y-4">
             {Array.from({ length: 3 }).map((_, i) => (
               <Skeleton key={i} className="h-28 w-full rounded-xl" />
             ))}
           </div>
-        ) : pending.length === 0 ? (
+        ) : optimisticPending.length === 0 ? (
           <Card className="flex flex-col items-center justify-center py-12 text-muted-foreground">
             <Inbox className="size-6 mb-2 opacity-60" />
             <p className="text-base">
@@ -250,11 +364,15 @@ export default function PendingTasksPage() {
           </Card>
         ) : (
           <div className="space-y-4">
-            {pending.map((actionable) => (
+            {optimisticPending.map((actionable) => (
               <PendingActionableCard
                 key={actionable.id}
                 actionable={actionable}
                 flashing={flashingIds.has(actionable.id)}
+                busy={busyIds.has(actionable.id)}
+                onApprove={() => void handleApprove(actionable)}
+                onReject={() => void handleReject(actionable)}
+                onEditSave={(newTask) => void handleEditSave(actionable, newTask)}
               />
             ))}
           </div>
@@ -316,7 +434,7 @@ export default function PendingTasksPage() {
       </section>
 
       <p className="text-xs text-muted-foreground text-center mt-8">
-        Approve, reject, or edit any pending actionable in WhatsApp.
+        Approve, reject, or edit here or in WhatsApp — both surfaces stay in sync.
       </p>
     </div>
   );
