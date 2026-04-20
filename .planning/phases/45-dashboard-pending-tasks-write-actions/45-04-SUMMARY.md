@@ -206,7 +206,7 @@ Neither A nor B is a plan deviation — both are called out explicitly in Plan 4
 | 10 | `6c973d0` | fix | 45-03 | replace setState-in-effect with synchronous seed on edit-mode enter |
 | 11 | `c880c53` | feat | 45-03 | wire /pending-tasks page to write-actions with optimistic removal + Undo toast |
 | 12 | `69b2fe5` | docs | 45-03 | complete dashboard-actionables-write-actions-ui plan |
-| 13 | *(closeout)* | docs | 45-04 | complete phase 45 dashboard write-actions |
+| 13 | `2ee6950` | docs | 45-04 | complete phase 45 dashboard write-actions |
 
 ## Requirements Shipped
 
