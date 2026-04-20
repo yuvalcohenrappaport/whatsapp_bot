@@ -15,6 +15,9 @@
  * Plan 44-04 (base), extended in Plan 44-05 (all interaction).
  */
 import { useMemo, useState, useEffect, useRef } from 'react';
+import { useViewport } from '@/hooks/useViewport';
+import { useCalendarViewMode } from '@/hooks/useCalendarViewMode';
+import { useHorizontalSwipe } from '@/hooks/useHorizontalSwipe';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -31,14 +34,16 @@ import {
   useInlineEditMutation,
   useDeleteMutation,
 } from '@/hooks/useCalendarMutations';
-import { CalendarHeader, type CalendarView } from '@/components/calendar/CalendarHeader';
+import { CalendarHeader } from '@/components/calendar/CalendarHeader';
 import { MonthView } from '@/components/calendar/MonthView';
 import { WeekView } from '@/components/calendar/WeekView';
 import { DayView } from '@/components/calendar/DayView';
+import { MonthDotsView } from '@/components/calendar/MonthDotsView';
 import { CreateItemPopover, type CreateItemAnchor } from '@/components/calendar/CreateItemPopover';
 import { CalendarDragGhost, useCalendarDragGhost } from '@/components/calendar/CalendarDragGhost';
 import { InlineTitleEdit } from '@/components/calendar/InlineTitleEdit';
 import { EditPostDialog } from '@/components/linkedin/EditPostDialog';
+import { addIstDays } from '@/lib/ist';
 import type { CalendarItem } from '@/api/calendarSchemas';
 import type { LinkedInPost } from '@/components/linkedin/postStatus';
 
@@ -334,7 +339,8 @@ function EventEditDialog({ item, open, onOpenChange, onOptimistic }: EventEditDi
 // -----------------------------------------------------------------------
 
 export default function CalendarPage() {
-  const [view, setView] = useState<CalendarView>('week');
+  const { view, setView, availableViews } = useCalendarViewMode();
+  const { isMobile } = useViewport();
   const [cursorMs, setCursorMs] = useState(() => Date.now());
 
   const { tasks, events, linkedin, sseStatus, refetch } = useCalendarStream();
@@ -419,6 +425,21 @@ export default function CalendarPage() {
     setDraggingId(null);
     ghost.hide();
   }
+
+  // ---- Horizontal swipe (phone only — day / 3day navigation) ----
+  const dayContainerRef = useRef<HTMLDivElement | null>(null);
+  useHorizontalSwipe(dayContainerRef, {
+    onLeft: () => {
+      if (isMobile && (view === 'day' || view === '3day')) {
+        setCursorMs((ms) => addIstDays(ms, +1));
+      }
+    },
+    onRight: () => {
+      if (isMobile && (view === 'day' || view === '3day')) {
+        setCursorMs((ms) => addIstDays(ms, -1));
+      }
+    },
+  });
 
   // ---- Create popover ----
   const [createAnchor, setCreateAnchor] = useState<CreateItemAnchor | null>(null);
@@ -552,6 +573,7 @@ export default function CalendarPage() {
       <CalendarHeader
         view={view}
         setView={setView}
+        availableViews={availableViews}
         cursorMs={cursorMs}
         setCursorMs={setCursorMs}
         reconnecting={reconnecting}
@@ -607,23 +629,48 @@ export default function CalendarPage() {
       {allLoading ? (
         <SkeletonCalendar />
       ) : view === 'month' ? (
+        // Desktop only — useCalendarViewMode prevents view==='month' on mobile
         <MonthView
           {...sharedViewProps}
           cursorMs={cursorMs}
           onDaySlotClick={(dayMs) => openCreatePopover(dayMs, 9, 0)}
         />
       ) : view === 'week' ? (
+        // Desktop only — useCalendarViewMode prevents view==='week' on mobile
         <WeekView
           {...sharedViewProps}
           cursorMs={cursorMs}
           onSlotClick={openCreatePopover}
         />
-      ) : (
-        <DayView
-          {...sharedViewProps}
+      ) : view === 'dots' ? (
+        // Phone only — useCalendarViewMode prevents view==='dots' on desktop
+        <MonthDotsView
+          items={allItems}
           cursorMs={cursorMs}
-          onSlotClick={openCreatePopover}
+          onSelectDay={(dayMs) => { setCursorMs(dayMs); setView('day'); }}
         />
+      ) : view === '3day' ? (
+        // Phone only — 3-day view as horizontally-scrollable column of 3 DayViews
+        <div ref={dayContainerRef} className="flex gap-2 overflow-x-auto">
+          {[-1, 0, 1].map((offset) => (
+            <div key={offset} className="min-w-0 flex-1">
+              <DayView
+                {...sharedViewProps}
+                cursorMs={addIstDays(cursorMs, offset)}
+                onSlotClick={openCreatePopover}
+              />
+            </div>
+          ))}
+        </div>
+      ) : (
+        // Day view (default on phone, also available on desktop)
+        <div ref={dayContainerRef}>
+          <DayView
+            {...sharedViewProps}
+            cursorMs={cursorMs}
+            onSlotClick={openCreatePopover}
+          />
+        </div>
       )}
 
       {/* Empty state */}
