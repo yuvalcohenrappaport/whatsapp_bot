@@ -12,6 +12,7 @@
 - [x] **v1.7 LinkedIn Bot Dashboard Integration** — Phases 33-38 (shipped 2026-04-17)
 - [x] **v1.8 Task Approval & Context Enrichment** — Phases 39-43 (shipped 2026-04-20) — [archive](milestones/v1.8-ROADMAP.md)
 - [ ] **v1.9 Dashboard Expansion** — Phases 44-49 (Phase 44 shipped 2026-04-20 as seed; planned 2026-04-20)
+- [ ] **v2.0 Dashboard UX Polish** — Phase 50+ (Phase 50 seeded 2026-04-20 as mobile UI polish)
 
 ## Phases
 
@@ -114,6 +115,12 @@
 - [ ] **Phase 47: Google Calendar Events Sync** — Pull all owner's Google Calendar events into the unified calendar (read-only); de-dup against personal_pending_events; sidebar filter mechanism extends to gcal
 - [ ] **Phase 48: LinkedIn Post Composer (Dashboard)** — "New Post" action on /linkedin queue page that composes via pm-authority's POST /v1/posts and returns the post in PENDING_REVIEW
 - [ ] **Phase 49: Deploy + Verify + Close v1.9** — PM2 redeploy both services, dashboard bundle ship, owner walkthrough on all new requirements, milestone closeout
+
+### v2.0 Dashboard UX Polish (PLANNING 2026-04-20)
+
+**Milestone Goal:** Lift the dashboard's UX quality across surfaces. Starts with a phone-first mobile pass (Calendar as showcase + global primitives + daily-driver polish), with room for follow-up polish phases (LinkedIn workflow mobile pass, theme refresh, perf) added as they surface.
+
+- [ ] **Phase 50: Dashboard Mobile UI Polish** — Phone-first dashboard pass: global mobile primitives, Calendar mobile strategy (day-default + MonthDotsView + long-press action sheet), daily-driver page polish (Overview/PendingTasks/Drafts). Design: `docs/superpowers/specs/2026-04-20-dashboard-mobile-ui-design.md`.
 
 ## Phase Details
 
@@ -423,6 +430,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 47. Google Calendar Events Sync | v1.9 | 0/? | Not started | — |
 | 48. LinkedIn Post Composer (Dashboard) | v1.9 | 0/? | Not started | — |
 | 49. Deploy + Verify + Close v1.9 | v1.9 | 0/? | Not started | — |
+| 50. Dashboard Mobile UI Polish | v2.0 | 0/6 | Not started | — |
 
 ### Phase 45: Dashboard Pending-Tasks Write Actions
 
@@ -489,6 +497,20 @@ Plans:
   1. PM2 services restarted, fresh bundle served, sanity curls green
   2. Owner walkthrough covers DASH-APP-01..03, GTASKS-01..05, GCAL-01..06, LIN-NEW-01
   3. Milestone archived via `/gsd:complete-milestone v1.9`; git tag `v1.9` created
+
+### Phase 50: Dashboard Mobile UI Polish
+
+**Goal:** The dashboard is first-class usable on a phone (≤768px). The Calendar is the showcase fix (currently 680 lines with zero responsive code); a shared set of global mobile primitives uplifts every other page in one pass.
+**Depends on:** Phase 45 (pending-tasks write-actions; dashboard card pattern established)
+**Requirements:** _TBD — define via `/gsd:discuss-phase 50` before planning_
+**Design:** `docs/superpowers/specs/2026-04-20-dashboard-mobile-ui-design.md`
+**Success Criteria:**
+  1. Global primitives shipped: tap-target floor (44px), iOS zoom kill (≥16px inputs), safe-area insets, `<StickyActionBar>`, `useViewport()` hook
+  2. Calendar phone view: DayView default with horizontal swipe prev/next, 3-Day scrollable, new `MonthDotsView` replacing MonthView on phone; WeekView desktop-only
+  3. Calendar components responsive: header, pill, DayView, DayOverflowPopover, CreateItemPopover, InlineTitleEdit all adapt to ≤768px
+  4. Long-press → action sheet replaces touch drag-and-drop for reschedule on phone; desktop drag preserved
+  5. Overview / PendingTasks / Drafts pages audited for mobile crowding; stacked columns, full-width textareas, sticky action bars where appropriate
+  6. Live walkthrough on a real phone passes against PM2 bot (swipe nav, dot-month tap, long-press sheet reschedule, iOS zoom-on-focus test, safe-area verification on notched device)
 
 ### Phase 44: Unified Editable Calendar (Tasks + Events + LinkedIn)
 
