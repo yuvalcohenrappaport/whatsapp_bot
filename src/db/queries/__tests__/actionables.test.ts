@@ -153,6 +153,8 @@ describe('actionables queries', () => {
         return to === 'approved' || to === 'rejected' || to === 'expired';
       }
       if (from === 'approved') return to === 'fired';
+      // Phase 45: rejected → pending_approval (server-enforced undo grace window).
+      if (from === 'rejected') return to === 'pending_approval';
       return false;
     }
 
@@ -179,6 +181,23 @@ describe('actionables queries', () => {
       const id = seed();
       updateActionableStatus(id, 'rejected');
       expect(() => updateActionableStatus(id, 'approved')).toThrow(
+        /invalid actionable transition/,
+      );
+    });
+
+    it('allows rejected → pending_approval (Phase 45 undo grace window)', () => {
+      const id = seed();
+      updateActionableStatus(id, 'rejected');
+      expect(() =>
+        updateActionableStatus(id, 'pending_approval'),
+      ).not.toThrow();
+      expect(getActionableById(id)?.status).toBe('pending_approval');
+    });
+
+    it('throws on invalid transition rejected → fired', () => {
+      const id = seed();
+      updateActionableStatus(id, 'rejected');
+      expect(() => updateActionableStatus(id, 'fired')).toThrow(
         /invalid actionable transition/,
       );
     });

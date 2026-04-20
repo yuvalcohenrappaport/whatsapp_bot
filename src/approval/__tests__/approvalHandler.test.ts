@@ -35,7 +35,13 @@ vi.mock('../enrichmentService.js', () => ({
 }));
 
 // Use the REAL replyParser so the grammar is end-to-end asserted.
-const { tryHandleApprovalReply } = await import('../approvalHandler.js');
+const {
+  tryHandleApprovalReply,
+  approveActionable,
+  rejectActionable,
+  unrejectActionable,
+  GraceExpiredError,
+} = await import('../approvalHandler.js');
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -487,5 +493,114 @@ describe('tryHandleApprovalReply', () => {
     expect(createTodoTaskMock).not.toHaveBeenCalled();
     // Confirmation still sent.
     expect(sock.sendMessage.mock.calls[0][1].text).toBe('✅ Added: Task A');
+  });
+});
+
+// ─── Exported primitives (shared with Phase 45 HTTP write routes) ───────────
+
+describe('approveActionable / rejectActionable / unrejectActionable', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    isTasksConnectedMock.mockReturnValue(true);
+    createTodoTaskMock.mockResolvedValue({ taskId: 'T-NEW', listId: 'L-1' });
+    enrichActionableMock.mockImplementation((a: Record<string, unknown>) =>
+      Promise.resolve({
+        title: a['task'] as string,
+        note: `From: ${(a['sourceContactName'] as string | null) ?? 'Self'}`,
+      }),
+    );
+  });
+
+  // ── approveActionable standalone ──
+  it('approveActionable (standalone) flips status, enriches, pushes to Google Tasks, and echoes ✅ Added', async () => {
+    const a = actionable({ id: 'a-x', task: 'Task X' }) as unknown as Parameters<
+      typeof approveActionable
+    >[1];
+    const sock = sockMock();
+
+    await approveActionable(sock as never, a);
+
+    expect(updateActionableStatusMock).toHaveBeenCalledOnce();
+    expect(updateActionableStatusMock).toHaveBeenCalledWith('a-x', 'approved');
+    expect(enrichActionableMock).toHaveBeenCalledOnce();
+    expect(updateActionableEnrichmentMock).toHaveBeenCalledOnce();
+    expect(createTodoTaskMock).toHaveBeenCalledOnce();
+    expect(createTodoTaskMock.mock.calls[0][0].title).toBe('Task X');
+    expect(updateActionableTodoIdsMock).toHaveBeenCalledWith('a-x', {
+      todoTaskId: 'T-NEW',
+      todoListId: 'L-1',
+    });
+    expect(sock.sendMessage).toHaveBeenCalledOnce();
+    expect(sock.sendMessage.mock.calls[0][1].text).toBe('✅ Added: Task X');
+  });
+
+  // ── rejectActionable standalone EN ──
+  it('rejectActionable (standalone, EN) flips status and echoes ❌ Dismissed', async () => {
+    const a = actionable({ id: 'a-x', task: 'Task X' }) as unknown as Parameters<
+      typeof rejectActionable
+    >[1];
+    const sock = sockMock();
+
+    await rejectActionable(sock as never, a);
+
+    expect(updateActionableStatusMock).toHaveBeenCalledOnce();
+    expect(updateActionableStatusMock).toHaveBeenCalledWith('a-x', 'rejected');
+    expect(sock.sendMessage).toHaveBeenCalledOnce();
+    expect(sock.sendMessage.mock.calls[0][1].text).toBe('❌ Dismissed');
+    // Approve-side side-effects never fire.
+    expect(enrichActionableMock).not.toHaveBeenCalled();
+    expect(createTodoTaskMock).not.toHaveBeenCalled();
+  });
+
+  // ── rejectActionable standalone HE ──
+  it('rejectActionable (standalone, HE) echoes the Hebrew ❌ בוטל line', async () => {
+    const a = actionable({
+      id: 'a-he',
+      task: 'לבדוק דוח',
+      detectedLanguage: 'he',
+    }) as unknown as Parameters<typeof rejectActionable>[1];
+    const sock = sockMock();
+
+    await rejectActionable(sock as never, a);
+
+    expect(updateActionableStatusMock).toHaveBeenCalledWith('a-he', 'rejected');
+    expect(sock.sendMessage.mock.calls[0][1].text).toBe('❌ בוטל');
+  });
+
+  // ── unrejectActionable within grace window ──
+  it('unrejectActionable within grace window flips rejected → pending_approval, silent on WhatsApp', async () => {
+    const a = actionable({
+      id: 'a-undo',
+      status: 'rejected',
+      updatedAt: Date.now() - 2000, // 2s ago, well within any reasonable grace
+    }) as unknown as Parameters<typeof unrejectActionable>[1];
+    const sock = sockMock();
+
+    await unrejectActionable(sock as never, a, 5000);
+
+    expect(updateActionableStatusMock).toHaveBeenCalledOnce();
+    expect(updateActionableStatusMock).toHaveBeenCalledWith(
+      'a-undo',
+      'pending_approval',
+    );
+    // CONTEXT §Undo: silent on WhatsApp — no compensating message.
+    expect(sock.sendMessage).not.toHaveBeenCalled();
+  });
+
+  // ── unrejectActionable past grace window ──
+  it('unrejectActionable past grace window throws GraceExpiredError, no DB mutation, no echo', async () => {
+    const a = actionable({
+      id: 'a-undo-late',
+      status: 'rejected',
+      updatedAt: Date.now() - 10000, // 10s ago > 5s grace
+    }) as unknown as Parameters<typeof unrejectActionable>[1];
+    const sock = sockMock();
+
+    await expect(
+      unrejectActionable(sock as never, a, 5000),
+    ).rejects.toBeInstanceOf(GraceExpiredError);
+
+    expect(updateActionableStatusMock).not.toHaveBeenCalled();
+    expect(sock.sendMessage).not.toHaveBeenCalled();
   });
 });
