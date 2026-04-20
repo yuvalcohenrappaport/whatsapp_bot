@@ -15,6 +15,7 @@ import Integrations from '@/pages/Integrations';
 import LinkedInQueue from '@/pages/LinkedInQueue';
 import LinkedInLessonSelection from '@/pages/LinkedInLessonSelection';
 import LinkedInVariantFinalization from '@/pages/LinkedInVariantFinalization';
+import Calendar from '@/pages/Calendar';
 
 export const router = createBrowserRouter([
   { path: '/login', element: <Login /> },
@@ -29,6 +30,7 @@ export const router = createBrowserRouter([
           { path: 'contacts', element: <Contacts /> },
           { path: 'drafts', element: <Drafts /> },
           { path: 'events', element: <Events /> },
+          { path: 'calendar', element: <Calendar /> },
           { path: 'reminders', element: <Reminders /> },
           { path: 'tasks', element: <Tasks /> },
           { path: 'pending-tasks', element: <PendingTasks /> },
