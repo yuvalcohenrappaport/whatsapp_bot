@@ -189,9 +189,9 @@ Requirements for the **Task Approval & Context Enrichment** milestone. Turn comm
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DASH-APP-01 | Phase 45 | API + UI shipped 45-01/45-02/45-03 (Approve/Edit/Reject buttons on every pending row, JWT-gated POST through Plan 45-01 primitives — live verification lands 45-04) |
-| DASH-APP-02 | Phase 45 | API + UI shipped 45-01/45-02/45-03 (dashboard Approve runs Phase 42 enrichment + Google Tasks sync via approveActionable primitive — live verification lands 45-04) |
-| DASH-APP-03 | Phase 45 | API + UI shipped 45-02/45-03 (POST /edit rewrites task + falls through to approveActionable; inline card-morph editor with Esc/Cmd+Enter + Save & Approve; SSE via Plan 43-02 3s hash-poll — live verification lands 45-04) |
+| DASH-APP-01 | Phase 45 | Complete (2026-04-20 — /pending-tasks page renders Approve/Reject/Edit per pending row live on http://100.124.47.99:3000/pending-tasks; four JWT-gated POST routes at /api/actionables/:id/{approve|reject|edit|unreject} served by PM2 whatsapp-bot (bundle index-BWm4-BDb.js); SC#1 observed live by owner in 45-04 walkthrough; see 45-04-SUMMARY.md) |
+| DASH-APP-02 | Phase 45 | Complete (2026-04-20 — dashboard Approve invokes approveActionable (exported from Plan 45-01), which runs Phase 42 Gemini enrichment + Google Tasks push with the safe fallback inherited from Phase 42; SC#2 observed live — enriched Recent row + self-chat ✅ echo + Google Tasks entry within 3s; SC#5 concurrent WhatsApp race observed live — exactly one Tasks entry + one echo, losing surface got `Already handled in WhatsApp` toast without rollback; see 45-04-SUMMARY.md) |
+| DASH-APP-03 | Phase 45 | Complete (2026-04-20 — POST /edit rewrites task text via updateActionableTask, then falls through to approveActionable so one ✅ echo fires with the edited title matching the WhatsApp `edit:` grammar; SC#4 observed live — Hebrew RTL card-morph + Cmd+Enter save + enriched-from-edited-text Recent row within 3s; SC#3 reject+undo within 5s verified live (silent unreject), grace-closed post-10s shows 'Undo window closed' toast; SSE via Plan 43-02 3s hash-poll unchanged; see 45-04-SUMMARY.md) |
 | GTASKS-01 | Phase 46 | Not started |
 | GTASKS-02 | Phase 46 | Not started |
 | GTASKS-03 | Phase 46 | Not started |

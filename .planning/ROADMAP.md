@@ -109,7 +109,7 @@
 - [x] **Phase 42: Context Enrichment at Approval** — Gemini second pass with last ~10 chat messages produces self-contained Google Tasks title + rich note at approval time; safe fallback on enrichment failure (completed 2026-04-20)
 - [x] **Phase 43: Dashboard Pending Tasks View** — Read-only dashboard page for auditing pending + recent approved/rejected/expired actionables (completed 2026-04-20)
 - [x] **Phase 44: Unified Editable Calendar** — /calendar surface merging tasks + personal events + LinkedIn posts with drag-reschedule, inline title edit, create-from-slot popover, delete-with-undo, SSE live sync, month/week/day views (completed 2026-04-20 — v1.9 seed)
-- [ ] **Phase 45: Dashboard Pending-Tasks Write Actions** — Approve/Reject/Edit buttons on /pending-tasks page, routed through the Phase 41 `approvalHandler` with Phase 42 Gemini enrichment
+- [x] **Phase 45: Dashboard Pending-Tasks Write Actions** — Approve/Reject/Edit buttons on /pending-tasks page, routed through the Phase 41 `approvalHandler` with Phase 42 Gemini enrichment (completed 2026-04-20)
 - [ ] **Phase 46: Google Tasks Full-List Sync** — Pull all owner's Google Tasks lists into the unified calendar with per-list color + sidebar filter; de-dup against actionables
 - [ ] **Phase 47: Google Calendar Events Sync** — Pull all owner's Google Calendar events into the unified calendar (read-only); de-dup against personal_pending_events; sidebar filter mechanism extends to gcal
 - [ ] **Phase 48: LinkedIn Post Composer (Dashboard)** — "New Post" action on /linkedin queue page that composes via pm-authority's POST /v1/posts and returns the post in PENDING_REVIEW
@@ -418,7 +418,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 42. Context Enrichment at Approval | v1.8 | 2/2 | Complete | 2026-04-20 |
 | 43. Dashboard Pending Tasks View | v1.8 | 3/3 | Complete | 2026-04-20 |
 | 44. Unified Editable Calendar | v1.9 | 6/6 | Complete | 2026-04-20 |
-| 45. Dashboard Pending-Tasks Write Actions | 3/4 | In Progress|  | — |
+| 45. Dashboard Pending-Tasks Write Actions | v1.9 | 4/4 | Complete | 2026-04-20 |
 | 46. Google Tasks Full-List Sync | v1.9 | 0/? | Not started | — |
 | 47. Google Calendar Events Sync | v1.9 | 0/? | Not started | — |
 | 48. LinkedIn Post Composer (Dashboard) | v1.9 | 0/? | Not started | — |
@@ -436,13 +436,13 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
   4. Edit opens an inline editor; save rewrites `task` then falls through to Approve
   5. All write routes JWT-gated and idempotent against concurrent WhatsApp replies on the same row
 
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 - [x] 45-01-PLAN.md — Extract approve/reject primitives + unreject transition (backend refactor, no behavior drift) (see `.planning/phases/45-dashboard-pending-tasks-write-actions/45-01-SUMMARY.md`)
 - [x] 45-02-PLAN.md — Four POST write routes on /api/actionables/:id/{approve,reject,edit,unreject} with race-arbitrated 409 `already_handled` (see `.planning/phases/45-dashboard-pending-tasks-write-actions/45-02-SUMMARY.md`)
 - [x] 45-03-PLAN.md — Dashboard Approve/Reject/Edit buttons, inline edit card-morph, optimistic removal, 5s Reject Undo toast (see `.planning/phases/45-dashboard-pending-tasks-write-actions/45-03-SUMMARY.md`)
-- [ ] 45-04-PLAN.md — Live verification + owner walkthrough of all 5 SCs + ROADMAP/REQUIREMENTS/STATE closeout
+- [x] 45-04-PLAN.md — Live verification + owner walkthrough of all 5 SCs + ROADMAP/REQUIREMENTS/STATE closeout (see `.planning/phases/45-dashboard-pending-tasks-write-actions/45-04-SUMMARY.md`)
 
 ### Phase 46: Google Tasks Full-List Sync
 
