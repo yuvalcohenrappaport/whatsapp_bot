@@ -40,7 +40,7 @@
  * for a single worker — same tradeoff LinkedIn stream made per its
  * docstring.
  */
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyReply } from 'fastify';
 import { createHash } from 'node:crypto';
 import {
   getPendingActionables,
@@ -56,12 +56,42 @@ import {
 import { getSetting } from '../../db/queries/settings.js';
 import { config } from '../../config.js';
 import { createTodoTask, updateTodoTask, deleteTodoTask } from '../../todo/todoService.js';
+import {
+  approveActionable,
+  rejectActionable,
+  unrejectActionable,
+  GraceExpiredError,
+} from '../../approval/approvalHandler.js';
+import { getState } from '../state.js';
 
 const POLL_INTERVAL_MS = 3_000;
 const HEARTBEAT_INTERVAL_MS = 15_000;
 const DEFAULT_RECENT_LIMIT = 50;
 const MAX_RECENT_LIMIT = 200;
 const MIN_RECENT_LIMIT = 1;
+
+// CONTEXT §Undo for Reject: ~5s window. 10s gives a ~5s UI timer + safety
+// margin for network latency + clock skew. Server-enforced — client timer
+// is advisory only.
+const UNREJECT_GRACE_MS = 10_000;
+const EDIT_TASK_MAX_LEN = 500;
+
+/**
+ * Shared 409 envelope for all four write routes when the row's current
+ * status no longer matches the pre-condition the route expected. Lets the
+ * dashboard route the user to the "Already handled in WhatsApp" toast
+ * regardless of which mutation was attempted.
+ */
+function alreadyHandledReply(
+  reply: FastifyReply,
+  row: Actionable,
+): ReturnType<FastifyReply['send']> {
+  return reply.status(409).send({
+    error: 'already_handled',
+    currentStatus: row.status,
+    actionable: row,
+  });
+}
 
 /**
  * Stable content hash across BOTH pending and recent lists. Catches every
@@ -319,6 +349,146 @@ export default async function actionablesRoutes(
 
       deleteActionable(id);
       return reply.status(204).send();
+    },
+  );
+
+  // ─── POST /api/actionables/:id/approve ───────────────────────────────
+  // Dashboard-initiated approve — funnels through Plan 45-01
+  // approveActionable primitive so enrichment + Google Tasks sync +
+  // ✅ self-chat echo are byte-identical to WhatsApp quoted-reply. Server
+  // is the race arbiter: status guard + primitive's transition-throw are
+  // the only idempotency fences.
+  fastify.post<{ Params: { id: string } }>(
+    '/api/actionables/:id/approve',
+    { onRequest: [fastify.authenticate] },
+    async (request, reply) => {
+      const { id } = request.params;
+      const row = getActionableById(id);
+      if (!row) return reply.status(404).send({ error: 'Actionable not found' });
+      if (row.status !== 'pending_approval') return alreadyHandledReply(reply, row);
+      const sock = getState().sock;
+      if (!sock) return reply.status(503).send({ error: 'bot_disconnected' });
+      try {
+        await approveActionable(sock, row);
+      } catch (err) {
+        // updateActionableStatus throws on invalid transition — means a
+        // concurrent actor flipped the row between our getActionableById
+        // and the approve call. Re-read + surface as already_handled.
+        const fresh = getActionableById(id);
+        if (fresh && fresh.status !== 'pending_approval') {
+          return alreadyHandledReply(reply, fresh);
+        }
+        throw err; // unknown failure — let Fastify 500
+      }
+      const fresh = getActionableById(id);
+      return { actionable: fresh };
+    },
+  );
+
+  // ─── POST /api/actionables/:id/reject ────────────────────────────────
+  // Symmetric to /approve — same race discipline, funnels to
+  // rejectActionable (❌ self-chat echo).
+  fastify.post<{ Params: { id: string } }>(
+    '/api/actionables/:id/reject',
+    { onRequest: [fastify.authenticate] },
+    async (request, reply) => {
+      const { id } = request.params;
+      const row = getActionableById(id);
+      if (!row) return reply.status(404).send({ error: 'Actionable not found' });
+      if (row.status !== 'pending_approval') return alreadyHandledReply(reply, row);
+      const sock = getState().sock;
+      if (!sock) return reply.status(503).send({ error: 'bot_disconnected' });
+      try {
+        await rejectActionable(sock, row);
+      } catch (err) {
+        const fresh = getActionableById(id);
+        if (fresh && fresh.status !== 'pending_approval') {
+          return alreadyHandledReply(reply, fresh);
+        }
+        throw err;
+      }
+      const fresh = getActionableById(id);
+      return { actionable: fresh };
+    },
+  );
+
+  // ─── POST /api/actionables/:id/edit ──────────────────────────────────
+  // Mirrors approvalHandler.applyDirective's WhatsApp `edit:` grammar:
+  // rewrite task text FIRST, then fall through to approveActionable so
+  // ONE self-chat echo is sent with the edited title.
+  fastify.post<{ Params: { id: string }; Body: { task?: string } }>(
+    '/api/actionables/:id/edit',
+    { onRequest: [fastify.authenticate] },
+    async (request, reply) => {
+      const { id } = request.params;
+      const rawTask = (request.body?.task ?? '').trim();
+      if (!rawTask) return reply.status(400).send({ error: 'task is required' });
+      if (rawTask.length > EDIT_TASK_MAX_LEN) {
+        return reply.status(400).send({
+          error: 'task too long',
+          maxLength: EDIT_TASK_MAX_LEN,
+        });
+      }
+      const row = getActionableById(id);
+      if (!row) return reply.status(404).send({ error: 'Actionable not found' });
+      if (row.status !== 'pending_approval') return alreadyHandledReply(reply, row);
+      const sock = getState().sock;
+      if (!sock) return reply.status(503).send({ error: 'bot_disconnected' });
+
+      // Rewrite FIRST so the approve path's confirmation echo shows the
+      // edited task text (matches WhatsApp `edit:` grammar — single echo).
+      updateActionableTask(id, rawTask);
+      const refreshed = getActionableById(id);
+      if (!refreshed) return reply.status(404).send({ error: 'Actionable disappeared' });
+      try {
+        await approveActionable(sock, refreshed);
+      } catch (err) {
+        const finalRow = getActionableById(id);
+        if (finalRow && finalRow.status !== 'pending_approval') {
+          return alreadyHandledReply(reply, finalRow);
+        }
+        throw err;
+      }
+      return { actionable: getActionableById(id) };
+    },
+  );
+
+  // ─── POST /api/actionables/:id/unreject ──────────────────────────────
+  // Reject Undo: flips rejected → pending_approval iff within the
+  // server-enforced grace window. Silent on WhatsApp per CONTEXT §Undo.
+  // GraceExpiredError → 409 grace_expired; transition-throw → already_handled.
+  fastify.post<{ Params: { id: string } }>(
+    '/api/actionables/:id/unreject',
+    { onRequest: [fastify.authenticate] },
+    async (request, reply) => {
+      const { id } = request.params;
+      const row = getActionableById(id);
+      if (!row) return reply.status(404).send({ error: 'Actionable not found' });
+      if (row.status !== 'rejected') return alreadyHandledReply(reply, row);
+      const sock = getState().sock;
+      // sock is NOT strictly required (unrejectActionable is silent per
+      // CONTEXT §Undo) but kept for signature symmetry — we still require
+      // the bot connected so a subsequent WhatsApp approval can fire.
+      if (!sock) return reply.status(503).send({ error: 'bot_disconnected' });
+      try {
+        await unrejectActionable(sock, row, UNREJECT_GRACE_MS);
+      } catch (err) {
+        if (err instanceof GraceExpiredError) {
+          return reply.status(409).send({
+            error: 'grace_expired',
+            graceMs: UNREJECT_GRACE_MS,
+            actionable: row,
+          });
+        }
+        // Transition throw means the row got re-handled between the guard
+        // and the call — surface as already_handled.
+        const fresh = getActionableById(id);
+        if (fresh && fresh.status !== 'rejected') {
+          return alreadyHandledReply(reply, fresh);
+        }
+        throw err;
+      }
+      return { actionable: getActionableById(id) };
     },
   );
 }
