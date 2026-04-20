@@ -302,6 +302,7 @@ export const personalPendingEvents = sqliteTable(
     notificationMsgId: text('notification_msg_id'), // self-chat msg ID for reply matching
     contentHash: text('content_hash'), // SHA-256 prefix for forwarded message dedup
     isAllDay: integer('is_all_day', { mode: 'boolean' }).notNull().default(false),
+    calendarEventId: text('calendar_event_id'),
     createdAt: integer('created_at')
       .notNull()
       .$defaultFn(() => Date.now()),

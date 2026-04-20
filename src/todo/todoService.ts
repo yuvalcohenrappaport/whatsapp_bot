@@ -96,3 +96,35 @@ export async function deleteTodoTask(
     throw err;
   }
 }
+
+/**
+ * Patch an existing Google Tasks task. Returns true on success, false on
+ * failure (auth missing, 404, 401). Never throws — callers use this for
+ * best-effort mirroring after a local DB write.
+ */
+export async function updateTodoTask(
+  listId: string,
+  taskId: string,
+  patch: { title?: string; due?: string | null; notes?: string },
+): Promise<boolean> {
+  const client = getTasksClient();
+  if (!client) {
+    logger.warn('[todoService] no Google auth available for updateTodoTask');
+    return false;
+  }
+  try {
+    const requestBody: Record<string, unknown> = {};
+    if (patch.title !== undefined) requestBody.title = patch.title;
+    if (patch.due !== undefined) requestBody.due = patch.due;
+    if (patch.notes !== undefined) requestBody.notes = patch.notes;
+    await client.tasks.patch({
+      tasklist: listId,
+      task: taskId,
+      requestBody,
+    });
+    return true;
+  } catch (err) {
+    logger.error({ err }, '[todoService] updateTodoTask failed');
+    return false;
+  }
+}

@@ -1,4 +1,5 @@
 import { eq, and, lt, asc, desc, inArray } from 'drizzle-orm';
+import { randomUUID } from 'node:crypto';
 import { db } from '../client.js';
 import { actionables } from '../schema.js';
 
@@ -208,6 +209,54 @@ export function updateActionablePreviewMsgId(
     })
     .where(eq(actionables.id, id))
     .run();
+}
+
+export function updateActionableFireAt(id: string, fireAt: number | null): void {
+  db.update(actionables)
+    .set({ fireAt, updatedAt: Date.now() })
+    .where(eq(actionables.id, id))
+    .run();
+}
+
+/**
+ * Create a new actionable in status='approved' directly — used by the
+ * dashboard calendar's "create task" flow (SC4). source_type is hardcoded
+ * to 'user_command' to match the /remind me dual-write convention from
+ * Phase 41 plan 41-04 (those rows are also inserted at status='approved').
+ * Returns the new row.
+ */
+export function createApprovedActionable(params: {
+  task: string;
+  fireAt: number | null;
+  detectedLanguage?: 'he' | 'en';
+  sourceContactJid: string;
+  sourceContactName?: string | null;
+}): Actionable {
+  const id = `user_cmd_${randomUUID()}`;
+  const now = Date.now();
+  const row: Actionable = {
+    id,
+    sourceType: 'user_command' as const,
+    sourceContactJid: params.sourceContactJid,
+    sourceContactName: params.sourceContactName ?? null,
+    sourceMessageId: null,
+    sourceMessageText: '',
+    detectedLanguage: params.detectedLanguage ?? 'en',
+    originalDetectedTask: params.task,
+    task: params.task,
+    status: 'approved' as const,
+    detectedAt: now,
+    fireAt: params.fireAt,
+    enrichedTitle: null,
+    enrichedNote: null,
+    todoTaskId: null,
+    todoListId: null,
+    approvalPreviewMessageId: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+  db.insert(actionables).values(row).run();
+  return row;
 }
 
 /**

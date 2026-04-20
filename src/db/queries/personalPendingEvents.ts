@@ -1,4 +1,5 @@
 import { eq, desc, and, between } from 'drizzle-orm';
+import { randomUUID } from 'node:crypto';
 import { db } from '../client.js';
 import { personalPendingEvents } from '../schema.js';
 
@@ -120,4 +121,75 @@ export function getPersonalEventsByStatus(status: 'pending' | 'approved' | 'reje
     .where(eq(personalPendingEvents.status, status))
     .orderBy(desc(personalPendingEvents.createdAt))
     .all();
+}
+
+export function updatePersonalPendingEventFields(
+  id: string,
+  patch: {
+    title?: string;
+    eventDate?: number;
+    location?: string | null;
+    description?: string | null;
+    isAllDay?: boolean;
+    calendarEventId?: string | null;
+  },
+): void {
+  const updates: Record<string, unknown> = {};
+  if (patch.title !== undefined) updates.title = patch.title;
+  if (patch.eventDate !== undefined) updates.eventDate = patch.eventDate;
+  if (patch.location !== undefined) updates.location = patch.location;
+  if (patch.description !== undefined) updates.description = patch.description;
+  if (patch.isAllDay !== undefined) updates.isAllDay = patch.isAllDay;
+  if (patch.calendarEventId !== undefined) updates.calendarEventId = patch.calendarEventId;
+  if (Object.keys(updates).length === 0) return;
+  db.update(personalPendingEvents)
+    .set(updates)
+    .where(eq(personalPendingEvents.id, id))
+    .run();
+}
+
+/**
+ * Link a Google Calendar event ID back to a personal_pending_events row
+ * after it has been approved and a calendar event created.
+ */
+export function linkCalendarEventId(id: string, calendarEventId: string): void {
+  db.update(personalPendingEvents)
+    .set({ calendarEventId })
+    .where(eq(personalPendingEvents.id, id))
+    .run();
+}
+
+/**
+ * Insert a new event directly at status='approved' (dashboard create-flow,
+ * SC4). The caller is responsible for creating the Google Calendar event
+ * first and passing a calendarEventId-bearing identifier if it wants the
+ * two to be linked — this function only writes the local row.
+ */
+export function insertApprovedPersonalEvent(params: {
+  title: string;
+  eventDate: number;
+  location?: string | null;
+  description?: string | null;
+  isAllDay?: boolean;
+  sourceChatJid?: string;
+}): ReturnType<typeof getPersonalPendingEvent> {
+  const id = `user_cmd_${randomUUID()}`;
+  db.insert(personalPendingEvents).values({
+    id,
+    sourceChatJid: params.sourceChatJid ?? 'dashboard',
+    sourceChatName: null,
+    senderJid: 'dashboard',
+    senderName: 'Self',
+    sourceMessageId: `dashboard_${id}`,
+    sourceMessageText: '',
+    title: params.title,
+    eventDate: params.eventDate,
+    location: params.location ?? null,
+    description: params.description ?? null,
+    url: null,
+    status: 'approved',
+    contentHash: null,
+    isAllDay: params.isAllDay ?? false,
+  }).run();
+  return getPersonalPendingEvent(id);
 }

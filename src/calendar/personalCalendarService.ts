@@ -230,3 +230,36 @@ export async function listUserCalendars(): Promise<
 export function getSelectedCalendarId(): string | null {
   return getSetting(SELECTED_CALENDAR_KEY);
 }
+
+/**
+ * Patch an existing Google Calendar event. Returns true on success, false on
+ * failure. Never throws — callers use this for best-effort mirroring after
+ * a local DB write.
+ */
+export async function updatePersonalCalendarEvent(
+  calendarId: string,
+  eventId: string,
+  patch: {
+    summary?: string;
+    description?: string;
+    location?: string;
+    start?: { dateTime?: string; date?: string; timeZone?: string };
+    end?: { dateTime?: string; date?: string; timeZone?: string };
+  },
+): Promise<boolean> {
+  if (!calendarClient) {
+    logger.warn('[personalCalendarService] no Google auth for update');
+    return false;
+  }
+  try {
+    await calendarClient.events.patch({
+      calendarId,
+      eventId,
+      requestBody: patch,
+    });
+    return true;
+  } catch (err) {
+    logger.error({ err }, '[personalCalendarService] update event failed');
+    return false;
+  }
+}
