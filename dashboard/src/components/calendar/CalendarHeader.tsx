@@ -21,7 +21,7 @@
  * extended in Plan 50-02 (availableViews filter for mobile viewport),
  * extended in Plan 50-03 (mobile compact row layout + 3-segment view pill).
  */
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { startOfIstWeek, addIstDays, formatIstDateShort } from '@/lib/ist';
@@ -52,6 +52,12 @@ interface CalendarHeaderProps {
   cursorMs: number;
   setCursorMs: (ms: number) => void;
   reconnecting: boolean;
+  /**
+   * Mobile-only filter button handler. When provided, a SlidersHorizontal
+   * button renders on the right of the phone layout and at the top-right of
+   * the desktop controls block. Omitted when the page is not using filters.
+   */
+  onFilterOpen?: () => void;
 }
 
 // -----------------------------------------------------------------------
@@ -165,6 +171,7 @@ export function CalendarHeader({
   cursorMs,
   setCursorMs,
   reconnecting,
+  onFilterOpen,
 }: CalendarHeaderProps) {
   const { isMobile } = useViewport();
   const dateLabel = buildDateLabel(view, cursorMs);
@@ -208,6 +215,18 @@ export function CalendarHeader({
           value={view}
           onChange={setView}
         />
+
+        {/* Mobile filter button — opens CalendarFilterPanelSheet */}
+        {onFilterOpen && (
+          <button
+            type="button"
+            onClick={onFilterOpen}
+            className="flex items-center justify-center h-10 w-10 rounded-full hover:bg-muted shrink-0"
+            aria-label="Open filters"
+          >
+            <SlidersHorizontal className="size-4" />
+          </button>
+        )}
       </div>
     );
   }
@@ -282,6 +301,20 @@ export function CalendarHeader({
               ))}
             </TabsList>
           </Tabs>
+
+          {/* Desktop filter button — below-lg fallback to open filter sheet
+              when the left-rail panel is hidden by the viewport. */}
+          {onFilterOpen && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-7 lg:hidden"
+              onClick={onFilterOpen}
+              aria-label="Open filters"
+            >
+              <SlidersHorizontal className="size-4" />
+            </Button>
+          )}
         </div>
       </div>
     </div>

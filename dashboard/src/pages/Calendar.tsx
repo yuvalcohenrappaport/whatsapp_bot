@@ -35,6 +35,11 @@ import {
   useDeleteMutation,
 } from '@/hooks/useCalendarMutations';
 import { CalendarHeader } from '@/components/calendar/CalendarHeader';
+import {
+  CalendarFilterPanel,
+  CalendarFilterPanelSheet,
+} from '@/components/calendar/CalendarFilterPanel';
+import { useCalendarFilter } from '@/hooks/useCalendarFilter';
 import { MonthView } from '@/components/calendar/MonthView';
 import { WeekView } from '@/components/calendar/WeekView';
 import { DayView } from '@/components/calendar/DayView';
@@ -343,7 +348,7 @@ export default function CalendarPage() {
   const { isMobile } = useViewport();
   const [cursorMs, setCursorMs] = useState(() => Date.now());
 
-  const { tasks, events, linkedin, sseStatus, refetch } = useCalendarStream();
+  const { tasks, events, linkedin, gcal, sseStatus, refetch } = useCalendarStream();
 
   // ---- Optimistic override layer ----
   // Maps item.id → new startMs. Merged onto allItems before passing to views.
@@ -504,8 +509,8 @@ export default function CalendarPage() {
 
   // ---- Merge items + overrides + inline title edits ----
   const rawItems = useMemo(
-    () => [...tasks.items, ...events.items, ...linkedin.items],
-    [tasks.items, events.items, linkedin.items],
+    () => [...tasks.items, ...events.items, ...linkedin.items, ...gcal.items],
+    [tasks.items, events.items, linkedin.items, gcal.items],
   );
 
   const allItems = useMemo(() => {
@@ -524,12 +529,27 @@ export default function CalendarPage() {
       .sort((a, b) => a.start - b.start);
   }, [rawItems, overrides, inlineTitles, deletedIds]);
 
-  const flashingIds = useCalendarArrivalFlash(allItems);
+  // ---- Filter layer (Phase 46 Plan 03 + Phase 47 Plan 03) ----
+  const {
+    prefs,
+    gtasksLists,
+    gcalCalendars,
+    filteredItems,
+    toggleList,
+    overrideListColor,
+    toggleCalendar,
+    overrideCalendarColor,
+    mobileFilterOpen,
+    setMobileFilterOpen,
+  } = useCalendarFilter(allItems);
+
+  const flashingIds = useCalendarArrivalFlash(filteredItems);
 
   const allLoading =
     tasks.status === 'loading' &&
     events.status === 'loading' &&
-    linkedin.status === 'loading';
+    linkedin.status === 'loading' &&
+    gcal.status === 'loading';
 
   const reconnecting = sseStatus === 'reconnecting';
 
@@ -552,7 +572,7 @@ export default function CalendarPage() {
 
   // Shared view props
   const sharedViewProps = {
-    items: allItems,
+    items: filteredItems,
     flashingIds,
     draggingId,
     editingId: inlineEditItem?.id ?? null,
@@ -567,8 +587,32 @@ export default function CalendarPage() {
     onDelete: (item: CalendarItem) => void deleteMutate(item),
   };
 
+  // Shared filter-panel props — used by both desktop left-rail + mobile sheet
+  const filterPanelProps = {
+    prefs,
+    gtasksLists,
+    onToggleList: toggleList,
+    onOverrideColor: overrideListColor,
+    gcalCalendars,
+    onToggleCalendar: toggleCalendar,
+    onOverrideCalendarColor: overrideCalendarColor,
+  };
+
   return (
-    <div className="flex flex-col gap-4 h-full">
+    <div className="flex flex-col lg:flex-row gap-4 h-full">
+      {/* Desktop left-rail filter panel (hidden below lg) */}
+      <aside className="hidden lg:block">
+        <CalendarFilterPanel {...filterPanelProps} />
+      </aside>
+
+      {/* Mobile filter sheet (hidden on lg+) */}
+      <CalendarFilterPanelSheet
+        {...filterPanelProps}
+        open={mobileFilterOpen}
+        onOpenChange={setMobileFilterOpen}
+      />
+
+      <div className="flex flex-col gap-4 flex-1 min-w-0">
       {/* Header with title + navigation + view switcher */}
       <CalendarHeader
         view={view}
@@ -577,6 +621,7 @@ export default function CalendarPage() {
         cursorMs={cursorMs}
         setCursorMs={setCursorMs}
         reconnecting={reconnecting}
+        onFilterOpen={() => setMobileFilterOpen(true)}
       />
 
       {/* Partial-failure banners */}
@@ -599,10 +644,16 @@ export default function CalendarPage() {
             onRetry={() => refetch('linkedin')}
           />
         )}
+        {gcal.status === 'error' && (
+          <SourceBanner
+            label="Google Calendar unavailable"
+            onRetry={() => refetch('gcal')}
+          />
+        )}
       </div>
 
       {/* Per-source loading banners */}
-      {(tasks.status === 'loading' || events.status === 'loading' || linkedin.status === 'loading') && (
+      {(tasks.status === 'loading' || events.status === 'loading' || linkedin.status === 'loading' || gcal.status === 'loading') && (
         <div className="flex gap-2 text-xs text-muted-foreground">
           {tasks.status === 'loading' && (
             <span className="flex items-center gap-1">
@@ -620,6 +671,12 @@ export default function CalendarPage() {
             <span className="flex items-center gap-1">
               <Skeleton className="size-2 rounded-full inline-block" />
               Loading LinkedIn…
+            </span>
+          )}
+          {gcal.status === 'loading' && (
+            <span className="flex items-center gap-1">
+              <Skeleton className="size-2 rounded-full inline-block" />
+              Loading Google Calendar…
             </span>
           )}
         </div>
@@ -645,7 +702,7 @@ export default function CalendarPage() {
       ) : view === 'dots' ? (
         // Phone only — useCalendarViewMode prevents view==='dots' on desktop
         <MonthDotsView
-          items={allItems}
+          items={filteredItems}
           cursorMs={cursorMs}
           onSelectDay={(dayMs) => { setCursorMs(dayMs); setView('day'); }}
         />
@@ -674,7 +731,7 @@ export default function CalendarPage() {
       )}
 
       {/* Empty state */}
-      {!allLoading && allItems.length === 0 && (
+      {!allLoading && filteredItems.length === 0 && (
         <div className="text-sm text-muted-foreground text-center py-8">
           Nothing scheduled here. Click any slot to create.
         </div>
@@ -722,6 +779,7 @@ export default function CalendarPage() {
         onOpenChange={(o) => { setLinkedinEditOpen(o); if (!o) setLinkedinEditPost(null); }}
         onSaved={() => void refetch('linkedin')}
       />
+      </div>
     </div>
   );
 }
