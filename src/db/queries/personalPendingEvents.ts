@@ -1,4 +1,4 @@
-import { eq, desc, and, between } from 'drizzle-orm';
+import { eq, desc, and, between, isNotNull } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { db } from '../client.js';
 import { personalPendingEvents } from '../schema.js';
@@ -182,6 +182,29 @@ export function getApprovedEventsBetween(
       ),
     )
     .all();
+}
+
+/**
+ * Returns the Set of Google Calendar event ids linked to approved personal events
+ * whose eventDate is within [fromMs, toMs]. Used by the gcal aggregator to drop
+ * duplicates — the bot-owned personal_pending_events row wins (richer + editable).
+ */
+export function getLinkedCalendarEventIds(
+  fromMs: number,
+  toMs: number,
+): Set<string> {
+  const rows = db
+    .select({ calendarEventId: personalPendingEvents.calendarEventId })
+    .from(personalPendingEvents)
+    .where(
+      and(
+        eq(personalPendingEvents.status, 'approved'),
+        isNotNull(personalPendingEvents.calendarEventId),
+        between(personalPendingEvents.eventDate, fromMs, toMs),
+      ),
+    )
+    .all();
+  return new Set(rows.map((r) => r.calendarEventId!).filter(Boolean));
 }
 
 /**
