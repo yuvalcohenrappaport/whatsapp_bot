@@ -410,7 +410,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 41. WhatsApp Approval UX | v1.8 | 5/5 | Complete | 2026-04-19 |
 | 42. Context Enrichment at Approval | v1.8 | 2/2 | Complete | 2026-04-20 |
 | 43. Dashboard Pending Tasks View | v1.8 | 3/3 | Complete | 2026-04-20 |
-| 44. Unified Editable Calendar | v1.8 | 0 | Pending | — |
+| 44. Unified Editable Calendar | v1.8 | 6 plans | Planning | — |
 
 ### Phase 44: Unified Editable Calendar (Tasks + Events + LinkedIn)
 
@@ -426,7 +426,12 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
   6. Live updates via SSE — external changes (WhatsApp approval firing a Google Task, a scheduled message firing) reflect on the calendar without reload
   7. Month / week / day view toggle; week is the default landing view
 
-**Plans:** 0 plans
+**Plans:** 6 plans
 
 Plans:
-- [ ] TBD (run `/gsd:discuss-phase 44` to lock design decisions, then `/gsd:plan-phase 44`)
+- [ ] 44-01-PLAN.md — pm-authority POST /v1/posts/:id/reschedule + whatsapp-bot /api/linkedin/posts/:id/reschedule proxy (wave 1)
+- [ ] 44-02-PLAN.md — PATCH/POST actionables + personal-events mutation routes + todoService.updateTodoTask + personalCalendarService.updatePersonalCalendarEvent + calendar_event_id column (wave 1)
+- [ ] 44-03-PLAN.md — Unified /api/calendar/items + /api/calendar/stream aggregator plugin (wave 2)
+- [ ] 44-04-PLAN.md — Dashboard /calendar page read-only shell: zod schemas + SSE hook + IST helpers + month/week/day views + pill component + sidebar + router (wave 3)
+- [ ] 44-05-PLAN.md — Drag-to-reschedule + inline title edit + empty-slot create popover + day-overflow popover + full-dialog delegation on body click (wave 4)
+- [ ] 44-06-PLAN.md — Live verification (PM2 restart + owner 11-step walkthrough mapping all 7 SCs) + ROADMAP/REQUIREMENTS/STATE closeout + v1.8 milestone close (wave 5)
