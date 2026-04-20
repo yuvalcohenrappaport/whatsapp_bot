@@ -182,20 +182,30 @@ export function CalendarPill({
           {formatIstTime(item.start)}
         </div>
       )}
-      {/* Trash icon — visible on hover, desktop only, not in compact/ghost mode */}
+      {/* Trash icon — visible on hover, desktop only, not in compact/ghost mode.
+          Uses span (not button) because the outer element is already a <button>
+          and HTML5 forbids nested interactive buttons. */}
       {!compact && !ghost && onDelete && (
-        <button
-          type="button"
-          className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+        <span
+          role="button"
+          tabIndex={0}
+          className="absolute top-0.5 right-0.5 p-0.5 opacity-40 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive cursor-pointer"
           onClick={(e) => {
             e.stopPropagation();
             onDelete(item);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              e.stopPropagation();
+              onDelete(item);
+            }
           }}
           title="Delete"
           aria-label="Delete item"
         >
           <Trash2 className="size-3" />
-        </button>
+        </span>
       )}
     </button>
   );
