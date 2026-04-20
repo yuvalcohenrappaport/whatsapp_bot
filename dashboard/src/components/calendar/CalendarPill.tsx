@@ -20,7 +20,7 @@
  *
  * Plan 44-04 (base), extended in Plan 44-05 (drag + click split + ghost mode).
  */
-import { CheckCircle2, Calendar, Linkedin } from 'lucide-react';
+import { CheckCircle2, Calendar, Linkedin, Trash2 } from 'lucide-react';
 import { formatIstTime } from '@/lib/ist';
 import { InlineTitleEdit } from './InlineTitleEdit';
 import type { CalendarItem } from '@/api/calendarSchemas';
@@ -84,6 +84,8 @@ interface CalendarPillProps {
   onTitleCancel?: (item: CalendarItem) => void;
   onDragStart?: (e: React.DragEvent, item: CalendarItem) => void;
   onDragEnd?: (e: React.DragEvent, item: CalendarItem) => void;
+  /** Delete callback — shows Trash2 icon on hover (non-compact, non-ghost). */
+  onDelete?: (item: CalendarItem) => void;
 }
 
 // -----------------------------------------------------------------------
@@ -104,6 +106,7 @@ export function CalendarPill({
   onTitleCancel,
   onDragStart,
   onDragEnd,
+  onDelete,
 }: CalendarPillProps) {
   const Icon = SOURCE_ICON[item.source];
   const stripeClass = SOURCE_STRIPE[item.source];
@@ -143,7 +146,7 @@ export function CalendarPill({
       onClick={ghost ? undefined : onOpenDetails}
       title={past ? 'Past item' : item.title}
       className={[
-        'w-full rounded-sm text-left border-l-[3px] px-1.5 py-0.5 text-xs',
+        'group relative w-full rounded-sm text-left border-l-[3px] px-1.5 py-0.5 text-xs',
         stripeClass,
         bgClass,
         'transition-colors duration-[300ms]',
@@ -178,6 +181,21 @@ export function CalendarPill({
         <div className="text-muted-foreground mt-0.5 pl-4 text-[10px]">
           {formatIstTime(item.start)}
         </div>
+      )}
+      {/* Trash icon — visible on hover, desktop only, not in compact/ghost mode */}
+      {!compact && !ghost && onDelete && (
+        <button
+          type="button"
+          className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(item);
+          }}
+          title="Delete"
+          aria-label="Delete item"
+        >
+          <Trash2 className="size-3" />
+        </button>
       )}
     </button>
   );

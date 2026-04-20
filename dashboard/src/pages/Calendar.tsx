@@ -29,6 +29,7 @@ import { useCalendarStream } from '@/hooks/useCalendarStream';
 import {
   useRescheduleMutation,
   useInlineEditMutation,
+  useDeleteMutation,
 } from '@/hooks/useCalendarMutations';
 import { CalendarHeader, type CalendarView } from '@/components/calendar/CalendarHeader';
 import { MonthView } from '@/components/calendar/MonthView';
@@ -358,6 +359,31 @@ export default function CalendarPage() {
     });
   }
 
+  // ---- Optimistic delete layer ----
+  // Items whose id is in deletedIds are filtered out of allItems immediately.
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
+
+  function applyDeleteOptimistic(item: CalendarItem) {
+    setDeletedIds((prev) => {
+      const next = new Set(prev);
+      next.add(item.id);
+      return next;
+    });
+  }
+
+  function rollbackDelete(item: CalendarItem) {
+    setDeletedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(item.id);
+      return next;
+    });
+  }
+
+  const { mutate: deleteMutate } = useDeleteMutation({
+    onOptimistic: applyDeleteOptimistic,
+    onRollback: rollbackDelete,
+  });
+
   // ---- Inline title edit state ----
   const [inlineEditItem, setInlineEditItem] = useState<CalendarItem | null>(null);
   const [inlineTitles, setInlineTitles] = useState<Map<string, string>>(new Map());
@@ -463,6 +489,7 @@ export default function CalendarPage() {
 
   const allItems = useMemo(() => {
     return rawItems
+      .filter((item) => !deletedIds.has(item.id))
       .map((item) => {
         const overriddenStart = overrides.get(item.id);
         const overriddenTitle = inlineTitles.get(item.id);
@@ -474,7 +501,7 @@ export default function CalendarPage() {
         };
       })
       .sort((a, b) => a.start - b.start);
-  }, [rawItems, overrides, inlineTitles]);
+  }, [rawItems, overrides, inlineTitles, deletedIds]);
 
   const flashingIds = useCalendarArrivalFlash(allItems);
 
@@ -516,6 +543,7 @@ export default function CalendarPage() {
     onTitleCancel: handleTitleCancel,
     onDragStart: handleDragStart,
     onDragEnd: handleDragEnd,
+    onDelete: (item: CalendarItem) => void deleteMutate(item),
   };
 
   return (

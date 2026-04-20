@@ -58,6 +58,7 @@ interface WeekViewProps {
   onTitleCancel?: (item: CalendarItem) => void;
   onDragStart?: (e: React.DragEvent, item: CalendarItem) => void;
   onDragEnd?: (e: React.DragEvent, item: CalendarItem) => void;
+  onDelete?: (item: CalendarItem) => void;
 }
 
 // -----------------------------------------------------------------------
@@ -123,6 +124,7 @@ export function WeekView({
   onTitleCancel,
   onDragStart,
   onDragEnd,
+  onDelete,
 }: WeekViewProps) {
   const days = useMemo(() => getWeekDays(cursorMs), [cursorMs]);
   const today = Date.now();
@@ -251,6 +253,7 @@ export function WeekView({
                   onTitleCancel={onTitleCancel}
                   onDragStart={onDragStart}
                   onDragEnd={onDragEnd}
+                  onDelete={onDelete}
                 />
               ))}
               {overflow > 0 && (
@@ -380,6 +383,7 @@ export function WeekView({
                           onTitleCancel={onTitleCancel}
                           onDragStart={onDragStart}
                           onDragEnd={onDragEnd}
+                          onDelete={onDelete}
                         />
                       </div>
                       {/* +N overflow badge on last visible item */}

@@ -52,6 +52,7 @@ interface DayViewProps {
   onTitleCancel?: (item: CalendarItem) => void;
   onDragStart?: (e: React.DragEvent, item: CalendarItem) => void;
   onDragEnd?: (e: React.DragEvent, item: CalendarItem) => void;
+  onDelete?: (item: CalendarItem) => void;
 }
 
 // -----------------------------------------------------------------------
@@ -95,6 +96,7 @@ export function DayView({
   onTitleCancel,
   onDragStart,
   onDragEnd,
+  onDelete,
 }: DayViewProps) {
   const today = Date.now();
   const isToday = sameIstDay(cursorMs, today);
@@ -206,6 +208,7 @@ export function DayView({
               onTitleCancel={onTitleCancel}
               onDragStart={onDragStart}
               onDragEnd={onDragEnd}
+              onDelete={onDelete}
             />
           ))}
         </div>
@@ -279,6 +282,7 @@ export function DayView({
                     onTitleClick={() => onTitleClick?.(item)}
                     onDragStart={onDragStart}
                     onDragEnd={onDragEnd}
+                    onDelete={onDelete}
                   />
                 </div>
               </div>

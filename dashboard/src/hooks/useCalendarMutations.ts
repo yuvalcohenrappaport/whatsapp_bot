@@ -285,6 +285,97 @@ export function useCreateMutation() {
 }
 
 // -----------------------------------------------------------------------
+// useDeleteMutation
+// -----------------------------------------------------------------------
+
+export interface DeleteMutationOpts {
+  /** Called immediately — use to remove the item from the view optimistically. */
+  onOptimistic?: (item: CalendarItem) => void;
+  /** Called if undo is triggered — re-adds the item via a create call. */
+  onRollback?: (item: CalendarItem) => void;
+}
+
+/**
+ * Returns a mutate fn that deletes a calendar item.
+ * Pattern: confirm → optimistic remove → DELETE → undo toast (5s) or error toast.
+ */
+export function useDeleteMutation(opts?: DeleteMutationOpts) {
+  const mutate = async (item: CalendarItem): Promise<void> => {
+    const truncTitle = item.title.slice(0, 40);
+
+    // Confirm before delete — native confirm is intentional (scope boundary)
+    if (!window.confirm(`Delete "${truncTitle}"?`)) return;
+
+    // Optimistic: remove from view
+    opts?.onOptimistic?.(item);
+
+    try {
+      if (item.source === 'task') {
+        await apiFetch(`/api/actionables/${encodeURIComponent(item.id)}`, {
+          method: 'DELETE',
+        });
+      } else if (item.source === 'event') {
+        await apiFetch(`/api/personal-calendar/events/${encodeURIComponent(item.id)}`, {
+          method: 'DELETE',
+        });
+      } else {
+        // linkedin
+        await apiFetch(`/api/linkedin/posts/${encodeURIComponent(item.id)}`, {
+          method: 'DELETE',
+        });
+      }
+
+      // Undo toast — 5s. Clicking Undo re-creates the item using the create endpoints.
+      toast(`Deleted "${truncTitle}"`, {
+        duration: 5000,
+        action: {
+          label: 'Undo',
+          onClick: () => {
+            void (async () => {
+              try {
+                if (item.source === 'task') {
+                  await apiFetch('/api/actionables', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                      task: item.title,
+                      fireAt: item.start,
+                    }),
+                    headers: { 'Content-Type': 'application/json' },
+                  });
+                } else if (item.source === 'event') {
+                  await apiFetch('/api/personal-calendar/events', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                      title: item.title,
+                      eventDate: item.start,
+                      isAllDay: item.isAllDay ?? false,
+                    }),
+                    headers: { 'Content-Type': 'application/json' },
+                  });
+                }
+                // LinkedIn: no create-from-calendar endpoint — undo is a no-op with note
+                opts?.onRollback?.(item);
+                toast('Undone');
+              } catch {
+                toast.error('Undo failed');
+              }
+            })();
+          },
+        },
+      });
+    } catch (err) {
+      // Rollback optimistic remove
+      opts?.onRollback?.(item);
+      toast.error(
+        `Couldn't delete: ${err instanceof Error ? err.message : 'unknown error'}`,
+      );
+    }
+  };
+
+  return { mutate };
+}
+
+// -----------------------------------------------------------------------
 // navigateToLinkedInCreate — called by CreateItemPopover for LinkedIn type
 // -----------------------------------------------------------------------
 

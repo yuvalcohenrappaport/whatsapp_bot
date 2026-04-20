@@ -42,6 +42,7 @@ interface MonthViewProps {
   onTitleCancel?: (item: CalendarItem) => void;
   onDragStart?: (e: React.DragEvent, item: CalendarItem) => void;
   onDragEnd?: (e: React.DragEvent, item: CalendarItem) => void;
+  onDelete?: (item: CalendarItem) => void;
 }
 
 // -----------------------------------------------------------------------
@@ -94,6 +95,7 @@ export function MonthView({
   onTitleCancel,
   onDragStart,
   onDragEnd,
+  onDelete,
 }: MonthViewProps) {
   const grid = buildMonthGrid(cursorMs);
   const today = Date.now();
@@ -205,6 +207,7 @@ export function MonthView({
                     onTitleCancel={onTitleCancel}
                     onDragStart={onDragStart}
                     onDragEnd={onDragEnd}
+                    onDelete={onDelete}
                   />
                 </div>
               ))}
@@ -217,6 +220,7 @@ export function MonthView({
                     items={dayItems}
                     flashingIds={flashingIds}
                     onOpenItem={onOpenItem}
+                    onDelete={onDelete}
                     trigger={
                       <button
                         type="button"

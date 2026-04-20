@@ -28,6 +28,7 @@ interface DayOverflowPopoverProps {
   trigger: React.ReactNode;
   flashingIds?: Set<string>;
   onOpenItem?: (item: CalendarItem) => void;
+  onDelete?: (item: CalendarItem) => void;
 }
 
 export function DayOverflowPopover({
@@ -36,6 +37,7 @@ export function DayOverflowPopover({
   trigger,
   flashingIds = new Set(),
   onOpenItem,
+  onDelete,
 }: DayOverflowPopoverProps) {
   const today = Date.now();
   const sorted = [...items].sort((a, b) => a.start - b.start);
@@ -58,6 +60,7 @@ export function DayOverflowPopover({
               flashing={flashingIds.has(item.id)}
               past={item.start < today}
               onOpenDetails={() => onOpenItem?.(item)}
+              onDelete={onDelete}
             />
           ))}
         </div>
