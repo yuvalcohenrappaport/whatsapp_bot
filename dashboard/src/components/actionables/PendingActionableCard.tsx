@@ -28,7 +28,7 @@
  *
  * Plan: 45-03.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import type { KeyboardEventHandler } from 'react';
 import { Check, X, Pencil, User } from 'lucide-react';
 import { Card } from '@/components/ui/card';
@@ -96,28 +96,33 @@ export function PendingActionableCard(props: PendingActionableCardProps) {
   const isRtl = actionable.detectedLanguage === 'he';
 
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(actionable.task);
+  // `draft` is only meaningful while `editing` is true. We seed it at the
+  // moment the user clicks Edit (not lazily on first render) so a later
+  // SSE refresh to `actionable.task` while the editor is open doesn't
+  // silently clobber what the user is typing.
+  const [draft, setDraft] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  // Reset the draft + autofocus the textarea whenever we enter edit mode.
-  // Also resets if the underlying task changes while editing (e.g. an SSE
-  // refresh swapped the prop) — the editor follows the server's truth.
-  useEffect(() => {
-    if (editing) {
-      setDraft(actionable.task);
-      // focus on next tick so the textarea is in the DOM
-      const id = window.setTimeout(() => {
-        textareaRef.current?.focus();
-        // place cursor at end so typing appends rather than overwrites
-        const el = textareaRef.current;
-        if (el) {
-          const len = el.value.length;
-          el.setSelectionRange(len, len);
-        }
-      }, 0);
-      return () => window.clearTimeout(id);
-    }
-  }, [editing, actionable.task]);
+  // Autofocus the textarea + place cursor at end the first render after
+  // `editing` flips to true. useLayoutEffect runs after the textarea is
+  // in the DOM but before the browser paints, avoiding the flicker a
+  // setTimeout would introduce. We explicitly DO NOT setState in here —
+  // seeding happens synchronously in enterEditMode() below per
+  // react-hooks/set-state-in-effect.
+  useLayoutEffect(() => {
+    if (!editing) return;
+    const el = textareaRef.current;
+    if (!el) return;
+    el.focus();
+    const len = el.value.length;
+    el.setSelectionRange(len, len);
+  }, [editing]);
+
+  const enterEditMode = () => {
+    // Seed BEFORE flipping editing — single render, no setState-in-effect.
+    setDraft(actionable.task);
+    setEditing(true);
+  };
 
   const save = () => {
     const trimmed = draft.trim();
@@ -127,7 +132,6 @@ export function PendingActionableCard(props: PendingActionableCardProps) {
   };
 
   const cancel = () => {
-    setDraft(actionable.task);
     setEditing(false);
   };
 
@@ -225,7 +229,7 @@ export function PendingActionableCard(props: PendingActionableCardProps) {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setEditing(true)}
+              onClick={enterEditMode}
               disabled={busy}
               aria-label="Edit"
             >
