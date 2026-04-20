@@ -269,6 +269,8 @@ Legacy decisions from v1.6 (see phase 27-32 archive):
 - [Phase 44-unified-editable-calendar]: LinkedIn create-navigate: pm-authority has no direct 'create post at scheduled_at' endpoint. CreateItemPopover navigates to /linkedin/queue?intent=create for LinkedIn type.
 - [Phase 50-dashboard-mobile-ui-polish]: vitest.config.ts separate from vite.config.ts to prevent test deps leaking into production bundle
 - [Phase 50-dashboard-mobile-ui-polish]: VIEWPORT_BREAKPOINTS.mobile==768 locked to match MOBILE_BREAKPOINT in use-mobile.ts per design spec
+- [Phase 50-dashboard-mobile-ui-polish]: 3-day implemented as three stacked DayViews in scrollable flex row — cheaper than adding mode prop to DayView
+- [Phase 50-dashboard-mobile-ui-polish]: CalendarView type moved to useCalendarViewMode.ts and re-exported from CalendarHeader; colorForItem.ts shared palette util extracted
 
 ### Pending Todos
 
