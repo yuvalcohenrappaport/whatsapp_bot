@@ -7,6 +7,7 @@ import {
   handleAuthCallback,
   createPersonalCalendarEvent,
   updatePersonalCalendarEvent,
+  deletePersonalCalendarEvent,
   listUserCalendars,
   getSelectedCalendarId,
 } from '../../calendar/personalCalendarService.js';
@@ -19,6 +20,7 @@ import {
   updatePersonalPendingEventFields,
   linkCalendarEventId,
   insertApprovedPersonalEvent,
+  deletePersonalPendingEvent,
 } from '../../db/queries/personalPendingEvents.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
@@ -303,6 +305,31 @@ export default async function personalCalendarRoutes(fastify: FastifyInstance) {
 
       const fresh = row ? getPersonalPendingEvent(row.id) : row;
       return reply.status(201).send({ event: fresh });
+    },
+  );
+
+  // 12. DELETE /api/personal-calendar/events/:id — delete an existing event
+  fastify.delete<{ Params: { id: string } }>(
+    '/api/personal-calendar/events/:id',
+    { onRequest: [fastify.authenticate] },
+    async (request, reply) => {
+      const { id } = request.params;
+
+      const event = getPersonalPendingEvent(id);
+      if (!event) {
+        return reply.status(404).send({ error: 'Event not found' });
+      }
+
+      // Best-effort Google Calendar delete before local hard delete
+      if (event.calendarEventId) {
+        const calId = getSelectedCalendarId();
+        if (calId) {
+          await deletePersonalCalendarEvent(calId, event.calendarEventId);
+        }
+      }
+
+      deletePersonalPendingEvent(id);
+      return reply.status(204).send();
     },
   );
 }

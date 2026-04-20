@@ -232,6 +232,32 @@ export function getSelectedCalendarId(): string | null {
 }
 
 /**
+ * Delete a Google Calendar event. Returns true on success, false on failure.
+ * Never throws — callers use this for best-effort cleanup before a local DELETE.
+ * Tolerates 404 (already deleted) and 410 (gone).
+ */
+export async function deletePersonalCalendarEvent(
+  calendarId: string,
+  eventId: string,
+): Promise<boolean> {
+  if (!calendarClient) {
+    logger.warn('[personalCalendarService] no Google auth for delete');
+    return false;
+  }
+  try {
+    await calendarClient.events.delete({ calendarId, eventId });
+    logger.info({ eventId, calendarId }, '[personalCalendarService] deleted calendar event');
+    return true;
+  } catch (err) {
+    const status = (err as { code?: number })?.code;
+    // 404 = already deleted, 410 = gone — both are acceptable
+    if (status === 404 || status === 410) return true;
+    logger.error({ err }, '[personalCalendarService] delete event failed');
+    return false;
+  }
+}
+
+/**
  * Patch an existing Google Calendar event. Returns true on success, false on
  * failure. Never throws — callers use this for best-effort mirroring after
  * a local DB write.

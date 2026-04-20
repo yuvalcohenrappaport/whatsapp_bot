@@ -259,6 +259,11 @@ export function createApprovedActionable(params: {
   return row;
 }
 
+/** Hard-delete an actionable row. Caller must do Google Tasks cleanup first. */
+export function deleteActionable(id: string): void {
+  db.delete(actionables).where(eq(actionables.id, id)).run();
+}
+
 /**
  * Calendar view: approved + fired actionables with a non-null fireAt
  * inside the window. Untimed approved actionables are excluded from

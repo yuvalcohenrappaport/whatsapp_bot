@@ -50,11 +50,12 @@ import {
   updateActionableFireAt,
   updateActionableTodoIds,
   createApprovedActionable,
+  deleteActionable,
   type Actionable,
 } from '../../db/queries/actionables.js';
 import { getSetting } from '../../db/queries/settings.js';
 import { config } from '../../config.js';
-import { createTodoTask, updateTodoTask } from '../../todo/todoService.js';
+import { createTodoTask, updateTodoTask, deleteTodoTask } from '../../todo/todoService.js';
 
 const POLL_INTERVAL_MS = 3_000;
 const HEARTBEAT_INTERVAL_MS = 15_000;
@@ -288,6 +289,36 @@ export default async function actionablesRoutes(
 
       const fresh = getActionableById(newRow.id);
       return reply.status(201).send({ actionable: fresh });
+    },
+  );
+
+  // ─── DELETE /api/actionables/:id ─────────────────────────────────────
+  fastify.delete<{ Params: { id: string } }>(
+    '/api/actionables/:id',
+    { onRequest: [fastify.authenticate] },
+    async (request, reply) => {
+      const { id } = request.params;
+
+      const row = getActionableById(id);
+      if (!row) {
+        return reply.status(404).send({ error: 'Actionable not found' });
+      }
+
+      // Best-effort Google Tasks delete before local hard delete
+      if (row.todoTaskId && row.todoListId) {
+        try {
+          await deleteTodoTask(row.todoTaskId, row.todoListId);
+        } catch {
+          // Swallow — local delete proceeds regardless
+          fastify.log.warn(
+            { id, todoTaskId: row.todoTaskId },
+            '[actionables] Google Tasks delete failed; proceeding with local delete',
+          );
+        }
+      }
+
+      deleteActionable(id);
+      return reply.status(204).send();
     },
   );
 }

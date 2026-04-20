@@ -159,6 +159,11 @@ export function linkCalendarEventId(id: string, calendarEventId: string): void {
     .run();
 }
 
+/** Hard-delete a personal pending events row. Caller must do Google Calendar cleanup first. */
+export function deletePersonalPendingEvent(id: string): void {
+  db.delete(personalPendingEvents).where(eq(personalPendingEvents.id, id)).run();
+}
+
 /**
  * Calendar view: approved personal events whose eventDate falls within
  * the given window. Phase 44 SC1.

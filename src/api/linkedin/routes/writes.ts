@@ -458,6 +458,39 @@ export async function registerWriteRoutes(
     },
   );
 
+  // ─── Delete (sync, no body) ─────────────────────────────────────────────
+  fastify.delete<{ Params: { id: string } }>(
+    '/api/linkedin/posts/:id',
+    { onRequest: [fastify.authenticate] },
+    async (request, reply) => {
+      const { id } = request.params;
+      try {
+        // callUpstream expects a responseSchema; DELETE /v1/posts/:id returns 204
+        // with no body. We use a raw fetch-style approach consistent with how
+        // the reschedule route calls upstream but without a response body to parse.
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), FAST_MUTATION_TIMEOUT_MS);
+        let upstreamRes: Response;
+        try {
+          upstreamRes = await fetch(
+            `${PM_AUTHORITY_BASE_URL}/v1/posts/${encodeURIComponent(id)}`,
+            { method: 'DELETE', signal: controller.signal },
+          );
+        } finally {
+          clearTimeout(timer);
+        }
+        if (upstreamRes.status === 204) {
+          return reply.status(204).send();
+        }
+        // Error body — pass through verbatim
+        const body = await upstreamRes.json().catch(() => null as unknown);
+        return reply.status(upstreamRes.status).send(body);
+      } catch (err) {
+        return mapUpstreamErrorToReply(err, reply);
+      }
+    },
+  );
+
   // ─── Plan 36-01 — Route 10: confirm-pii (sync JSON, body: {note?}) ──────
   fastify.post<{ Params: { id: string }; Body: unknown }>(
     '/api/linkedin/posts/:id/confirm-pii',
