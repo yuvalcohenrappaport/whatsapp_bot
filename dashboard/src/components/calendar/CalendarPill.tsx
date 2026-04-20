@@ -182,10 +182,10 @@ export function CalendarPill({
           {formatIstTime(item.start)}
         </div>
       )}
-      {/* Trash icon — visible on hover, desktop only, not in compact/ghost mode.
-          Uses span (not button) because the outer element is already a <button>
-          and HTML5 forbids nested interactive buttons. */}
-      {!compact && !ghost && onDelete && (
+      {/* Trash icon — visible on every non-ghost pill (including compact month pills
+          and short week/day pills). Uses span (not button) because the outer element
+          is already a <button> and HTML5 forbids nested interactive buttons. */}
+      {!ghost && onDelete && (
         <span
           role="button"
           tabIndex={0}
