@@ -1,46 +1,43 @@
 # WhatsApp Bot
 
-An AI-powered WhatsApp bot that learns your communication style and replies to contacts in your authentic voice. For groups, it monitors messages, extracts dates to Google Calendar, posts weekly task reminders, handles @mention travel searches, and auto-responds to keyword-triggered messages. Managed through a web dashboard and runs 24/7 on a home server.
+An advanced AI-powered WhatsApp bot that learns your communication style, manages your tasks, and handles group utilities. It monitors messages, extracts events to Google Calendar, syncs commitments to Google Tasks/Microsoft To Do, sends scheduled messages, and provides voice interaction. Managed through a web dashboard and runs 24/7 on a home server.
 
 ## Features
 
-### 1:1 Conversations
-- Per-contact reply modes: `off`, `draft` (manual approval), or `auto`
-- AI replies in your authentic voice via Gemini with style learning from chat history
-- Draft approval flow — bot generates reply, owner approves/rejects via WhatsApp
-- Owner commands: snooze/resume contacts with custom durations
-- Auto-reply cap (20 consecutive) with automatic fallback to draft mode
-- Chat history import from WhatsApp `.txt` exports with style summary generation
+### 1:1 Conversations & Personal Assistant
+- **Authentic Voice Replies:** AI replies in your voice via Gemini 1.5 Flash, with optional **Voice Message (TTS)** support using ElevenLabs.
+- **Reply Modes:** ,  (manual approval), or .
+- **Actionables & Commitments:** Automatically detects commitments made to you or tasks you mention. Syncs approved items to **Google Tasks** or **Microsoft To Do**.
+- **Scheduled Messages:** Send one-time or recurring (Cron-based) messages. Supports text, AI-generated, or Voice (TTS) content.
+- **Personal Event Detection:** Detects event mentions in any chat and proposes adding them to your personal Google Calendar.
+- **Snooze/Resume:** Temporarily silence the bot for specific contacts.
+- **Chat History Import:** Learn style from WhatsApp `.txt` exports with automated style summary generation.
 
 ### Group Utilities
-- Date extraction from messages → automatic Google Calendar event creation
-- In-group calendar confirmations with reply-to-delete
-- Weekly AI-generated task reminder digests (configurable per group)
-- @mention travel search with Gemini intent parsing and Google Search grounding
-- Per-group keyword rules with auto-response (fixed text or AI-generated)
-- Per-rule cooldown to prevent spam
+- **Date Extraction:** Automatically extracts event dates from group chats and creates Google Calendar events.
+- **In-group Confirmations:** Interactive calendar confirmations with reply-to-delete functionality.
+- **Weekly Task Digests:** AI-generated weekly summaries of group tasks and action items.
+- **@mention Travel Search:** Intent parsing for travel requests with real-time Google Search grounding.
+- **Keyword Auto-Responders:** Per-group rules for fixed text or AI-generated responses with spam protection.
 
 ### Infrastructure
-- WhatsApp Web connection via [Baileys](https://github.com/WhiskeySockets/Baileys) v7
-- QR code authentication with persistent sessions
-- Automatic reconnection with exponential backoff
-- SQLite database with WAL mode (Drizzle ORM)
-- Fastify API server serving the React dashboard as a static SPA
-- JWT-based dashboard authentication
-- PM2 process management for 24/7 operation
-- Structured JSON logging (Pino)
+- **WhatsApp Web Engine:** Powered by [Baileys](https://github.com/WhiskeySockets/Baileys) v7 with QR authentication.
+- **Process Management:** Runs 24/7 using PM2 with automatic reconnection and exponential backoff.
+- **Database:** SQLite with WAL mode, managed via Drizzle ORM for high performance.
+- **Dashboard:** Modern React 19 SPA for real-time monitoring, draft approval, and configuration.
+- **Logging:** Structured JSON logging via Pino.
 
 ## Tech Stack
 
 - **Runtime:** Node.js >= 20, TypeScript (ESNext)
 - **WhatsApp:** @whiskeysockets/baileys v7
-- **AI:** Google Gemini 2.5 Flash
+- **AI/LLM:** Google Gemini 1.5 Flash
+- **Voice (TTS):** ElevenLabs API
 - **API Server:** Fastify 5
 - **Database:** SQLite (better-sqlite3) + Drizzle ORM
 - **Dashboard:** React 19 + Vite + shadcn/ui + TanStack Query
-- **Calendar:** Google Calendar API (GCP service account)
-- **Validation:** Zod
-- **Logging:** Pino
+- **Integrations:** Google Calendar API, Google Tasks API, Microsoft Graph API (To Do)
+- **Scheduling:** node-cron
 - **Process Manager:** PM2
 
 ## Setup
@@ -62,51 +59,43 @@ npm run db:migrate
 
 ## Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `GEMINI_API_KEY` | — | Google Gemini API key (required) |
-| `USER_JID` | — | Bot owner's WhatsApp JID (required) |
-| `JWT_SECRET` | — | Min 32 chars, for dashboard auth (required) |
-| `DASHBOARD_PASSWORD` | — | Min 6 chars, dashboard login (required) |
-| `OWNER_EXPORT_NAME` | — | Owner's display name in WhatsApp exports (required) |
-| `GOOGLE_SERVICE_ACCOUNT_KEY_PATH` | — | Path to GCP service account JSON for Calendar API |
-| `NODE_ENV` | `development` | `development` or `production` |
-| `LOG_LEVEL` | `info` | `silent`, `error`, `warn`, `info`, `debug` |
-| `AUTH_DIR` | `./data/auth` | Baileys session credentials path |
-| `DB_PATH` | `./data/bot.db` | SQLite database path |
-| `GEMINI_MODEL` | `gemini-2.5-flash` | Gemini model ID |
-| `IMPORT_DIR` | `./data/imports` | Directory for WhatsApp chat export `.txt` files |
-| `API_PORT` | `3000` | API server port |
-| `API_HOST` | `100.124.47.99` | API server bind address |
+| Variable | Description |
+|----------|-------------|
+| `GEMINI_API_KEY` | Google Gemini API key (required) |
+| `USER_JID` | Bot owner's WhatsApp JID |
+| `OWNER_EXPORT_NAME` | User's name in WhatsApp export files |
+| `ELEVENLABS_API_KEY` | ElevenLabs API key for Voice TTS |
+| `ELEVENLABS_DEFAULT_VOICE_ID` | Default Voice ID for ElevenLabs |
+| `JWT_SECRET` | Min 32 chars, for dashboard auth |
+| `DASHBOARD_PASSWORD` | Dashboard login password |
+| `GOOGLE_SERVICE_ACCOUNT_KEY_PATH` | Path to GCP service account JSON |
+| `GOOGLE_OAUTH_CLIENT_ID/SECRET` | For Google Tasks / Personal Calendar OAuth |
+| `MS_CLIENT_ID/SECRET` | For Microsoft To Do integration |
+| `DB_PATH` | Path to SQLite database (default: `./data/bot.db`) |
+| `API_PORT` | API server port (default: `3000`) |
 
 ## Usage
 
 ```bash
-# Development (watch mode)
+# Development
 npm run dev
 
 # Production
 npm start
 
-# PM2 (always-on)
+# PM2 (Always-on)
 pm2 start ecosystem.config.cjs
 pm2 save
 ```
 
-On first run, scan the QR code displayed in the terminal (or in the dashboard) with your WhatsApp mobile app. The session persists across restarts.
-
 ## Architecture
-
-See [ARCHITECTURE.md](ARCHITECTURE.md) for the full ASCII diagram. Summary:
 
 ```
 WhatsApp ←→ Baileys Socket ←→ Message Handler
-                                  ├─→ 1:1 Pipeline (Gemini AI replies, drafts)
-                                  └─→ Group Pipeline
-                                        ├─ Travel @mention search
-                                        ├─ Keyword auto-response
-                                        ├─ Reply-to-delete calendar events
-                                        └─ Date extraction → Google Calendar
+                                  ├─→ 1:1 Pipeline (Voice, AI, Drafts)
+                                  ├─→ Actionables (Commitments, Tasks, Sync)
+                                  ├─→ Scheduler (Scheduled Messages, Cron)
+                                  └─→ Group Pipeline (Travel, Calendar, Keywords)
 
 Fastify API Server ←→ SQLite (Drizzle ORM)
        ↕
@@ -117,59 +106,30 @@ React Dashboard (static SPA)
 
 ```
 src/
-├── index.ts                 # Entry point & startup orchestrator
-├── config.ts                # Environment config (Zod validated)
-├── whatsapp/
-│   ├── connection.ts        # Baileys socket & auth state
-│   ├── reconnect.ts         # Reconnection & backoff logic
-│   └── sender.ts            # Message sending with typing delay
-├── pipeline/
-│   └── messageHandler.ts    # Main message router (1:1 + group)
-├── groups/
-│   ├── groupMessagePipeline.ts  # Group handler chain & date extraction
-│   ├── travelHandler.ts     # @mention travel search orchestrator
-│   ├── travelParser.ts      # Gemini travel intent extraction
-│   ├── travelSearch.ts      # Google search integration
-│   ├── travelFormatter.ts   # Travel results formatting
-│   ├── dateExtractor.ts     # Gemini date extraction (Zod schema)
-│   ├── keywordHandler.ts    # Keyword rule matching & auto-response
-│   └── reminderScheduler.ts # Weekly digest cron scheduler
-├── ai/
-│   └── gemini.ts            # Gemini reply generation & style analysis
-├── calendar/
-│   └── calendarService.ts   # Google Calendar API integration
-├── db/
-│   ├── schema.ts            # Drizzle schema (7 tables)
-│   ├── client.ts            # SQLite initialization & migrations
-│   └── queries/             # Query modules per entity
-├── api/
-│   ├── server.ts            # Fastify server setup
-│   ├── state.ts             # Global state & pub/sub
-│   ├── plugins/             # CORS, JWT, static serving
-│   └── routes/              # REST endpoints
-├── importer/
-│   └── importChats.ts       # WhatsApp chat export parser
-└── types/
-
-dashboard/src/
-├── main.tsx                 # React entry point
-├── router.tsx               # Client-side routing
-├── api/client.ts            # API client with JWT
-├── pages/                   # Login, Overview, Contacts, Drafts, Groups
-├── components/              # Feature & UI components
-└── hooks/                   # Data fetching hooks (TanStack Query)
+├── whatsapp/        # Connection, Auth state, and Message Sending
+├── pipeline/        # Central Message Routing Logic
+├── ai/              # Gemini Integration (Style, Replies, Parsing)
+├── voice/           # ElevenLabs TTS & Audio Transcoding
+├── actionables/     # Commitment & Task Detection Services
+├── todo/            # Google Tasks & MS To Do API Integrations
+├── scheduler/       # Scheduled & Recurring Message Logic
+├── reminders/       # Personal Reminder & Task Notification Services
+├── groups/          # Group features (Travel, Calendar, Weekly Digest)
+├── calendar/        # Google Calendar Service Integration
+├── db/              # Drizzle Schema, Migrations, and Queries
+├── api/             # Fastify REST API & Dashboard Serving
+├── importer/        # WhatsApp Chat Export Parsing
+└── approval/        # Draft Approval & UI/Template logic
 ```
 
-## Database
+## Database Tables (Drizzle)
 
-7 tables managed by Drizzle ORM:
-
-| Table | Purpose |
-|-------|---------|
-| `messages` | 1:1 chat history |
-| `contacts` | Contact registry, AI config, reply mode |
-| `drafts` | Pending message approvals |
-| `groups` | Group config (reminders, calendar, members) |
-| `groupMessages` | Group chat history |
-| `calendarEvents` | Created calendar events with confirmation tracking |
-| `keywordRules` | Per-group auto-response rules |
+- `messages`: 1:1 chat history for style learning.
+- `contacts`: Settings, reply modes, and Voice IDs per contact.
+- `drafts`: Pending message approvals.
+- `actionables`: Unified lifecycle for detected commitments and tasks.
+- `scheduled_messages`: One-time and recurring (cron) message queue.
+- `groups`: Configuration and utility toggles for group chats.
+- `calendar_events`: Track created group events for confirmations.
+- `personal_pending_events`: Staging for personal calendar proposals.
+- `keyword_rules`: Per-group auto-responder configurations.
