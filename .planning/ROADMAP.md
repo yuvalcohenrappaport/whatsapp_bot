@@ -418,7 +418,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 42. Context Enrichment at Approval | v1.8 | 2/2 | Complete | 2026-04-20 |
 | 43. Dashboard Pending Tasks View | v1.8 | 3/3 | Complete | 2026-04-20 |
 | 44. Unified Editable Calendar | v1.9 | 6/6 | Complete | 2026-04-20 |
-| 45. Dashboard Pending-Tasks Write Actions | 2/4 | In Progress|  | — |
+| 45. Dashboard Pending-Tasks Write Actions | 3/4 | In Progress|  | — |
 | 46. Google Tasks Full-List Sync | v1.9 | 0/? | Not started | — |
 | 47. Google Calendar Events Sync | v1.9 | 0/? | Not started | — |
 | 48. LinkedIn Post Composer (Dashboard) | v1.9 | 0/? | Not started | — |
@@ -436,12 +436,12 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
   4. Edit opens an inline editor; save rewrites `task` then falls through to Approve
   5. All write routes JWT-gated and idempotent against concurrent WhatsApp replies on the same row
 
-**Plans:** 2/4 plans executed
+**Plans:** 3/4 plans executed
 
 Plans:
-- [ ] 45-01-PLAN.md — Extract approve/reject primitives + unreject transition (backend refactor, no behavior drift)
-- [ ] 45-02-PLAN.md — Four POST write routes on /api/actionables/:id/{approve,reject,edit,unreject} with race-arbitrated 409 `already_handled`
-- [ ] 45-03-PLAN.md — Dashboard Approve/Reject/Edit buttons, inline edit card-morph, optimistic removal, 5s Reject Undo toast
+- [x] 45-01-PLAN.md — Extract approve/reject primitives + unreject transition (backend refactor, no behavior drift) (see `.planning/phases/45-dashboard-pending-tasks-write-actions/45-01-SUMMARY.md`)
+- [x] 45-02-PLAN.md — Four POST write routes on /api/actionables/:id/{approve,reject,edit,unreject} with race-arbitrated 409 `already_handled` (see `.planning/phases/45-dashboard-pending-tasks-write-actions/45-02-SUMMARY.md`)
+- [x] 45-03-PLAN.md — Dashboard Approve/Reject/Edit buttons, inline edit card-morph, optimistic removal, 5s Reject Undo toast (see `.planning/phases/45-dashboard-pending-tasks-write-actions/45-03-SUMMARY.md`)
 - [ ] 45-04-PLAN.md — Live verification + owner walkthrough of all 5 SCs + ROADMAP/REQUIREMENTS/STATE closeout
 
 ### Phase 46: Google Tasks Full-List Sync

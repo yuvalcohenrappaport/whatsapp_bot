@@ -9,9 +9,9 @@ Requirements for the **Dashboard Expansion** milestone. Bring the whole dashboar
 
 ### Dashboard Approvals
 
-- [x] **DASH-APP-01**: Pending-tasks dashboard page (`/pending-tasks`) exposes Approve + Reject + Edit buttons per row, calling a JWT-gated mutation API and triggering the same `approveAndSync` / rejection flow used by the WhatsApp quoted-reply path (Phase 41's `approvalHandler`) _(substrate shipped 45-01: approveActionable + rejectActionable primitives exported; HTTP routes + UI buttons land in Plans 45-02..45-04)_
-- [x] **DASH-APP-02**: Approve from dashboard runs Phase 42 Gemini enrichment before pushing to Google Tasks (identical behavior to WhatsApp approve), with safe fallback on enrichment failure _(substrate shipped 45-01: approveActionable IS the Phase 42 enrichment path; HTTP route wiring lands in Plan 45-02)_
-- [x] **DASH-APP-03**: Edit action opens an inline or dialog editor — saves replace the detected task text, then fall through to Approve. SSE updates every open dashboard session within ~3 s.
+- [x] **DASH-APP-01**: Pending-tasks dashboard page (`/pending-tasks`) exposes Approve + Reject + Edit buttons per row, calling a JWT-gated mutation API and triggering the same `approveAndSync` / rejection flow used by the WhatsApp quoted-reply path (Phase 41's `approvalHandler`) _(primitives 45-01, HTTP routes 45-02, UI buttons 45-03 — live verification lands in 45-04)_
+- [x] **DASH-APP-02**: Approve from dashboard runs Phase 42 Gemini enrichment before pushing to Google Tasks (identical behavior to WhatsApp approve), with safe fallback on enrichment failure _(primitives 45-01 carry Phase 42 enrichment, HTTP route 45-02, UI wiring 45-03 — live verification lands in 45-04)_
+- [x] **DASH-APP-03**: Edit action opens an inline or dialog editor — saves replace the detected task text, then fall through to Approve. SSE updates every open dashboard session within ~3 s. _(HTTP /edit route 45-02 falls through to approveActionable; inline card-morph Edit UI + Save & Approve 45-03; SSE unchanged from Plan 43-02 3s hash-poll)_
 
 ### Google Tasks Full Sync
 
@@ -189,9 +189,9 @@ Requirements for the **Task Approval & Context Enrichment** milestone. Turn comm
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DASH-APP-01 | Phase 45 | API surface shipped 45-02 (POST /approve, /reject, /edit routes — UI lands 45-03) |
-| DASH-APP-02 | Phase 45 | API surface shipped 45-02 (approveActionable carries Phase 42 enrichment — UI lands 45-03) |
-| DASH-APP-03 | Phase 45 | API surface shipped 45-02 (POST /edit rewrites task → approveActionable — UI lands 45-03) |
+| DASH-APP-01 | Phase 45 | API + UI shipped 45-01/45-02/45-03 (Approve/Edit/Reject buttons on every pending row, JWT-gated POST through Plan 45-01 primitives — live verification lands 45-04) |
+| DASH-APP-02 | Phase 45 | API + UI shipped 45-01/45-02/45-03 (dashboard Approve runs Phase 42 enrichment + Google Tasks sync via approveActionable primitive — live verification lands 45-04) |
+| DASH-APP-03 | Phase 45 | API + UI shipped 45-02/45-03 (POST /edit rewrites task + falls through to approveActionable; inline card-morph editor with Esc/Cmd+Enter + Save & Approve; SSE via Plan 43-02 3s hash-poll — live verification lands 45-04) |
 | GTASKS-01 | Phase 46 | Not started |
 | GTASKS-02 | Phase 46 | Not started |
 | GTASKS-03 | Phase 46 | Not started |
