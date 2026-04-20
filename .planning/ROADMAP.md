@@ -477,6 +477,14 @@ Plans:
   5. A gcal event whose id matches `personal_pending_events.calendar_event_id` is dropped — the bot-owned row renders instead
   6. gcal pills are read-only — drag disabled, no inline edit, no delete
 
+**Plans:** 4 plans
+
+Plans:
+- [ ] 47-01-PLAN.md — gcalService.ts + GET /api/google-calendar/{calendars,events} routes + server-side dedup against personal_pending_events.calendar_event_id (GCAL-01, GCAL-02, GCAL-05)
+- [ ] 47-02-PLAN.md — Extend unified aggregator + SSE with gcal as 5th Promise.allSettled slot + partial-failure tolerance (GCAL-03)
+- [ ] 47-03-PLAN.md — Dashboard: calendarSchemas gcal variant + CalendarFilterPanel Google Calendar section + read-only pill enforcement (GCAL-04, GCAL-06)
+- [ ] 47-04-PLAN.md — Live verification on PM2: owner walkthrough of all six GCAL requirements + ROADMAP/REQUIREMENTS/STATE closeout
+
 ### Phase 48: LinkedIn Post Composer (Dashboard)
 
 **Goal:** The dashboard `/linkedin` queue page gets a "New Post" action that composes a new LinkedIn post end-to-end (title, content, language, project) via pm-authority's `POST /v1/posts` endpoint through the existing Fastify proxy pattern.
