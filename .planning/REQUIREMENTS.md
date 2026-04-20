@@ -36,11 +36,11 @@ Requirements for the **Dashboard Expansion** milestone. Bring the whole dashboar
 
 ### Google Calendar Full Sync
 
-- [ ] **GCAL-01**: Backend exposes `GET /api/google-calendar/calendars` returning every calendar the owner has access to, and `GET /api/google-calendar/events?from=<ms>&to=<ms>` returning CalendarItems with `source: 'gcal'` and `sourceFields: { calendarId, calendarName, colorId }` spanning every owned/writable calendar
-- [ ] **GCAL-02**: Recurring events are expanded via `events.list(singleEvents: true)`; all-day events set `isAllDay: true`; `end` is mapped to millis (event end exclusive → inclusive delta if needed)
+- [x] **GCAL-01**: Backend exposes `GET /api/google-calendar/calendars` returning every calendar the owner has access to, and `GET /api/google-calendar/events?from=<ms>&to=<ms>` returning CalendarItems with `source: 'gcal'` and `sourceFields: { calendarId, calendarName, colorId }` spanning every owned/writable calendar
+- [x] **GCAL-02**: Recurring events are expanded via `events.list(singleEvents: true)`; all-day events set `isAllDay: true`; `end` is mapped to millis (event end exclusive → inclusive delta if needed)
 - [ ] **GCAL-03**: The unified aggregator + SSE include gcal with per-source partial-failure tolerance
 - [ ] **GCAL-04**: Calendar page's sidebar filter extends to gcal calendars (same checkbox + swatch + localStorage pattern as gtasks)
-- [ ] **GCAL-05**: A gcal event whose Google id matches an existing `personal_pending_events.calendar_event_id` is dropped from the gcal payload — the bot-owned row wins (editable, richer metadata)
+- [x] **GCAL-05**: A gcal event whose Google id matches an existing `personal_pending_events.calendar_event_id` is dropped from the gcal payload — the bot-owned row wins (editable, richer metadata)
 - [ ] **GCAL-06**: gcal pills are read-only in the dashboard calendar — no drag, no inline edit, no delete (writing back to Google Calendar is out of scope for this milestone)
 
 ### LinkedIn Post Composer (Dashboard)
@@ -229,11 +229,11 @@ Requirements for the **Task Approval & Context Enrichment** milestone. Turn comm
 | GTASKS-03 | Phase 46 | Not started |
 | GTASKS-04 | Phase 46 | Not started |
 | GTASKS-05 | Phase 46 | Not started |
-| GCAL-01 | Phase 47 | Not started |
-| GCAL-02 | Phase 47 | Not started |
+| GCAL-01 | Phase 47 | Complete (Plan 47-01, 2026-04-20) |
+| GCAL-02 | Phase 47 | Complete (Plan 47-01, 2026-04-20) |
 | GCAL-03 | Phase 47 | Not started |
 | GCAL-04 | Phase 47 | Not started |
-| GCAL-05 | Phase 47 | Not started |
+| GCAL-05 | Phase 47 | Complete (Plan 47-01, 2026-04-20) |
 | GCAL-06 | Phase 47 | Not started |
 | LIN-NEW-01 | Phase 48 | Not started |
 | VER-01 | Phase 49 | Not started |

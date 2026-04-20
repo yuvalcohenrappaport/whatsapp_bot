@@ -427,7 +427,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 44. Unified Editable Calendar | v1.9 | 6/6 | Complete | 2026-04-20 |
 | 45. Dashboard Pending-Tasks Write Actions | v1.9 | Complete    | 2026-04-20 | 2026-04-20 |
 | 46. Google Tasks Full-List Sync | v1.9 | 0/? | Not started | — |
-| 47. Google Calendar Events Sync | v1.9 | 0/? | Not started | — |
+| 47. Google Calendar Events Sync | v1.9 | 1/4 | In Progress | 47-01 shipped 2026-04-20 (gcalService + routes + dedup + 10-case vitest; GCAL-01/02/05) |
 | 48. LinkedIn Post Composer (Dashboard) | v1.9 | 0/? | Not started | — |
 | 49. Deploy + Verify + Close v1.9 | v1.9 | 0/? | Not started | — |
 | 50. Dashboard Mobile UI Polish | v2.0 | Complete    | 2026-04-20 | 2026-04-20 |
@@ -480,7 +480,7 @@ Plans:
 **Plans:** 4 plans
 
 Plans:
-- [ ] 47-01-PLAN.md — gcalService.ts + GET /api/google-calendar/{calendars,events} routes + server-side dedup against personal_pending_events.calendar_event_id (GCAL-01, GCAL-02, GCAL-05)
+- [x] 47-01-PLAN.md — gcalService.ts + GET /api/google-calendar/{calendars,events} routes + server-side dedup against personal_pending_events.calendar_event_id (GCAL-01, GCAL-02, GCAL-05) — shipped 2026-04-20
 - [ ] 47-02-PLAN.md — Extend unified aggregator + SSE with gcal as 5th Promise.allSettled slot + partial-failure tolerance (GCAL-03)
 - [ ] 47-03-PLAN.md — Dashboard: calendarSchemas gcal variant + CalendarFilterPanel Google Calendar section + read-only pill enforcement (GCAL-04, GCAL-06)
 - [ ] 47-04-PLAN.md — Live verification on PM2: owner walkthrough of all six GCAL requirements + ROADMAP/REQUIREMENTS/STATE closeout
@@ -495,6 +495,13 @@ Plans:
   2. Submit POSTs to the proxy → pm-authority → new post in `PENDING_REVIEW` status
   3. SSE-refreshed queue shows the new post within 3s without reload
   4. Form validation inline; errors map via `mapUpstreamErrorToReply`
+
+**Plans:** 3 plans
+
+Plans:
+- [ ] 48-01-PLAN.md — pm-authority: add `POST /v1/posts` endpoint + CreatePostRequest schema + pytest coverage (LIN-NEW-01)
+- [ ] 48-02-PLAN.md — whatsapp-bot Fastify proxy: add `POST /api/linkedin/posts` route + CreatePostRequestSchema + vitest + live smoke (LIN-NEW-01)
+- [ ] 48-03-PLAN.md — Dashboard: useLinkedInCreatePost hook + NewPostDialog composer + LinkedInQueue header button + live UAT walkthrough (LIN-NEW-01)
 
 ### Phase 49: Deploy + Verify + Close v1.9
 
