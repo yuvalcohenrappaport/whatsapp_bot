@@ -50,6 +50,7 @@ import { mapUpstreamErrorToReply } from '../linkedin/errors.js';
 import { PostSchema } from '../linkedin/schemas.js';
 import { z } from 'zod';
 import { fetchGcalCalendarItems } from './googleCalendar.js';
+import { fetchGtasksCalendarItems } from './googleTasks.js';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -80,6 +81,7 @@ export type CalendarEnvelope = {
     events: SourceStatus;
     linkedin: SourceStatus;
     gcal: SourceStatus; // NEW — GCAL-03
+    gtasks: SourceStatus; // NEW — GTASKS-02
   };
 };
 
@@ -164,7 +166,7 @@ function projectLinkedin(posts: Post[], fromMs: number, toMs: number): CalendarI
 // ─── Aggregator ───────────────────────────────────────────────────────────────
 
 async function fetchCalendarWindow(fromMs: number, toMs: number): Promise<CalendarEnvelope> {
-  const [tasksRes, eventsRes, linkedinRes, gcalRes] = await Promise.allSettled([
+  const [tasksRes, eventsRes, linkedinRes, gcalRes, gtasksRes] = await Promise.allSettled([
     Promise.resolve().then(() => getCalendarActionables(fromMs, toMs)),
     Promise.resolve().then(() => getApprovedEventsBetween(fromMs, toMs)),
     callUpstream({
@@ -174,6 +176,7 @@ async function fetchCalendarWindow(fromMs: number, toMs: number): Promise<Calend
       responseSchema: z.array(PostSchema),
     }).then(({ data }) => data),
     fetchGcalCalendarItems(fromMs, toMs),
+    fetchGtasksCalendarItems(fromMs, toMs),
   ]);
 
   const items: CalendarItem[] = [];
@@ -182,6 +185,7 @@ async function fetchCalendarWindow(fromMs: number, toMs: number): Promise<Calend
     events: 'ok',
     linkedin: 'ok',
     gcal: 'ok',
+    gtasks: 'ok',
   };
 
   if (tasksRes.status === 'fulfilled') {
@@ -208,6 +212,12 @@ async function fetchCalendarWindow(fromMs: number, toMs: number): Promise<Calend
     sources.gcal = 'error';
   }
 
+  if (gtasksRes.status === 'fulfilled') {
+    items.push(...gtasksRes.value);
+  } else {
+    sources.gtasks = 'error';
+  }
+
   // Sort by start asc so the client can binary-search into the day grid.
   items.sort((a, b) => a.start - b.start);
 
@@ -228,7 +238,7 @@ export function hashCalendarEnvelope(env: CalendarEnvelope): string {
     i.end,
     i.isAllDay ? 1 : 0,
   ]);
-  const statusBits = `${env.sources.tasks}:${env.sources.events}:${env.sources.linkedin}:${env.sources.gcal}`;
+  const statusBits = `${env.sources.tasks}:${env.sources.events}:${env.sources.linkedin}:${env.sources.gcal}:${env.sources.gtasks}`;
   return createHash('sha1').update(JSON.stringify([compact, statusBits])).digest('hex');
 }
 
