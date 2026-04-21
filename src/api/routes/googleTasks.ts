@@ -26,9 +26,19 @@ import type { CalendarItem } from './calendar.js';
 import {
   getAllTaskLists,
   getTaskItemsInWindow,
+  rescheduleTodoTask,
+  editTodoTaskTitle,
+  completeTodoTask,
+  deleteTodoTask,
+  updateTodoTask,
   type GtasksCalendarItem,
 } from '../../todo/todoService.js';
-import { getApprovedActionableTodoTaskIds } from '../../db/queries/actionables.js';
+import {
+  getApprovedActionableTodoTaskIds,
+  getActionableByTodoTaskId,
+  updateActionableTask,
+  updateActionableFireAt,
+} from '../../db/queries/actionables.js';
 
 // ─── Color hash helper (shared palette with gcalService.hashCalendarColor) ──
 
@@ -158,6 +168,161 @@ export default async function googleTasksRoutes(
         // so the Plan 46-02 aggregator's partial-failure logic stays uniform.
         return { items: [], error: 'gtasks_unavailable' };
       }
+    },
+  );
+
+  // ─── Phase 46 Plan 04 — gtasks mutation routes ──────────────────────────
+  //
+  // All four routes are JWT-gated and require ?listId=<listId> because the
+  // Google Tasks API is list-scoped (task ids are list-local). The mutation
+  // helpers in todoService.ts return boolean (never throw) — `false`
+  // surfaces as 502 gtasks_upstream_error.
+
+  const EDIT_TITLE_MAX_LEN = 1024;
+
+  // PATCH /api/google-tasks/items/:taskId/reschedule?listId=...
+  //   body: { dueMs: number } (unix ms)
+  fastify.patch<{
+    Params: { taskId: string };
+    Querystring: { listId?: string };
+    Body: { dueMs?: unknown };
+  }>(
+    '/api/google-tasks/items/:taskId/reschedule',
+    { onRequest: [fastify.authenticate] },
+    async (request, reply) => {
+      const { taskId } = request.params;
+      const listId = request.query.listId;
+      if (!listId) {
+        return reply.status(400).send({ error: 'listId is required' });
+      }
+      const dueMs = (request.body ?? {}).dueMs;
+      if (typeof dueMs !== 'number' || !Number.isFinite(dueMs)) {
+        return reply.status(400).send({ error: 'dueMs must be a finite number' });
+      }
+
+      // If the gtasks item is mirrored by a live actionable, also update the
+      // actionable's fireAt so the calendar surfaces stay consistent after
+      // Plan 45-02's "one echo" discipline. Best-effort — the DB flip is a
+      // local write, not a network call.
+      const mirror = getActionableByTodoTaskId(taskId);
+      if (mirror && mirror.status === 'approved') {
+        updateActionableFireAt(mirror.id, dueMs);
+      }
+
+      const ok = await rescheduleTodoTask(listId, taskId, dueMs);
+      if (!ok) {
+        return reply.status(502).send({ error: 'gtasks_upstream_error' });
+      }
+      return { ok: true };
+    },
+  );
+
+  // PATCH /api/google-tasks/items/:taskId/edit?listId=...
+  //   body: { title: string }
+  //
+  // Mirrored-item edit ownership (CONTEXT §Mirrored-item edit ownership):
+  // if the gtasks item is mirrored by a live actionable (status='approved'),
+  // rewrite the actionable's task text + push the same title to Google Tasks.
+  // We do NOT route through approveActionable here — that primitive requires
+  // status='pending_approval' (ALLOWED_TRANSITIONS only permits
+  // pending_approval → approved), and a mirrored item is by definition
+  // already approved. Instead we mirror the PATCH /api/actionables/:id
+  // pattern: updateActionableTask + updateTodoTask in one go. This preserves
+  // the actionable ↔ gtasks sync without an invalid-transition throw.
+  fastify.patch<{
+    Params: { taskId: string };
+    Querystring: { listId?: string };
+    Body: { title?: unknown };
+  }>(
+    '/api/google-tasks/items/:taskId/edit',
+    { onRequest: [fastify.authenticate] },
+    async (request, reply) => {
+      const { taskId } = request.params;
+      const listId = request.query.listId;
+      if (!listId) {
+        return reply.status(400).send({ error: 'listId is required' });
+      }
+      const rawTitle = (request.body ?? {}).title;
+      if (typeof rawTitle !== 'string') {
+        return reply.status(400).send({ error: 'title must be a string' });
+      }
+      const title = rawTitle.trim();
+      if (!title) {
+        return reply.status(400).send({ error: 'title is required' });
+      }
+      if (title.length > EDIT_TITLE_MAX_LEN) {
+        return reply.status(400).send({
+          error: 'title too long',
+          maxLength: EDIT_TITLE_MAX_LEN,
+        });
+      }
+
+      const mirror = getActionableByTodoTaskId(taskId);
+      if (mirror && mirror.status === 'approved') {
+        // Rewrite the actionable row FIRST, then mirror to Google Tasks via
+        // updateTodoTask (same best-effort pattern the /api/actionables/:id
+        // PATCH uses — Google push is fire-and-forget but awaited here so
+        // we can surface the upstream error code on failure).
+        updateActionableTask(mirror.id, title);
+        const ok = await updateTodoTask(listId, taskId, { title });
+        if (!ok) {
+          return reply.status(502).send({ error: 'gtasks_upstream_error' });
+        }
+        return { ok: true };
+      }
+
+      // Non-mirrored item — write directly to Google Tasks.
+      const ok = await editTodoTaskTitle(listId, taskId, title);
+      if (!ok) {
+        return reply.status(502).send({ error: 'gtasks_upstream_error' });
+      }
+      return { ok: true };
+    },
+  );
+
+  // DELETE /api/google-tasks/items/:taskId?listId=...
+  // Reuses deleteTodoTask — which swallows 404s (already deleted) but throws
+  // on other upstream errors. Wrap in try/catch so we can return 502 cleanly.
+  fastify.delete<{
+    Params: { taskId: string };
+    Querystring: { listId?: string };
+  }>(
+    '/api/google-tasks/items/:taskId',
+    { onRequest: [fastify.authenticate] },
+    async (request, reply) => {
+      const { taskId } = request.params;
+      const listId = request.query.listId;
+      if (!listId) {
+        return reply.status(400).send({ error: 'listId is required' });
+      }
+      try {
+        await deleteTodoTask(taskId, listId);
+      } catch (err) {
+        fastify.log.warn({ err, taskId, listId }, 'gtasks deleteTodoTask failed');
+        return reply.status(502).send({ error: 'gtasks_upstream_error' });
+      }
+      return reply.status(204).send();
+    },
+  );
+
+  // PATCH /api/google-tasks/items/:taskId/complete?listId=...
+  fastify.patch<{
+    Params: { taskId: string };
+    Querystring: { listId?: string };
+  }>(
+    '/api/google-tasks/items/:taskId/complete',
+    { onRequest: [fastify.authenticate] },
+    async (request, reply) => {
+      const { taskId } = request.params;
+      const listId = request.query.listId;
+      if (!listId) {
+        return reply.status(400).send({ error: 'listId is required' });
+      }
+      const ok = await completeTodoTask(listId, taskId);
+      if (!ok) {
+        return reply.status(502).send({ error: 'gtasks_upstream_error' });
+      }
+      return { ok: true };
     },
   );
 }

@@ -98,6 +98,92 @@ export async function deleteTodoTask(
 }
 
 /**
+ * Phase 46 Plan 04 — reschedule a Google Tasks task by rewriting `due` to
+ * a new RFC 3339 timestamp derived from `dueMs` (unix ms). Best-effort
+ * mirror pattern: catches + logs on failure and returns false. Never throws
+ * so route handlers can map `false → 502` cleanly.
+ */
+export async function rescheduleTodoTask(
+  listId: string,
+  taskId: string,
+  dueMs: number,
+): Promise<boolean> {
+  const client = getTasksClient();
+  if (!client) {
+    logger.warn('[todoService] no Google auth available for rescheduleTodoTask');
+    return false;
+  }
+  try {
+    await client.tasks.patch({
+      tasklist: listId,
+      task: taskId,
+      requestBody: { due: new Date(dueMs).toISOString() },
+    });
+    return true;
+  } catch (err) {
+    logger.error({ err, listId, taskId }, '[todoService] rescheduleTodoTask failed');
+    return false;
+  }
+}
+
+/**
+ * Phase 46 Plan 04 — rewrite the title of a Google Tasks task. Same
+ * best-effort pattern as rescheduleTodoTask.
+ */
+export async function editTodoTaskTitle(
+  listId: string,
+  taskId: string,
+  title: string,
+): Promise<boolean> {
+  const client = getTasksClient();
+  if (!client) {
+    logger.warn('[todoService] no Google auth available for editTodoTaskTitle');
+    return false;
+  }
+  try {
+    await client.tasks.patch({
+      tasklist: listId,
+      task: taskId,
+      requestBody: { title },
+    });
+    return true;
+  } catch (err) {
+    logger.error({ err, listId, taskId }, '[todoService] editTodoTaskTitle failed');
+    return false;
+  }
+}
+
+/**
+ * Phase 46 Plan 04 — mark a Google Tasks task completed. Google requires BOTH
+ * `status='completed'` AND the `completed` timestamp in the same PATCH; a
+ * lone status flip is rejected with a 400. Same best-effort pattern.
+ */
+export async function completeTodoTask(
+  listId: string,
+  taskId: string,
+): Promise<boolean> {
+  const client = getTasksClient();
+  if (!client) {
+    logger.warn('[todoService] no Google auth available for completeTodoTask');
+    return false;
+  }
+  try {
+    await client.tasks.patch({
+      tasklist: listId,
+      task: taskId,
+      requestBody: {
+        status: 'completed',
+        completed: new Date().toISOString(),
+      },
+    });
+    return true;
+  } catch (err) {
+    logger.error({ err, listId, taskId }, '[todoService] completeTodoTask failed');
+    return false;
+  }
+}
+
+/**
  * Patch an existing Google Tasks task. Returns true on success, false on
  * failure (auth missing, 404, 401). Never throws — callers use this for
  * best-effort mirroring after a local DB write.
