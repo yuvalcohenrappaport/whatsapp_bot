@@ -45,16 +45,18 @@ export const SourceStatusSchema = z.enum(['ok', 'error']);
 export type SourceStatus = z.infer<typeof SourceStatusSchema>;
 
 // Unified envelope from GET /api/calendar/items and SSE calendar.updated.
-// Plan 47-02 added `gcal` here (47-02-SUMMARY decision 1). `gtasks` is
-// OPTIONAL because Phase 46 server-side aggregator integration is deferred —
-// the key may or may not be present depending on backend state.
+// Plan 47-02 added `gcal` here (47-02-SUMMARY decision 1). Plan 46-03 made
+// `gtasks` REQUIRED after Plan 46-02 wired the gtasks aggregator slot into
+// every envelope via fetchGtasksCalendarItems — sources.gtasks is now always
+// present, defaulting to 'error' on upstream failure per the partial-failure
+// contract.
 export const CalendarEnvelopeSchema = z.object({
   items: z.array(CalendarItemSchema),
   sources: z.object({
     tasks: SourceStatusSchema,
     events: SourceStatusSchema,
     linkedin: SourceStatusSchema,
-    gtasks: SourceStatusSchema.optional(),
+    gtasks: SourceStatusSchema,
     gcal: SourceStatusSchema,
   }),
 });
