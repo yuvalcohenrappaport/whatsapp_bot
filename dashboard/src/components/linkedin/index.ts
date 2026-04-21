@@ -32,3 +32,7 @@ export { PendingActionEntryButton } from './PendingActionEntryButton';
 // Plan 38-02 — new lesson run form (slide-out sheet from queue page).
 export { NewLessonRunSheet } from './NewLessonRunSheet';
 export type { NewLessonRunSheetProps } from './NewLessonRunSheet';
+
+// Plan 48-03 — new post composer (modal dialog from queue page).
+export { NewPostDialog } from './NewPostDialog';
+export type { NewPostDialogProps } from './NewPostDialog';
