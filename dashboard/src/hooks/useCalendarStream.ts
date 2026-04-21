@@ -19,13 +19,14 @@
  *   events:   { items: CalendarItem[], status: 'loading'|'ok'|'error' }
  *   linkedin: { items: CalendarItem[], status: 'loading'|'ok'|'error' }
  *   gcal:     { items: CalendarItem[], status: 'loading'|'ok'|'error' }   // Phase 47 Plan 03
+ *   gtasks:   { items: CalendarItem[], status: 'loading'|'ok'|'error' }   // Phase 46 Plan 03
  *   sseStatus: 'idle'|'connecting'|'open'|'reconnecting'|'error'
  *
  * Per-source refetch functions exposed for the Retry buttons in Calendar.tsx.
  *
- * Plan 44-04 (base); Phase 47 Plan 03 added the gcal slice — gtasks is
- * intentionally NOT surfaced as a separate slice because Phase 46 has not
- * shipped yet and gtasks is optional in the envelope.
+ * Plan 44-04 (base); Phase 47 Plan 03 added the gcal slice; Phase 46 Plan 03
+ * added the gtasks slice now that Plan 46-02 made sources.gtasks required in
+ * every envelope.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { z } from 'zod';
@@ -54,8 +55,9 @@ export interface UseCalendarStreamResult {
   events: SourceSlice;
   linkedin: SourceSlice;
   gcal: SourceSlice;
+  gtasks: SourceSlice;
   sseStatus: SseStatus;
-  refetch: (source: 'tasks' | 'events' | 'linkedin' | 'gcal') => void;
+  refetch: (source: 'tasks' | 'events' | 'linkedin' | 'gcal' | 'gtasks') => void;
 }
 
 // -----------------------------------------------------------------------
@@ -90,6 +92,7 @@ export function useCalendarStream(): UseCalendarStreamResult {
   const [events, setEvents] = useState<SourceSlice>(LOADING_SLICE);
   const [linkedin, setLinkedin] = useState<SourceSlice>(LOADING_SLICE);
   const [gcal, setGcal] = useState<SourceSlice>(LOADING_SLICE);
+  const [gtasks, setGtasks] = useState<SourceSlice>(LOADING_SLICE);
   const [sseStatus, setSseStatus] = useState<SseStatus>('idle');
 
   // Tracks how many sources have resolved (any value > 0 → open SSE).
@@ -143,10 +146,12 @@ export function useCalendarStream(): UseCalendarStreamResult {
       const eventItems = items.filter((i) => i.source === 'event');
       const linkedinItems = items.filter((i) => i.source === 'linkedin');
       const gcalItems = items.filter((i) => i.source === 'gcal');
+      const gtasksItems = items.filter((i) => i.source === 'gtasks');
       setTasks({ items: taskItems, status: sources.tasks });
       setEvents({ items: eventItems, status: sources.events });
       setLinkedin({ items: linkedinItems, status: sources.linkedin });
       setGcal({ items: gcalItems, status: sources.gcal });
+      setGtasks({ items: gtasksItems, status: sources.gtasks });
     });
 
     es.onopen = () => {
@@ -177,6 +182,7 @@ export function useCalendarStream(): UseCalendarStreamResult {
       setEvents({ items: items.filter((i) => i.source === 'event'), status: sources.events });
       setLinkedin({ items: items.filter((i) => i.source === 'linkedin'), status: sources.linkedin });
       setGcal({ items: items.filter((i) => i.source === 'gcal'), status: sources.gcal });
+      setGtasks({ items: items.filter((i) => i.source === 'gtasks'), status: sources.gtasks });
     } catch {
       // Network error — leave last-known-good; next tick retries.
     }
@@ -263,6 +269,31 @@ export function useCalendarStream(): UseCalendarStreamResult {
     return () => { cancelled = true; };
   }, [openSse]);
 
+  // Gtasks initial load — pulls from the unified aggregator and filters to
+  // gtasks items. Same rationale as fetchGcal: the aggregator handles per-list
+  // iteration + actionable dedup (GTASKS-05) so the dashboard doesn't have to
+  // know about todoTaskId linkage.
+  const fetchGtasks = useCallback(() => {
+    let cancelled = false;
+    apiFetch<unknown>(UNIFIED_URL)
+      .then((json) => {
+        if (cancelled || cancelledRef.current) return;
+        const parsed = CalendarEnvelopeSchema.safeParse(json);
+        if (!parsed.success) {
+          setGtasks({ items: [], status: 'error' });
+          return;
+        }
+        const gtasksItems = parsed.data.items.filter((i) => i.source === 'gtasks');
+        setGtasks({ items: gtasksItems, status: parsed.data.sources.gtasks });
+        resolvedCountRef.current += 1;
+        if (resolvedCountRef.current === 1) openSse();
+      })
+      .catch(() => {
+        if (!cancelled && !cancelledRef.current) setGtasks({ items: [], status: 'error' });
+      });
+    return () => { cancelled = true; };
+  }, [openSse]);
+
   // -----------------------------------------------------------------------
   // Phase 1: parallel initial load on mount.
   // -----------------------------------------------------------------------
@@ -276,6 +307,7 @@ export function useCalendarStream(): UseCalendarStreamResult {
     fetchEvents();
     fetchLinkedin();
     fetchGcal();
+    fetchGtasks();
 
     return () => {
       cancelledRef.current = true;
@@ -294,7 +326,7 @@ export function useCalendarStream(): UseCalendarStreamResult {
   // Public refetch for Retry buttons.
   // -----------------------------------------------------------------------
   const refetch = useCallback(
-    (source: 'tasks' | 'events' | 'linkedin' | 'gcal') => {
+    (source: 'tasks' | 'events' | 'linkedin' | 'gcal' | 'gtasks') => {
       // Reset the source to loading state before refetching.
       if (source === 'tasks') {
         setTasks(LOADING_SLICE);
@@ -305,13 +337,16 @@ export function useCalendarStream(): UseCalendarStreamResult {
       } else if (source === 'linkedin') {
         setLinkedin(LOADING_SLICE);
         fetchLinkedin();
-      } else {
+      } else if (source === 'gcal') {
         setGcal(LOADING_SLICE);
         fetchGcal();
+      } else {
+        setGtasks(LOADING_SLICE);
+        fetchGtasks();
       }
     },
-    [fetchTasks, fetchEvents, fetchLinkedin, fetchGcal],
+    [fetchTasks, fetchEvents, fetchLinkedin, fetchGcal, fetchGtasks],
   );
 
-  return { tasks, events, linkedin, gcal, sseStatus, refetch };
+  return { tasks, events, linkedin, gcal, gtasks, sseStatus, refetch };
 }

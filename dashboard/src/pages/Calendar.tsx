@@ -348,7 +348,7 @@ export default function CalendarPage() {
   const { isMobile } = useViewport();
   const [cursorMs, setCursorMs] = useState(() => Date.now());
 
-  const { tasks, events, linkedin, gcal, sseStatus, refetch } = useCalendarStream();
+  const { tasks, events, linkedin, gcal, gtasks, sseStatus, refetch } = useCalendarStream();
 
   // ---- Optimistic override layer ----
   // Maps item.id → new startMs. Merged onto allItems before passing to views.
@@ -509,8 +509,8 @@ export default function CalendarPage() {
 
   // ---- Merge items + overrides + inline title edits ----
   const rawItems = useMemo(
-    () => [...tasks.items, ...events.items, ...linkedin.items, ...gcal.items],
-    [tasks.items, events.items, linkedin.items, gcal.items],
+    () => [...tasks.items, ...events.items, ...linkedin.items, ...gcal.items, ...gtasks.items],
+    [tasks.items, events.items, linkedin.items, gcal.items, gtasks.items],
   );
 
   const allItems = useMemo(() => {
@@ -549,7 +549,8 @@ export default function CalendarPage() {
     tasks.status === 'loading' &&
     events.status === 'loading' &&
     linkedin.status === 'loading' &&
-    gcal.status === 'loading';
+    gcal.status === 'loading' &&
+    gtasks.status === 'loading';
 
   const reconnecting = sseStatus === 'reconnecting';
 
@@ -650,10 +651,16 @@ export default function CalendarPage() {
             onRetry={() => refetch('gcal')}
           />
         )}
+        {gtasks.status === 'error' && (
+          <SourceBanner
+            label="Google Tasks unavailable"
+            onRetry={() => refetch('gtasks')}
+          />
+        )}
       </div>
 
       {/* Per-source loading banners */}
-      {(tasks.status === 'loading' || events.status === 'loading' || linkedin.status === 'loading' || gcal.status === 'loading') && (
+      {(tasks.status === 'loading' || events.status === 'loading' || linkedin.status === 'loading' || gcal.status === 'loading' || gtasks.status === 'loading') && (
         <div className="flex gap-2 text-xs text-muted-foreground">
           {tasks.status === 'loading' && (
             <span className="flex items-center gap-1">
@@ -677,6 +684,12 @@ export default function CalendarPage() {
             <span className="flex items-center gap-1">
               <Skeleton className="size-2 rounded-full inline-block" />
               Loading Google Calendar…
+            </span>
+          )}
+          {gtasks.status === 'loading' && (
+            <span className="flex items-center gap-1">
+              <Skeleton className="size-2 rounded-full inline-block" />
+              Loading Google Tasks…
             </span>
           )}
         </div>
