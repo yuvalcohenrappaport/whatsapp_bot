@@ -84,6 +84,7 @@ The **unified sidebar filter surface** shipped here is the mechanism Phase 47 (g
 - **"Show both titles" for drift cases** — deferred; silent actionable-wins is the phase behavior.
 - **Grace-period for completed items** (crossed-out until EOD) — deferred; strict-hide for now.
 - **Dual-write rescheduling that also updates the actionable row** — deferred; edit-path routing through actionables handles the mutation unity for mirrored items; drag-reschedule on mirrored items will need its own decision, expected to follow the same actionable-first rule.
+- **Undo re-create for gtasks delete** — when a gtasks pill is deleted via the trash icon, the Phase 44 undo toast fires but cannot re-create the item (no POST /api/google-tasks/items endpoint). Re-create endpoint and true undo are deferred; the undo toast shows a warning "Undo not available for Google Tasks items" instead of attempting a network call.
 
 </deferred>
 
