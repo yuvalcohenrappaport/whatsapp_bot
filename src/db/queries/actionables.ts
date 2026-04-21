@@ -289,6 +289,52 @@ export function getCalendarActionables(
 }
 
 /**
+ * Phase 46 Plan 01 — dedup helper for the gtasks aggregator. Returns the
+ * Set<string> of todoTaskId values for live (status='approved') actionables
+ * whose fireAt falls within [fromMs, toMs]. The gtasks proxy uses this to
+ * drop any Google Tasks item whose id matches an actionable that's already
+ * mirroring it — the richer bot-owned row wins. Rejected/expired actionables
+ * are intentionally excluded so any Google-Tasks-UI-created row with a
+ * matching id still renders (locked CONTEXT decision).
+ */
+export function getApprovedActionableTodoTaskIds(
+  fromMs: number,
+  toMs: number,
+): Set<string> {
+  const rows = db
+    .select({ todoTaskId: actionables.todoTaskId })
+    .from(actionables)
+    .where(
+      and(
+        eq(actionables.status, 'approved'),
+        isNotNull(actionables.todoTaskId),
+        gte(actionables.fireAt, fromMs),
+        lte(actionables.fireAt, toMs),
+      ),
+    )
+    .all();
+  return new Set(rows.map((r) => r.todoTaskId!).filter(Boolean));
+}
+
+/**
+ * Phase 46 Plan 01 — reverse-lookup for the forthcoming mutation routes
+ * (Plan 46-04). Given a Google Tasks task id, returns the mirroring actionable
+ * if one exists so edits can route through the actionable layer rather than
+ * directly to Google Tasks. Returns undefined for items the bot does not
+ * own (manual Google Tasks UI entries).
+ */
+export function getActionableByTodoTaskId(
+  todoTaskId: string,
+): Actionable | undefined {
+  return db
+    .select()
+    .from(actionables)
+    .where(eq(actionables.todoTaskId, todoTaskId))
+    .limit(1)
+    .get();
+}
+
+/**
  * Recent terminal-state actionables for the dashboard audit view (Phase 43).
  */
 export function getRecentTerminalActionables(limit = 50): Actionable[] {
