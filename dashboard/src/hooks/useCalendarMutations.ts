@@ -68,6 +68,18 @@ export function useRescheduleMutation(opts?: RescheduleMutationOpts) {
           body: JSON.stringify({ eventDate: toMs }),
           headers: { 'Content-Type': 'application/json' },
         });
+      } else if (item.source === 'gtasks') {
+        // Phase 46 Plan 04 — gtasks reschedule. listId required by server.
+        // No slot-snap (unlike LinkedIn), so response is plain { ok: true }.
+        const listId = (item.sourceFields as Record<string, unknown>).listId as string;
+        response = await apiFetch(
+          `/api/google-tasks/items/${encodeURIComponent(item.id)}/reschedule?listId=${encodeURIComponent(listId)}`,
+          {
+            method: 'PATCH',
+            body: JSON.stringify({ dueMs: toMs }),
+            headers: { 'Content-Type': 'application/json' },
+          },
+        );
       } else {
         // linkedin — server snaps to next valid Tue/Wed/Thu slot
         response = await apiFetch(`/api/linkedin/posts/${encodeURIComponent(item.id)}/reschedule`, {
@@ -125,6 +137,16 @@ export function useRescheduleMutation(opts?: RescheduleMutationOpts) {
                     body: JSON.stringify({ eventDate: fromMs }),
                     headers: { 'Content-Type': 'application/json' },
                   });
+                } else if (item.source === 'gtasks') {
+                  const listId = (item.sourceFields as Record<string, unknown>).listId as string;
+                  await apiFetch(
+                    `/api/google-tasks/items/${encodeURIComponent(item.id)}/reschedule?listId=${encodeURIComponent(listId)}`,
+                    {
+                      method: 'PATCH',
+                      body: JSON.stringify({ dueMs: fromMs }),
+                      headers: { 'Content-Type': 'application/json' },
+                    },
+                  );
                 } else {
                   await apiFetch(`/api/linkedin/posts/${encodeURIComponent(item.id)}/reschedule`, {
                     method: 'POST',
@@ -195,6 +217,18 @@ export function useInlineEditMutation(opts?: InlineEditMutationOpts) {
           body: JSON.stringify({ title: trimmed }),
           headers: { 'Content-Type': 'application/json' },
         });
+      } else if (item.source === 'gtasks') {
+        // Phase 46 Plan 04 — server decides whether to route through the
+        // actionable layer (mirrored item) or directly to Google Tasks.
+        const listId = (item.sourceFields as Record<string, unknown>).listId as string;
+        await apiFetch(
+          `/api/google-tasks/items/${encodeURIComponent(item.id)}/edit?listId=${encodeURIComponent(listId)}`,
+          {
+            method: 'PATCH',
+            body: JSON.stringify({ title: trimmed }),
+            headers: { 'Content-Type': 'application/json' },
+          },
+        );
       } else {
         // linkedin — POST /api/linkedin/posts/:id/edit with updated content
         const content_he = item.language === 'he' ? trimmed : null;
@@ -318,6 +352,13 @@ export function useDeleteMutation(opts?: DeleteMutationOpts) {
         await apiFetch(`/api/personal-calendar/events/${encodeURIComponent(item.id)}`, {
           method: 'DELETE',
         });
+      } else if (item.source === 'gtasks') {
+        // Phase 46 Plan 04 — delete via gtasks proxy (listId required).
+        const listId = (item.sourceFields as Record<string, unknown>).listId as string;
+        await apiFetch(
+          `/api/google-tasks/items/${encodeURIComponent(item.id)}?listId=${encodeURIComponent(listId)}`,
+          { method: 'DELETE' },
+        );
       } else {
         // linkedin
         await apiFetch(`/api/linkedin/posts/${encodeURIComponent(item.id)}`, {
@@ -342,6 +383,8 @@ export function useDeleteMutation(opts?: DeleteMutationOpts) {
                     }),
                     headers: { 'Content-Type': 'application/json' },
                   });
+                  opts?.onRollback?.(item);
+                  toast('Undone');
                 } else if (item.source === 'event') {
                   await apiFetch('/api/personal-calendar/events', {
                     method: 'POST',
@@ -352,10 +395,22 @@ export function useDeleteMutation(opts?: DeleteMutationOpts) {
                     }),
                     headers: { 'Content-Type': 'application/json' },
                   });
+                  opts?.onRollback?.(item);
+                  toast('Undone');
+                } else if (item.source === 'gtasks') {
+                  // Phase 46 CONTEXT §Deferred: no POST /api/google-tasks/items
+                  // endpoint exists — re-create is explicitly deferred. Show a
+                  // warning instead of attempting a network call. The pill
+                  // stays visually removed (deletedIds optimistic state owns
+                  // the removal; no rollback call).
+                  toast.warning(
+                    'Undo not available for Google Tasks items — re-create deferred',
+                  );
+                } else {
+                  // linkedin: no create-from-calendar endpoint — undo is a no-op.
+                  opts?.onRollback?.(item);
+                  toast('Undone');
                 }
-                // LinkedIn: no create-from-calendar endpoint — undo is a no-op with note
-                opts?.onRollback?.(item);
-                toast('Undone');
               } catch {
                 toast.error('Undo failed');
               }
@@ -369,6 +424,42 @@ export function useDeleteMutation(opts?: DeleteMutationOpts) {
       toast.error(
         `Couldn't delete: ${err instanceof Error ? err.message : 'unknown error'}`,
       );
+    }
+  };
+
+  return { mutate };
+}
+
+// -----------------------------------------------------------------------
+// useCompleteMutation — gtasks-only "mark complete" action
+// -----------------------------------------------------------------------
+
+/**
+ * Phase 46 Plan 04 — mark a gtasks item `status=completed` via
+ * PATCH /api/google-tasks/items/:taskId/complete?listId=<listId>. Per
+ * CONTEXT §Gtasks pill behavior, the completed item is strict-hidden
+ * from the calendar (no undo, no crossed-out, no grace period).
+ *
+ * Resolves to the item.id on success (caller adds it to deletedIds for
+ * optimistic removal) or undefined on failure. Unknown sources resolve
+ * to undefined without a network call — Complete is gtasks-only.
+ */
+export function useCompleteMutation() {
+  const mutate = async ({ item }: { item: CalendarItem }): Promise<string | undefined> => {
+    if (item.source !== 'gtasks') return undefined;
+    const listId = (item.sourceFields as Record<string, unknown>).listId as string;
+    try {
+      await apiFetch(
+        `/api/google-tasks/items/${encodeURIComponent(item.id)}/complete?listId=${encodeURIComponent(listId)}`,
+        { method: 'PATCH' },
+      );
+      toast.success('Marked complete');
+      return item.id;
+    } catch (err) {
+      toast.error(
+        `Couldn't mark complete: ${err instanceof Error ? err.message : 'unknown error'}`,
+      );
+      return undefined;
     }
   };
 

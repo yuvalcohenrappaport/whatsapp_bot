@@ -42,6 +42,8 @@ interface DayOverflowPopoverProps {
   flashingIds?: Set<string>;
   onOpenItem?: (item: CalendarItem) => void;
   onDelete?: (item: CalendarItem) => void;
+  /** Plan 46-04 — gtasks-only "Mark complete" action, passed through to CalendarPill. */
+  onComplete?: (item: CalendarItem) => Promise<string | undefined>;
 }
 
 export function DayOverflowPopover({
@@ -53,6 +55,7 @@ export function DayOverflowPopover({
   flashingIds = new Set(),
   onOpenItem,
   onDelete,
+  onComplete,
 }: DayOverflowPopoverProps) {
   const { isMobile } = useViewport();
   const today = Date.now();
@@ -71,6 +74,7 @@ export function DayOverflowPopover({
           past={item.start < today}
           onOpenDetails={() => onOpenItem?.(item)}
           onDelete={onDelete}
+          onComplete={onComplete}
         />
       ))}
     </div>

@@ -64,6 +64,8 @@ interface WeekViewProps {
   onDragStart?: (e: React.DragEvent, item: CalendarItem) => void;
   onDragEnd?: (e: React.DragEvent, item: CalendarItem) => void;
   onDelete?: (item: CalendarItem) => void;
+  /** Plan 46-04 — gtasks-only "Mark complete" action, threaded to CalendarPill. */
+  onComplete?: (item: CalendarItem) => Promise<string | undefined>;
 }
 
 // -----------------------------------------------------------------------
@@ -130,6 +132,7 @@ export function WeekView({
   onDragStart,
   onDragEnd,
   onDelete,
+  onComplete,
 }: WeekViewProps) {
   const days = useMemo(() => getWeekDays(cursorMs), [cursorMs]);
   const today = Date.now();
@@ -259,6 +262,7 @@ export function WeekView({
                   onDragStart={onDragStart}
                   onDragEnd={onDragEnd}
                   onDelete={onDelete}
+                  onComplete={onComplete}
                 />
               ))}
               {overflow > 0 && (
@@ -389,6 +393,7 @@ export function WeekView({
                           onDragStart={onDragStart}
                           onDragEnd={onDragEnd}
                           onDelete={onDelete}
+                          onComplete={onComplete}
                         />
                       </div>
                       {/* +N overflow badge on last visible item */}

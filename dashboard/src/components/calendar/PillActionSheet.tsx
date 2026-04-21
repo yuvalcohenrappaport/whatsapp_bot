@@ -16,6 +16,14 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   onEditTitle: () => void;            // delegates to InlineTitleEdit's bottom-sheet
   onDelete?: (item: CalendarItem) => void;  // forwarded from CalendarPill's existing onDelete prop
+  /**
+   * Phase 46 Plan 04 — gtasks-only "Mark complete" action. When the user taps
+   * Complete on a gtasks pill, the parent wires this to useCompleteMutation;
+   * the returned item.id (on success) is added to the parent's deletedIds
+   * Set so the pill disappears optimistically. Absent or returning undefined
+   * keeps the sheet open (e.g. a 502 from the gtasks proxy).
+   */
+  onComplete?: (item: CalendarItem) => Promise<string | undefined>;
 };
 
 /**
@@ -31,7 +39,7 @@ type Props = {
  * matching the bot server's TZ. Non-IST devices may produce unexpected reschedule times —
  * non-issue for the single-user deployment (documented in must_haves).
  */
-export function PillActionSheet({ item, open, onOpenChange, onEditTitle, onDelete }: Props) {
+export function PillActionSheet({ item, open, onOpenChange, onEditTitle, onDelete, onComplete }: Props) {
   const { mutate: reschedule } = useRescheduleMutation();
   const [showPicker, setShowPicker] = React.useState(false);
 
@@ -86,6 +94,21 @@ export function PillActionSheet({ item, open, onOpenChange, onEditTitle, onDelet
             )}
             {!isGcal && (
               <Button onClick={() => { vibrate(); onEditTitle(); onOpenChange(false); }} variant="outline">Edit title</Button>
+            )}
+            {/* Complete — gtasks-only long-press action (CONTEXT §Gtasks pill behavior).
+                Plan 46-04. Returns the item.id on success so the parent can add it to
+                deletedIds; keep the sheet open on failure (undefined return). */}
+            {item.source === 'gtasks' && onComplete && (
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  vibrate();
+                  const removedId = await onComplete(item);
+                  if (removedId) onOpenChange(false);
+                }}
+              >
+                <span className="mr-2">✓</span> Complete
+              </Button>
             )}
             {!isGcal && onDelete && (
               <Button

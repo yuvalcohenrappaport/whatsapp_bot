@@ -33,6 +33,7 @@ import {
   useRescheduleMutation,
   useInlineEditMutation,
   useDeleteMutation,
+  useCompleteMutation,
 } from '@/hooks/useCalendarMutations';
 import { CalendarHeader } from '@/components/calendar/CalendarHeader';
 import {
@@ -395,6 +396,11 @@ export default function CalendarPage() {
     onRollback: rollbackDelete,
   });
 
+  // Plan 46-04 — gtasks-only Complete mutation. No optimistic hook here;
+  // the hook resolves to the item.id on success and we add it to deletedIds
+  // (reusing the existing Set) so the pill disappears from the grid.
+  const { mutate: completeMutate } = useCompleteMutation();
+
   // ---- Inline title edit state ----
   const [inlineEditItem, setInlineEditItem] = useState<CalendarItem | null>(null);
   const [inlineTitles, setInlineTitles] = useState<Map<string, string>>(new Map());
@@ -586,6 +592,17 @@ export default function CalendarPage() {
     onDragStart: handleDragStart,
     onDragEnd: handleDragEnd,
     onDelete: (item: CalendarItem) => void deleteMutate(item),
+    /**
+     * Plan 46-04 — gtasks-only Complete action. Wraps completeMutate so the
+     * returned item.id is added to deletedIds (reuses the existing optimistic
+     * remove Set). Returning the id from the async fn allows PillActionSheet
+     * to close the sheet on success and keep it open on failure.
+     */
+    onComplete: async (item: CalendarItem): Promise<string | undefined> => {
+      const removedId = await completeMutate({ item });
+      if (removedId) applyDeleteOptimistic(item);
+      return removedId;
+    },
   };
 
   // Shared filter-panel props — used by both desktop left-rail + mobile sheet

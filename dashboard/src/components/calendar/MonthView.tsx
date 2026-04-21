@@ -43,6 +43,8 @@ interface MonthViewProps {
   onDragStart?: (e: React.DragEvent, item: CalendarItem) => void;
   onDragEnd?: (e: React.DragEvent, item: CalendarItem) => void;
   onDelete?: (item: CalendarItem) => void;
+  /** Plan 46-04 — gtasks-only "Mark complete" action, threaded to PillActionSheet. */
+  onComplete?: (item: CalendarItem) => Promise<string | undefined>;
 }
 
 // -----------------------------------------------------------------------
@@ -96,6 +98,7 @@ export function MonthView({
   onDragStart,
   onDragEnd,
   onDelete,
+  onComplete,
 }: MonthViewProps) {
   const grid = buildMonthGrid(cursorMs);
   const today = Date.now();
@@ -208,6 +211,7 @@ export function MonthView({
                     onDragStart={onDragStart}
                     onDragEnd={onDragEnd}
                     onDelete={onDelete}
+                    onComplete={onComplete}
                   />
                 </div>
               ))}
@@ -221,6 +225,7 @@ export function MonthView({
                     flashingIds={flashingIds}
                     onOpenItem={onOpenItem}
                     onDelete={onDelete}
+                    onComplete={onComplete}
                     trigger={
                       <button
                         type="button"

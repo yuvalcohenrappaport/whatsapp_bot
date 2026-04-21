@@ -62,6 +62,8 @@ interface DayViewProps {
   onDragStart?: (e: React.DragEvent, item: CalendarItem) => void;
   onDragEnd?: (e: React.DragEvent, item: CalendarItem) => void;
   onDelete?: (item: CalendarItem) => void;
+  /** Plan 46-04 — gtasks-only "Mark complete" action, threaded to CalendarPill. */
+  onComplete?: (item: CalendarItem) => Promise<string | undefined>;
 }
 
 // -----------------------------------------------------------------------
@@ -106,6 +108,7 @@ export function DayView({
   onDragStart,
   onDragEnd,
   onDelete,
+  onComplete,
 }: DayViewProps) {
   const { isMobile } = useViewport();
   const ROW_H = isMobile ? ROW_H_MOBILE : ROW_H_DESKTOP;
@@ -228,6 +231,7 @@ export function DayView({
               onDragStart={onDragStart}
               onDragEnd={onDragEnd}
               onDelete={onDelete}
+              onComplete={onComplete}
             />
           ))}
         </div>
@@ -304,6 +308,7 @@ export function DayView({
                     onDragStart={onDragStart}
                     onDragEnd={onDragEnd}
                     onDelete={onDelete}
+                    onComplete={onComplete}
                   />
                 </div>
               </div>

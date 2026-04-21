@@ -103,6 +103,12 @@ interface CalendarPillProps {
   onDragEnd?: (e: React.DragEvent, item: CalendarItem) => void;
   /** Delete callback — shows Trash2 icon on hover (non-compact, non-ghost). */
   onDelete?: (item: CalendarItem) => void;
+  /**
+   * Plan 46-04 — gtasks-only "Mark complete" long-press action. Threaded
+   * through to PillActionSheet; caller returns the item.id on success so
+   * Calendar.tsx can add it to deletedIds for optimistic removal.
+   */
+  onComplete?: (item: CalendarItem) => Promise<string | undefined>;
 }
 
 // -----------------------------------------------------------------------
@@ -124,6 +130,7 @@ export function CalendarPill({
   onDragStart,
   onDragEnd,
   onDelete,
+  onComplete,
 }: CalendarPillProps) {
   const { isMobile } = useViewport();
   const Icon = SOURCE_ICON[item.source];
@@ -274,6 +281,7 @@ export function CalendarPill({
         onOpenChange={setSheetOpen}
         onEditTitle={openInlineEdit}
         onDelete={onDelete}
+        onComplete={onComplete}
       />
     )}
     </>
