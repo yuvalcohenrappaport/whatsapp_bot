@@ -426,7 +426,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 43. Dashboard Pending Tasks View | v1.8 | 3/3 | Complete | 2026-04-20 |
 | 44. Unified Editable Calendar | v1.9 | 6/6 | Complete | 2026-04-20 |
 | 45. Dashboard Pending-Tasks Write Actions | v1.9 | Complete    | 2026-04-20 | 2026-04-20 |
-| 46. Google Tasks Full-List Sync | 1/5 | In Progress|  | — |
+| 46. Google Tasks Full-List Sync | 2/5 | In Progress|  | — |
 | 47. Google Calendar Events Sync | 3/4 | In Progress|  | 47-01 shipped 2026-04-20 (gcalService + routes + dedup + 10-case vitest; GCAL-01/02/05) |
 | 48. LinkedIn Post Composer (Dashboard) | 2/3 | In Progress|  | — |
 | 49. Deploy + Verify + Close v1.9 | v1.9 | 0/? | Not started | — |
@@ -464,7 +464,7 @@ Plans:
   4. Sidebar filter panel lets owner toggle each list on/off; preference persisted to localStorage
   5. Google Tasks rows already mirrored into `actionables` (matching `todoTaskId`) render once — from the `actionables` row; gtasks payload drops the duplicate
 
-**Plans:** 1/5 plans executed
+**Plans:** 2/5 plans executed
 
 Plans:
 - [x] 46-01-PLAN.md — gtasks service layer (getAllTaskLists, getTaskItemsInWindow) + GET /api/google-tasks/lists + /items routes + vitest

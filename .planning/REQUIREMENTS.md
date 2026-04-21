@@ -29,10 +29,10 @@ Requirements for the **Dashboard Expansion** milestone. Bring the whole dashboar
 ### Google Tasks Full Sync
 
 - [x] **GTASKS-01**: Backend exposes `GET /api/google-tasks/lists` returning every list the owner has access to, and `GET /api/google-tasks/items?from=<ms>&to=<ms>` returning CalendarItems with `source: 'gtasks'` and `sourceFields: { listId, listName }` spanning all lists
-- [ ] **GTASKS-02**: The unified `/api/calendar/items` aggregator + SSE include gtasks; per-source partial-failure tolerance covers gtasks (other sources still render if the Google Tasks API is down)
+- [x] **GTASKS-02**: The unified `/api/calendar/items` aggregator + SSE include gtasks; per-source partial-failure tolerance covers gtasks (other sources still render if the Google Tasks API is down)
 - [ ] **GTASKS-03**: Dashboard renders gtasks as a new CalendarPill variant with a color assigned per list (stable hash → palette, with a dashboard setting page deferred to a later milestone)
 - [ ] **GTASKS-04**: Calendar page has a sidebar filter panel listing every gtasks list with a checkbox + color swatch; toggles persist to localStorage; hidden lists are excluded from the grid
-- [ ] **GTASKS-05**: A Google Tasks row already mirrored into `actionables` (via `todoTaskId`) renders from the `actionables` row only — gtasks de-dup prefers the richer bot-owned row
+- [x] **GTASKS-05**: A Google Tasks row already mirrored into `actionables` (via `todoTaskId`) renders from the `actionables` row only — gtasks de-dup prefers the richer bot-owned row
 
 ### Google Calendar Full Sync
 
