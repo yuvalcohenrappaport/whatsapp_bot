@@ -30,8 +30,8 @@ Requirements for the **Dashboard Expansion** milestone. Bring the whole dashboar
 
 - [x] **GTASKS-01**: Backend exposes `GET /api/google-tasks/lists` returning every list the owner has access to, and `GET /api/google-tasks/items?from=<ms>&to=<ms>` returning CalendarItems with `source: 'gtasks'` and `sourceFields: { listId, listName }` spanning all lists
 - [x] **GTASKS-02**: The unified `/api/calendar/items` aggregator + SSE include gtasks; per-source partial-failure tolerance covers gtasks (other sources still render if the Google Tasks API is down)
-- [ ] **GTASKS-03**: Dashboard renders gtasks as a new CalendarPill variant with a color assigned per list (stable hash → palette, with a dashboard setting page deferred to a later milestone)
-- [ ] **GTASKS-04**: Calendar page has a sidebar filter panel listing every gtasks list with a checkbox + color swatch; toggles persist to localStorage; hidden lists are excluded from the grid
+- [x] **GTASKS-03**: Dashboard renders gtasks as a new CalendarPill variant with a color assigned per list (stable hash → palette, with a dashboard setting page deferred to a later milestone)
+- [x] **GTASKS-04**: Calendar page has a sidebar filter panel listing every gtasks list with a checkbox + color swatch; toggles persist to localStorage; hidden lists are excluded from the grid
 - [x] **GTASKS-05**: A Google Tasks row already mirrored into `actionables` (via `todoTaskId`) renders from the `actionables` row only — gtasks de-dup prefers the richer bot-owned row
 
 ### Google Calendar Full Sync
@@ -225,16 +225,16 @@ Requirements for the **Task Approval & Context Enrichment** milestone. Turn comm
 | DASH-APP-02 | Phase 45 | Complete (2026-04-20 — dashboard Approve invokes approveActionable (exported from Plan 45-01), which runs Phase 42 Gemini enrichment + Google Tasks push with the safe fallback inherited from Phase 42; SC#2 observed live — enriched Recent row + self-chat ✅ echo + Google Tasks entry within 3s; SC#5 concurrent WhatsApp race observed live — exactly one Tasks entry + one echo, losing surface got `Already handled in WhatsApp` toast without rollback; see 45-04-SUMMARY.md) |
 | DASH-APP-03 | Phase 45 | Complete (2026-04-20 — POST /edit rewrites task text via updateActionableTask, then falls through to approveActionable so one ✅ echo fires with the edited title matching the WhatsApp `edit:` grammar; SC#4 observed live — Hebrew RTL card-morph + Cmd+Enter save + enriched-from-edited-text Recent row within 3s; SC#3 reject+undo within 5s verified live (silent unreject), grace-closed post-10s shows 'Undo window closed' toast; SSE via Plan 43-02 3s hash-poll unchanged; see 45-04-SUMMARY.md) |
 | GTASKS-01 | Phase 46 | Complete (Plan 46-01, 2026-04-21 — /api/google-tasks/lists + /items JWT-gated routes in src/api/routes/googleTasks.ts; todoService.getAllTaskLists + getTaskItemsInWindow with per-list Promise.allSettled error isolation; server-side dedup against approved actionables via getApprovedActionableTodoTaskIds; 10/10 vitest green; commits d7217ae + a8794de) |
-| GTASKS-02 | Phase 46 | Not started |
-| GTASKS-03 | Phase 46 | Not started |
-| GTASKS-04 | Phase 46 | Not started |
-| GTASKS-05 | Phase 46 | Not started |
+| GTASKS-02 | Phase 46 | Complete (Plan 46-02, 2026-04-21 — unified /api/calendar/items aggregator 5th allSettled slot invoking fetchGtasksCalendarItems; sources.gtasks added to CalendarEnvelope; hashCalendarEnvelope covers gtasks status bits; partial failure isolated; 23/23 vitest green; commit 9cb40a6) |
+| GTASKS-03 | Phase 46 | Complete (Plan 46-03, 2026-04-21 — dashboard CalendarPill SOURCE_STRIPE/BG/ICON maps include gtasks sky fallback + ListTodo icon; per-list color from hashListColor(listId) server-side → sourceFields.color → useCalendarFilter.resolveItemColor with per-list colorOverride layer; 47-03 shipped component infrastructure, 46-03 wired the missing useCalendarStream gtasks slice + schema tightening; commit 34bf971) |
+| GTASKS-04 | Phase 46 | Complete (Plan 46-03, 2026-04-21 — CalendarFilterPanel renders Google Tasks section with per-list toggle row + color swatch + item count + gear override (shipped 47-03); useCalendarFilter.filteredItems excludes hidden lists; prefs persist to localStorage key 'calFilterPrefs_v1'; new lists default visible; mobile CalendarFilterPanelSheet opens from CalendarHeader SlidersHorizontal button; commit 34bf971) |
+| GTASKS-05 | Phase 46 | Complete (Plan 46-01 server-side dedup via getApprovedActionableTodoTaskIds + Set.has intersection in fetchGtasksCalendarItems; wired into aggregator via Plan 46-02; commits a8794de + 9cb40a6) |
 | GCAL-01 | Phase 47 | Complete (Plan 47-01, 2026-04-20) |
 | GCAL-02 | Phase 47 | Complete (Plan 47-01, 2026-04-20) |
-| GCAL-03 | Phase 47 | Not started |
-| GCAL-04 | Phase 47 | Not started |
+| GCAL-03 | Phase 47 | Complete (Plan 47-02, 2026-04-21 — aggregator 4th slot + sources.gcal) |
+| GCAL-04 | Phase 47 | Complete (Plan 47-03, 2026-04-21 — dashboard CalendarFilterPanel gcal section + useCalendarStream gcal slice + CalendarPill gcal visuals) |
 | GCAL-05 | Phase 47 | Complete (Plan 47-01, 2026-04-20) |
-| GCAL-06 | Phase 47 | Not started |
+| GCAL-06 | Phase 47 | Complete (Plan 47-03, 2026-04-21 — gcal pills read-only: draggable gated on isReadOnly, onDelete suppressed, InlineTitleEdit suppressed, PillActionSheet shows 'Open in Google Calendar' anchor only) |
 | LIN-NEW-01 | Phase 48 | In Progress (Plans 48-01 pm-authority + 48-02 proxy shipped 2026-04-20; awaits Plan 48-03 dashboard UI) |
 | VER-01 | Phase 49 | Not started |
 
