@@ -446,7 +446,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 48. LinkedIn Post Composer (Dashboard) | v1.9 | 3/3 | Complete | 2026-04-23 |
 | 49. Deploy + Verify + Close v1.9 | v1.9 | 1/1 | Complete | 2026-04-23 |
 | 50. Dashboard Mobile UI Polish | v2.0 | Complete    | 2026-04-20 | 2026-04-20 |
-| 51. Richer Trip Memory | v2.1 | 0/0 | Planning | — |
+| 51. Richer Trip Memory | v2.1 | 0/5 | Planned | — |
 | 52. Multimodal Intake | v2.1 | 0/0 | Planning | — |
 | 53. Smarter Search (Restaurants) | v2.1 | 0/0 | Planning | — |
 | 54. Proactive Day-Of Intelligence | v2.1 | 0/0 | Planning | — |
@@ -464,6 +464,13 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
   4. `conflictDetector` hard-conflict case (two decisions same time block, confidence ≥0.9, within 7 days) posts a single discreet group alert within 30s and updates `conflicts_with` on both sides
   5. `conflictDetector` soft-conflict case (gap <30min OR long transit) records `conflicts_with` silently — no group message
   6. Daily 02:00 archival cron moves expired trips to `trip_archive`; decision-archival approach (FK, flag, or sibling table) is decided in the phase plan
+
+**Plans:** 5 plans
+- [ ] 51-01-PLAN.md — Schema migration 0022 + query helpers (foundation)
+- [ ] 51-02-PLAN.md — Classifier upgrade: extract proposed_by/category/cost with ≥0.8 accuracy on 10 Hebrew fixtures
+- [ ] 51-03-PLAN.md — Self-report commands: !pref, !budget, !dates
+- [ ] 51-04-PLAN.md — Conflict detector (hard/soft) with Hebrew alert
+- [ ] 51-05-PLAN.md — Daily 02:00 archive-expired-trips cron
 
 ### Phase 52: Multimodal Intake
 **Goal:** Images and PDFs dropped into a `travelBotActive` group are parsed by Gemini 2.5 Flash vision; high-confidence extractions (≥0.8) auto-file as `trip_decisions` with `origin='multimodal'`, and dated extractions trigger the v1.4 `createSuggestion` calendar flow. Low-confidence results are silently discarded. Successful files produce a single-line "📌 noted" ack in the group.
