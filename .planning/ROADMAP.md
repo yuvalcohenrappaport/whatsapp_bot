@@ -111,7 +111,7 @@
 - [x] **Phase 43: Dashboard Pending Tasks View** — Read-only dashboard page for auditing pending + recent approved/rejected/expired actionables (completed 2026-04-20)
 - [x] **Phase 44: Unified Editable Calendar** — /calendar surface merging tasks + personal events + LinkedIn posts with drag-reschedule, inline title edit, create-from-slot popover, delete-with-undo, SSE live sync, month/week/day views (completed 2026-04-20 — v1.9 seed)
 - [x] **Phase 45: Dashboard Pending-Tasks Write Actions** — Approve/Reject/Edit buttons on /pending-tasks page, routed through the Phase 41 `approvalHandler` with Phase 42 Gemini enrichment (completed 2026-04-20)
-- [ ] **Phase 46: Google Tasks Full-List Sync** — Pull all owner's Google Tasks lists into the unified calendar with per-list color + sidebar filter; de-dup against actionables
+- [x] **Phase 46: Google Tasks Full-List Sync** — Pull all owner's Google Tasks lists into the unified calendar with per-list color + sidebar filter; de-dup against actionables (completed 2026-04-23)
 - [ ] **Phase 47: Google Calendar Events Sync** — Pull all owner's Google Calendar events into the unified calendar (read-only); de-dup against personal_pending_events; sidebar filter mechanism extends to gcal
 - [ ] **Phase 48: LinkedIn Post Composer (Dashboard)** — "New Post" action on /linkedin queue page that composes via pm-authority's POST /v1/posts and returns the post in PENDING_REVIEW
 - [ ] **Phase 49: Deploy + Verify + Close v1.9** — PM2 redeploy both services, dashboard bundle ship, owner walkthrough on all new requirements, milestone closeout
@@ -426,7 +426,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 43. Dashboard Pending Tasks View | v1.8 | 3/3 | Complete | 2026-04-20 |
 | 44. Unified Editable Calendar | v1.9 | 6/6 | Complete | 2026-04-20 |
 | 45. Dashboard Pending-Tasks Write Actions | v1.9 | Complete    | 2026-04-20 | 2026-04-20 |
-| 46. Google Tasks Full-List Sync | 4/5 | In Progress|  | — |
+| 46. Google Tasks Full-List Sync | v1.9 | 5/5 | Complete | 2026-04-23 |
 | 47. Google Calendar Events Sync | 3/4 | In Progress|  | 47-01 shipped 2026-04-20 (gcalService + routes + dedup + 10-case vitest; GCAL-01/02/05) |
 | 48. LinkedIn Post Composer (Dashboard) | 2/3 | In Progress|  | — |
 | 49. Deploy + Verify + Close v1.9 | v1.9 | 0/? | Not started | — |
@@ -464,14 +464,14 @@ Plans:
   4. Sidebar filter panel lets owner toggle each list on/off; preference persisted to localStorage
   5. Google Tasks rows already mirrored into `actionables` (matching `todoTaskId`) render once — from the `actionables` row; gtasks payload drops the duplicate
 
-**Plans:** 4/5 plans executed
+**Plans:** 5/5 plans complete
 
 Plans:
 - [x] 46-01-PLAN.md — gtasks service layer (getAllTaskLists, getTaskItemsInWindow) + GET /api/google-tasks/lists + /items routes + vitest
 - [x] 46-02-PLAN.md — extend calendar aggregator with gtasks as 4th source + update SSE hash + regression tests
 - [x] 46-03-PLAN.md — dashboard: extend calendarSchemas, build CalendarFilterPanel + useCalendarFilter, wire into Calendar.tsx
 - [x] 46-04-PLAN.md — gtasks mutation routes (reschedule/edit/delete/complete) + dashboard mutation hook extension + PillActionSheet Complete action
-- [ ] 46-05-PLAN.md — PM2 deploy + owner walkthrough (GTASKS-01..05 live verification)
+- [x] 46-05-PLAN.md — PM2 deploy + owner walkthrough (GTASKS-01..05 live verification) — shipped 2026-04-23
 
 ### Phase 47: Google Calendar Events Sync
 
