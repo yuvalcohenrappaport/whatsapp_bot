@@ -13,7 +13,7 @@
 - [x] **v1.8 Task Approval & Context Enrichment** — Phases 39-43 (shipped 2026-04-20) — [archive](milestones/v1.8-ROADMAP.md)
 - [x] **v1.9 Dashboard Expansion** — Phases 44-49 (shipped 2026-04-23) — [archive](milestones/v1.9-ROADMAP.md)
 - [x] **v2.0 Dashboard UX Polish** — Phase 50+ (Phase 50 seeded 2026-04-20 as mobile UI polish) (completed 2026-04-20)
-- [ ] **v2.1 Travel Agent Upgrade** — Phases 51-55 (planning 2026-04-23) — design: `docs/superpowers/specs/2026-04-23-travel-agent-v2.1-design.md`
+- [ ] **v2.1 Travel Agent Upgrade** — Phases 51-55 (in progress 2026-04-23; Phase 51 Plan 01 shipped) — design: `docs/superpowers/specs/2026-04-23-travel-agent-v2.1-design.md`
 
 ## Phases
 
@@ -446,7 +446,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 48. LinkedIn Post Composer (Dashboard) | v1.9 | 3/3 | Complete | 2026-04-23 |
 | 49. Deploy + Verify + Close v1.9 | v1.9 | 1/1 | Complete | 2026-04-23 |
 | 50. Dashboard Mobile UI Polish | v2.0 | Complete    | 2026-04-20 | 2026-04-20 |
-| 51. Richer Trip Memory | v2.1 | 0/5 | Planned | — |
+| 51. Richer Trip Memory | 1/5 | In Progress|  | — |
 | 52. Multimodal Intake | v2.1 | 0/0 | Planning | — |
 | 53. Smarter Search (Restaurants) | v2.1 | 0/0 | Planning | — |
 | 54. Proactive Day-Of Intelligence | v2.1 | 0/0 | Planning | — |
@@ -465,8 +465,8 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
   5. `conflictDetector` soft-conflict case (gap <30min OR long transit) records `conflicts_with` silently — no group message
   6. Daily 02:00 archival cron moves expired trips to `trip_archive`; decision-archival approach (FK, flag, or sibling table) is decided in the phase plan
 
-**Plans:** 5 plans
-- [ ] 51-01-PLAN.md — Schema migration 0022 + query helpers (foundation)
+**Plans:** 1/5 plans executed
+- [x] 51-01-PLAN.md — Schema migration 0022 + query helpers (foundation) _(shipped 2026-04-23 — commits `a0a57e9` + `6bf1bbc`)_
 - [ ] 51-02-PLAN.md — Classifier upgrade: extract proposed_by/category/cost with ≥0.8 accuracy on 10 Hebrew fixtures
 - [ ] 51-03-PLAN.md — Self-report commands: !pref, !budget, !dates
 - [ ] 51-04-PLAN.md — Conflict detector (hard/soft) with Hebrew alert
