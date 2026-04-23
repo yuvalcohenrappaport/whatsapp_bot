@@ -11,7 +11,7 @@
 - [x] **v1.6 Scheduled Replies** — Phases 27-32 (shipped 2026-03-30)
 - [x] **v1.7 LinkedIn Bot Dashboard Integration** — Phases 33-38 (shipped 2026-04-17)
 - [x] **v1.8 Task Approval & Context Enrichment** — Phases 39-43 (shipped 2026-04-20) — [archive](milestones/v1.8-ROADMAP.md)
-- [ ] **v1.9 Dashboard Expansion** — Phases 44-49 (Phase 44 shipped 2026-04-20 as seed; planned 2026-04-20)
+- [x] **v1.9 Dashboard Expansion** — Phases 44-49 (shipped 2026-04-23) — [archive](milestones/v1.9-ROADMAP.md)
 - [x] **v2.0 Dashboard UX Polish** — Phase 50+ (Phase 50 seeded 2026-04-20 as mobile UI polish) (completed 2026-04-20)
 
 ## Phases
@@ -114,7 +114,7 @@
 - [x] **Phase 46: Google Tasks Full-List Sync** — Pull all owner's Google Tasks lists into the unified calendar with per-list color + sidebar filter; de-dup against actionables (completed 2026-04-23)
 - [x] **Phase 47: Google Calendar Events Sync** — Pull all owner's Google Calendar events into the unified calendar (read-only); de-dup against personal_pending_events; sidebar filter mechanism extends to gcal (completed 2026-04-23)
 - [x] **Phase 48: LinkedIn Post Composer (Dashboard)** — "New Post" action on /linkedin queue page that composes via pm-authority's POST /v1/posts and returns the post in PENDING_REVIEW (completed 2026-04-23)
-- [ ] **Phase 49: Deploy + Verify + Close v1.9** — PM2 redeploy both services, dashboard bundle ship, owner walkthrough on all new requirements, milestone closeout
+- [x] **Phase 49: Deploy + Verify + Close v1.9** — PM2 redeploy both services, dashboard bundle ship, owner walkthrough on all new requirements, milestone closeout (completed 2026-04-23)
 
 ### v2.0 Dashboard UX Polish (PLANNING 2026-04-20)
 
@@ -429,7 +429,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 46. Google Tasks Full-List Sync | v1.9 | 5/5 | Complete | 2026-04-23 |
 | 47. Google Calendar Events Sync | v1.9 | 4/4 | Complete | 2026-04-23 |
 | 48. LinkedIn Post Composer (Dashboard) | v1.9 | 3/3 | Complete | 2026-04-23 |
-| 49. Deploy + Verify + Close v1.9 | v1.9 | 0/? | Not started | — |
+| 49. Deploy + Verify + Close v1.9 | v1.9 | 1/1 | Complete | 2026-04-23 |
 | 50. Dashboard Mobile UI Polish | v2.0 | Complete    | 2026-04-20 | 2026-04-20 |
 
 ### Phase 45: Dashboard Pending-Tasks Write Actions
@@ -563,9 +563,9 @@ Plans:
 **Plans:** 5/6 plans complete
 
 Plans:
-- [ ] 44-01-PLAN.md — pm-authority POST /v1/posts/:id/reschedule + whatsapp-bot /api/linkedin/posts/:id/reschedule proxy (wave 1)
-- [ ] 44-02-PLAN.md — PATCH/POST actionables + personal-events mutation routes + todoService.updateTodoTask + personalCalendarService.updatePersonalCalendarEvent + calendar_event_id column (wave 1)
-- [ ] 44-03-PLAN.md — Unified /api/calendar/items + /api/calendar/stream aggregator plugin (wave 2)
-- [ ] 44-04-PLAN.md — Dashboard /calendar page read-only shell: zod schemas + SSE hook + IST helpers + month/week/day views + pill component + sidebar + router (wave 3)
-- [ ] 44-05-PLAN.md — Drag-to-reschedule + inline title edit + empty-slot create popover + day-overflow popover + full-dialog delegation on body click (wave 4)
-- [ ] 44-06-PLAN.md — Live verification (PM2 restart + owner 11-step walkthrough mapping all 7 SCs) + ROADMAP/REQUIREMENTS/STATE closeout + v1.8 milestone close (wave 5)
+- [x] 44-01-PLAN.md — pm-authority POST /v1/posts/:id/reschedule + whatsapp-bot /api/linkedin/posts/:id/reschedule proxy (wave 1)
+- [x] 44-02-PLAN.md — PATCH/POST actionables + personal-events mutation routes + todoService.updateTodoTask + personalCalendarService.updatePersonalCalendarEvent + calendar_event_id column (wave 1)
+- [x] 44-03-PLAN.md — Unified /api/calendar/items + /api/calendar/stream aggregator plugin (wave 2)
+- [x] 44-04-PLAN.md — Dashboard /calendar page read-only shell: zod schemas + SSE hook + IST helpers + month/week/day views + pill component + sidebar + router (wave 3)
+- [x] 44-05-PLAN.md — Drag-to-reschedule + inline title edit + empty-slot create popover + day-overflow popover + full-dialog delegation on body click (wave 4)
+- [x] 44-06-PLAN.md — Live verification (PM2 restart + owner 11-step walkthrough mapping all 7 SCs) + ROADMAP/REQUIREMENTS/STATE closeout + v1.8 milestone close (wave 5)

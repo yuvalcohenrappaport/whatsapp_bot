@@ -49,7 +49,7 @@ Requirements for the **Dashboard Expansion** milestone. Bring the whole dashboar
 
 ### Deploy & Verification
 
-- [ ] **VER-01**: Both PM2 services (whatsapp-bot + pm-authority-http) redeploy with v1.9 code; dashboard bundle ships; owner walks through every new requirement against live data; ROADMAP + REQUIREMENTS + STATE + MILESTONES reflect v1.9 closure
+- [x] **VER-01**: Both PM2 services (whatsapp-bot + pm-authority-http) redeploy with v1.9 code; dashboard bundle ships; owner walks through every new requirement against live data; ROADMAP + REQUIREMENTS + STATE + MILESTONES reflect v1.9 closure
 
 ## v1.8 Requirements
 
@@ -236,7 +236,7 @@ Requirements for the **Task Approval & Context Enrichment** milestone. Turn comm
 | GCAL-05 | Phase 47 | Complete (Plan 47-01, 2026-04-20) |
 | GCAL-06 | Phase 47 | Complete (Plan 47-03, 2026-04-21 — gcal pills read-only: draggable gated on isReadOnly, onDelete suppressed, InlineTitleEdit suppressed, PillActionSheet shows 'Open in Google Calendar' anchor only) |
 | LIN-NEW-01 | Phase 48 | Complete (Plan 48-03, 2026-04-23 — /linkedin New Post button + NewPostDialog composer + useLinkedInCreatePost hook live on PM2 bundle index-CiSMOBQK.js; live UAT 6/6 PASS: inline validation on blur, Hebrew cross-field `.refine()` error surfacing, happy-path creates PENDING_REVIEW delivered via SSE <3s with amber flash, localStorage defaults persist across dialog opens; commits a42c47f+2db8ce5+413a5df) |
-| VER-01 | Phase 49 | Not started |
+| VER-01 | Phase 49 | Complete (Plan 49-01, 2026-04-23 — consolidated UAT-CHECKLIST 22-step walkthrough PASS on live PM2 bundle index-CiSMOBQK.js covering DASH-APP-01..03, GTASKS-01..05, GCAL-01..06, LIN-NEW-01; no restart needed, merge d95363d already live; both services confirmed green) |
 
 **v1.9 Coverage:**
 - v1.9 requirements: 16 total
