@@ -12,7 +12,7 @@
 - [x] **v1.7 LinkedIn Bot Dashboard Integration** — Phases 33-38 (shipped 2026-04-17)
 - [x] **v1.8 Task Approval & Context Enrichment** — Phases 39-43 (shipped 2026-04-20) — [archive](milestones/v1.8-ROADMAP.md)
 - [ ] **v1.9 Dashboard Expansion** — Phases 44-49 (Phase 44 shipped 2026-04-20 as seed; planned 2026-04-20)
-- [ ] **v2.0 Dashboard UX Polish** — Phase 50+ (Phase 50 seeded 2026-04-20 as mobile UI polish)
+- [x] **v2.0 Dashboard UX Polish** — Phase 50+ (Phase 50 seeded 2026-04-20 as mobile UI polish) (completed 2026-04-20)
 
 ## Phases
 
@@ -120,7 +120,7 @@
 
 **Milestone Goal:** Lift the dashboard's UX quality across surfaces. Starts with a phone-first mobile pass (Calendar as showcase + global primitives + daily-driver polish), with room for follow-up polish phases (LinkedIn workflow mobile pass, theme refresh, perf) added as they surface.
 
-- [ ] **Phase 50: Dashboard Mobile UI Polish** — Phone-first dashboard pass: global mobile primitives, Calendar mobile strategy (day-default + MonthDotsView + long-press action sheet), daily-driver page polish (Overview/PendingTasks/Drafts). Design: `docs/superpowers/specs/2026-04-20-dashboard-mobile-ui-design.md`.
+- [x] **Phase 50: Dashboard Mobile UI Polish** — Phone-first dashboard pass: global mobile primitives, Calendar mobile strategy (day-default + MonthDotsView + long-press action sheet), daily-driver page polish (Overview/PendingTasks/Drafts). Design: `docs/superpowers/specs/2026-04-20-dashboard-mobile-ui-design.md`.
 
 ## Phase Details
 
@@ -426,11 +426,11 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 43. Dashboard Pending Tasks View | v1.8 | 3/3 | Complete | 2026-04-20 |
 | 44. Unified Editable Calendar | v1.9 | 6/6 | Complete | 2026-04-20 |
 | 45. Dashboard Pending-Tasks Write Actions | v1.9 | Complete    | 2026-04-20 | 2026-04-20 |
-| 46. Google Tasks Full-List Sync | v1.9 | 0/? | Not started | — |
-| 47. Google Calendar Events Sync | v1.9 | 0/? | Not started | — |
-| 48. LinkedIn Post Composer (Dashboard) | v1.9 | 0/? | Not started | — |
+| 46. Google Tasks Full-List Sync | 4/5 | In Progress|  | — |
+| 47. Google Calendar Events Sync | 3/4 | In Progress|  | 47-01 shipped 2026-04-20 (gcalService + routes + dedup + 10-case vitest; GCAL-01/02/05) |
+| 48. LinkedIn Post Composer (Dashboard) | 2/3 | In Progress|  | — |
 | 49. Deploy + Verify + Close v1.9 | v1.9 | 0/? | Not started | — |
-| 50. Dashboard Mobile UI Polish | v2.0 | 0/6 | Not started | — |
+| 50. Dashboard Mobile UI Polish | v2.0 | Complete    | 2026-04-20 | 2026-04-20 |
 
 ### Phase 45: Dashboard Pending-Tasks Write Actions
 
@@ -464,6 +464,15 @@ Plans:
   4. Sidebar filter panel lets owner toggle each list on/off; preference persisted to localStorage
   5. Google Tasks rows already mirrored into `actionables` (matching `todoTaskId`) render once — from the `actionables` row; gtasks payload drops the duplicate
 
+**Plans:** 4/5 plans executed
+
+Plans:
+- [x] 46-01-PLAN.md — gtasks service layer (getAllTaskLists, getTaskItemsInWindow) + GET /api/google-tasks/lists + /items routes + vitest
+- [x] 46-02-PLAN.md — extend calendar aggregator with gtasks as 4th source + update SSE hash + regression tests
+- [x] 46-03-PLAN.md — dashboard: extend calendarSchemas, build CalendarFilterPanel + useCalendarFilter, wire into Calendar.tsx
+- [x] 46-04-PLAN.md — gtasks mutation routes (reschedule/edit/delete/complete) + dashboard mutation hook extension + PillActionSheet Complete action
+- [ ] 46-05-PLAN.md — PM2 deploy + owner walkthrough (GTASKS-01..05 live verification)
+
 ### Phase 47: Google Calendar Events Sync
 
 **Goal:** Every Google Calendar event the owner has access to (owned or writer role) appears in the dashboard calendar read-only, with its own color stripe and sidebar filter. Bot-detected events already in `personal_pending_events` take precedence (de-dup via calendar_event_id).
@@ -477,6 +486,14 @@ Plans:
   5. A gcal event whose id matches `personal_pending_events.calendar_event_id` is dropped — the bot-owned row renders instead
   6. gcal pills are read-only — drag disabled, no inline edit, no delete
 
+**Plans:** 3/4 plans executed
+
+Plans:
+- [x] 47-01-PLAN.md — gcalService.ts + GET /api/google-calendar/{calendars,events} routes + server-side dedup against personal_pending_events.calendar_event_id (GCAL-01, GCAL-02, GCAL-05) — shipped 2026-04-20
+- [ ] 47-02-PLAN.md — Extend unified aggregator + SSE with gcal as 5th Promise.allSettled slot + partial-failure tolerance (GCAL-03)
+- [ ] 47-03-PLAN.md — Dashboard: calendarSchemas gcal variant + CalendarFilterPanel Google Calendar section + read-only pill enforcement (GCAL-04, GCAL-06)
+- [ ] 47-04-PLAN.md — Live verification on PM2: owner walkthrough of all six GCAL requirements + ROADMAP/REQUIREMENTS/STATE closeout
+
 ### Phase 48: LinkedIn Post Composer (Dashboard)
 
 **Goal:** The dashboard `/linkedin` queue page gets a "New Post" action that composes a new LinkedIn post end-to-end (title, content, language, project) via pm-authority's `POST /v1/posts` endpoint through the existing Fastify proxy pattern.
@@ -487,6 +504,13 @@ Plans:
   2. Submit POSTs to the proxy → pm-authority → new post in `PENDING_REVIEW` status
   3. SSE-refreshed queue shows the new post within 3s without reload
   4. Form validation inline; errors map via `mapUpstreamErrorToReply`
+
+**Plans:** 2/3 plans executed
+
+Plans:
+- [x] 48-01-PLAN.md — pm-authority: add `POST /v1/posts` endpoint + CreatePostRequest schema + pytest coverage (LIN-NEW-01) — shipped 2026-04-20
+- [x] 48-02-PLAN.md — whatsapp-bot Fastify proxy: add `POST /api/linkedin/posts` route + CreatePostRequestSchema + vitest + live smoke (LIN-NEW-01) — shipped 2026-04-20
+- [ ] 48-03-PLAN.md — Dashboard: useLinkedInCreatePost hook + NewPostDialog composer + LinkedInQueue header button + live UAT walkthrough (LIN-NEW-01)
 
 ### Phase 49: Deploy + Verify + Close v1.9
 
@@ -502,7 +526,7 @@ Plans:
 
 **Goal:** The dashboard is first-class usable on a phone (≤768px). The Calendar is the showcase fix (currently 680 lines with zero responsive code); a shared set of global mobile primitives uplifts every other page in one pass.
 **Depends on:** Phase 45 (pending-tasks write-actions; dashboard card pattern established)
-**Requirements:** _TBD — define via `/gsd:discuss-phase 50` before planning_
+**Requirements:** MOBILE-01, MOBILE-02, MOBILE-03, MOBILE-04, MOBILE-05, MOBILE-06
 **Design:** `docs/superpowers/specs/2026-04-20-dashboard-mobile-ui-design.md`
 **Success Criteria:**
   1. Global primitives shipped: tap-target floor (44px), iOS zoom kill (≥16px inputs), safe-area insets, `<StickyActionBar>`, `useViewport()` hook
@@ -511,6 +535,16 @@ Plans:
   4. Long-press → action sheet replaces touch drag-and-drop for reschedule on phone; desktop drag preserved
   5. Overview / PendingTasks / Drafts pages audited for mobile crowding; stacked columns, full-width textareas, sticky action bars where appropriate
   6. Live walkthrough on a real phone passes against PM2 bot (swipe nav, dot-month tap, long-press sheet reschedule, iOS zoom-on-focus test, safe-area verification on notched device)
+
+**Plans:** 6/6 plans complete
+
+Plans:
+- [x] 50-01-PLAN.md — Global mobile primitives: useViewport hook + StickyActionBar + safe-area insets on AppLayout + Button tap-target floor + Input/Textarea iOS auto-zoom kill (regression-frozen) + vitest install (see `.planning/phases/50-dashboard-mobile-ui-polish/50-01-SUMMARY.md`)
+- [x] 50-02-PLAN.md — Calendar view router (useCalendarViewMode) + useHorizontalSwipe (60px / 30px-drift) + new MonthDotsView phone-only month component + Calendar.tsx wire-up (DayView default, WeekView desktop-only) (see `.planning/phases/50-dashboard-mobile-ui-polish/50-02-SUMMARY.md`)
+- [x] 50-03-PLAN.md — Calendar components responsive pass: CalendarHeader compact row + CalendarPill 28px min + DayView FAB + DayOverflowPopover/CreateItemPopover/InlineTitleEdit as bottom sheets on phone (see `.planning/phases/50-dashboard-mobile-ui-polish/50-03-SUMMARY.md`)
+- [x] 50-04-PLAN.md — Long-press → PillActionSheet (Reschedule via native datetime-local in IST + Edit + Delete + Cancel) + useLongPress hook; touch DnD removed on phone via draggable={!isMobile}; desktop drag preserved (see `.planning/phases/50-dashboard-mobile-ui-polish/50-04-SUMMARY.md`)
+- [x] 50-05-PLAN.md — Daily-driver pages mobile audit: Overview metric grid + PendingTasks 320px-safe action row + Drafts primary actions in StickyActionBar (see `.planning/phases/50-dashboard-mobile-ui-polish/50-05-SUMMARY.md`)
+- [x] 50-06-PLAN.md — Live verification on real phone via Tailscale to PM2 bot (26/26 checks PASS incl. IST sqlite-correctness check + StatusStrip hotfix mid-walkthrough) + ROADMAP/REQUIREMENTS/STATE closeout (see `.planning/phases/50-dashboard-mobile-ui-polish/50-06-SUMMARY.md`)
 
 ### Phase 44: Unified Editable Calendar (Tasks + Events + LinkedIn)
 

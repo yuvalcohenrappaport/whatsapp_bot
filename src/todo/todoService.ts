@@ -98,6 +98,92 @@ export async function deleteTodoTask(
 }
 
 /**
+ * Phase 46 Plan 04 — reschedule a Google Tasks task by rewriting `due` to
+ * a new RFC 3339 timestamp derived from `dueMs` (unix ms). Best-effort
+ * mirror pattern: catches + logs on failure and returns false. Never throws
+ * so route handlers can map `false → 502` cleanly.
+ */
+export async function rescheduleTodoTask(
+  listId: string,
+  taskId: string,
+  dueMs: number,
+): Promise<boolean> {
+  const client = getTasksClient();
+  if (!client) {
+    logger.warn('[todoService] no Google auth available for rescheduleTodoTask');
+    return false;
+  }
+  try {
+    await client.tasks.patch({
+      tasklist: listId,
+      task: taskId,
+      requestBody: { due: new Date(dueMs).toISOString() },
+    });
+    return true;
+  } catch (err) {
+    logger.error({ err, listId, taskId }, '[todoService] rescheduleTodoTask failed');
+    return false;
+  }
+}
+
+/**
+ * Phase 46 Plan 04 — rewrite the title of a Google Tasks task. Same
+ * best-effort pattern as rescheduleTodoTask.
+ */
+export async function editTodoTaskTitle(
+  listId: string,
+  taskId: string,
+  title: string,
+): Promise<boolean> {
+  const client = getTasksClient();
+  if (!client) {
+    logger.warn('[todoService] no Google auth available for editTodoTaskTitle');
+    return false;
+  }
+  try {
+    await client.tasks.patch({
+      tasklist: listId,
+      task: taskId,
+      requestBody: { title },
+    });
+    return true;
+  } catch (err) {
+    logger.error({ err, listId, taskId }, '[todoService] editTodoTaskTitle failed');
+    return false;
+  }
+}
+
+/**
+ * Phase 46 Plan 04 — mark a Google Tasks task completed. Google requires BOTH
+ * `status='completed'` AND the `completed` timestamp in the same PATCH; a
+ * lone status flip is rejected with a 400. Same best-effort pattern.
+ */
+export async function completeTodoTask(
+  listId: string,
+  taskId: string,
+): Promise<boolean> {
+  const client = getTasksClient();
+  if (!client) {
+    logger.warn('[todoService] no Google auth available for completeTodoTask');
+    return false;
+  }
+  try {
+    await client.tasks.patch({
+      tasklist: listId,
+      task: taskId,
+      requestBody: {
+        status: 'completed',
+        completed: new Date().toISOString(),
+      },
+    });
+    return true;
+  } catch (err) {
+    logger.error({ err, listId, taskId }, '[todoService] completeTodoTask failed');
+    return false;
+  }
+}
+
+/**
  * Patch an existing Google Tasks task. Returns true on success, false on
  * failure (auth missing, 404, 401). Never throws — callers use this for
  * best-effort mirroring after a local DB write.
@@ -127,4 +213,107 @@ export async function updateTodoTask(
     logger.error({ err }, '[todoService] updateTodoTask failed');
     return false;
   }
+}
+
+// ─── Phase 46 — full-list sync helpers ─────────────────────────────────────
+
+/**
+ * Phase 46 Plan 01 — CalendarItem shape for a Google Tasks task scoped to a
+ * specific list. Returned by getTaskItemsInWindow(). Emitted by the gtasks
+ * proxy route after projection into the shared CalendarItem discriminated
+ * union.
+ */
+export type GtasksCalendarItem = {
+  id: string; // task id
+  listId: string;
+  listName: string;
+  title: string;
+  dueMs: number; // parsed from task.due (RFC 3339) as unix ms
+  etag: string | null;
+  updated: string | null;
+};
+
+/**
+ * List every Google Tasks task list the owner has access to. Google Tasks
+ * API caps at 100 lists per call — hard cap here since the owner realistically
+ * has fewer than ~10 lists. Throws if the OAuth client is unavailable
+ * (same shape as createTodoTask).
+ */
+export async function getAllTaskLists(): Promise<
+  Array<{ id: string; title: string; etag: string | null; updated: string | null }>
+> {
+  const client = getTasksClient();
+  if (!client) throw new Error('Google Tasks client not available');
+
+  const res = await client.tasklists.list({ maxResults: 100 });
+  const items = res.data.items ?? [];
+  return items
+    .filter((l) => !!l.id)
+    .map((l) => ({
+      id: l.id!,
+      title: l.title ?? '',
+      etag: l.etag ?? null,
+      updated: l.updated ?? null,
+    }));
+}
+
+/**
+ * Fetch every non-completed, dated task across all of the owner's lists whose
+ * `due` falls within [fromMs, toMs]. Undated tasks and completed tasks are
+ * dropped — the calendar is a time-based surface.
+ *
+ * Individual list-fetch failures are logged + swallowed; the remaining lists
+ * still contribute. If the outer list-enumeration fails, the caller sees the
+ * throw (the route layer converts that into `gtasks_unavailable`).
+ */
+export async function getTaskItemsInWindow(
+  fromMs: number,
+  toMs: number,
+): Promise<GtasksCalendarItem[]> {
+  const client = getTasksClient();
+  if (!client) throw new Error('Google Tasks client not available');
+
+  const lists = await getAllTaskLists();
+  if (lists.length === 0) return [];
+
+  const perList = await Promise.allSettled(
+    lists.map(async (list) => {
+      const res = await client.tasks.list({
+        tasklist: list.id,
+        showCompleted: false,
+        showHidden: false,
+        maxResults: 100,
+      });
+      const out: GtasksCalendarItem[] = [];
+      for (const t of res.data.items ?? []) {
+        if (!t.id || !t.due || t.status === 'completed') continue;
+        const dueMs = new Date(t.due).getTime();
+        if (!Number.isFinite(dueMs)) continue;
+        if (dueMs < fromMs || dueMs > toMs) continue;
+        out.push({
+          id: t.id,
+          listId: list.id,
+          listName: list.title,
+          title: t.title ?? '',
+          dueMs,
+          etag: t.etag ?? null,
+          updated: t.updated ?? null,
+        });
+      }
+      return out;
+    }),
+  );
+
+  const items: GtasksCalendarItem[] = [];
+  perList.forEach((r, idx) => {
+    if (r.status === 'fulfilled') {
+      items.push(...r.value);
+    } else {
+      logger.warn(
+        { err: r.reason, listId: lists[idx]?.id },
+        'gtasks per-list fetch failed; continuing with other lists',
+      );
+    }
+  });
+  return items;
 }

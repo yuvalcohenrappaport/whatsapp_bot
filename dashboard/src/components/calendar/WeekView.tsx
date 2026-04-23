@@ -16,6 +16,11 @@
  *   - Ghost position + caption updated from onDragOver
  *
  * Plan 44-04 (base), extended in Plan 44-05 (drag/drop + overflow popover).
+ *
+ * Responsive note (Plan 50-03):
+ *   WeekView is desktop-only — view router in Calendar.tsx filters it on phone
+ *   (Plan 50-02). No fixed pixel widths found that would crash at narrow widths.
+ *   No functional change in this plan.
  */
 import { useMemo, useRef, useEffect, useState } from 'react';
 import { CalendarPill } from './CalendarPill';
@@ -59,6 +64,8 @@ interface WeekViewProps {
   onDragStart?: (e: React.DragEvent, item: CalendarItem) => void;
   onDragEnd?: (e: React.DragEvent, item: CalendarItem) => void;
   onDelete?: (item: CalendarItem) => void;
+  /** Plan 46-04 — gtasks-only "Mark complete" action, threaded to CalendarPill. */
+  onComplete?: (item: CalendarItem) => Promise<string | undefined>;
 }
 
 // -----------------------------------------------------------------------
@@ -125,6 +132,7 @@ export function WeekView({
   onDragStart,
   onDragEnd,
   onDelete,
+  onComplete,
 }: WeekViewProps) {
   const days = useMemo(() => getWeekDays(cursorMs), [cursorMs]);
   const today = Date.now();
@@ -254,6 +262,7 @@ export function WeekView({
                   onDragStart={onDragStart}
                   onDragEnd={onDragEnd}
                   onDelete={onDelete}
+                  onComplete={onComplete}
                 />
               ))}
               {overflow > 0 && (
@@ -384,6 +393,7 @@ export function WeekView({
                           onDragStart={onDragStart}
                           onDragEnd={onDragEnd}
                           onDelete={onDelete}
+                          onComplete={onComplete}
                         />
                       </div>
                       {/* +N overflow badge on last visible item */}

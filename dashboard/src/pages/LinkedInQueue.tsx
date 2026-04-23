@@ -24,6 +24,7 @@ import {
 import {
   LinkedInPostCard,
   NewLessonRunSheet,
+  NewPostDialog,
   PendingActionEntryButton,
   STATUS_STYLES,
   StatusStrip,
@@ -91,6 +92,8 @@ interface LinkedInQueuePageProps {
   renderPiiGate?: (post: LinkedInPost) => ReactNode;
   /** Plan 38-02: opens the New Lesson Run sheet. */
   onNewRun?: () => void;
+  /** Plan 48-03: opens the New Post dialog. */
+  onNewPost?: () => void;
   /** Plan 38-02: pending-run warning when generation may have failed. */
   pendingRunWarning?: string | null;
   /** Plan 38-02: dismiss the pending-run warning banner. */
@@ -215,6 +218,7 @@ export function LinkedInQueuePage({
   renderThumbnailOverlay,
   renderPiiGate,
   onNewRun,
+  onNewPost,
   pendingRunWarning,
   onDismissWarning,
 }: LinkedInQueuePageProps) {
@@ -282,8 +286,14 @@ export function LinkedInQueuePage({
           </p>
         </div>
         <div className="flex items-center gap-3">
+          {onNewPost && (
+            <Button onClick={onNewPost}>
+              <Plus className="size-4 mr-2" />
+              New Post
+            </Button>
+          )}
           {onNewRun && (
-            <Button onClick={onNewRun}>
+            <Button onClick={onNewRun} variant="secondary">
               <Plus className="size-4 mr-2" />
               New Lesson Run
             </Button>
@@ -363,6 +373,9 @@ export default function LinkedInQueueRoute() {
   // Plan 38-02: New Lesson Run sheet state
   const [sheetOpen, setSheetOpen] = useState(false);
   const [pendingRunWarning, setPendingRunWarning] = useState<string | null>(null);
+
+  // Plan 48-03: New Post composer dialog state
+  const [newPostOpen, setNewPostOpen] = useState(false);
 
   // Optimistic-patch map: post.id -> partial post state overriding the SSE
   // value. The SSE stream will eventually deliver the real state; until then
@@ -677,6 +690,7 @@ export default function LinkedInQueueRoute() {
         renderThumbnailOverlay={renderThumbnailOverlay}
         renderPiiGate={renderPiiGate}
         onNewRun={() => setSheetOpen(true)}
+        onNewPost={() => setNewPostOpen(true)}
         pendingRunWarning={pendingRunWarning}
         onDismissWarning={handleDismissWarning}
       />
@@ -690,6 +704,14 @@ export default function LinkedInQueueRoute() {
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         onStarted={handleLessonRunStarted}
+      />
+      <NewPostDialog
+        open={newPostOpen}
+        onOpenChange={setNewPostOpen}
+        onCreated={() => {
+          toast.success('Post created — awaiting review');
+          // No optimistic patch — SSE delivers PENDING_REVIEW within ~3s.
+        }}
       />
     </>
   );

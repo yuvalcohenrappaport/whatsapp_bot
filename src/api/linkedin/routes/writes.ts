@@ -41,6 +41,7 @@ import {
 import { mapUpstreamErrorToReply } from '../errors.js';
 import {
   ConfirmPiiRequestSchema,
+  CreatePostRequestSchema,
   EditRequestSchema,
   GenerateLessonRunRequestSchema,
   JobAcceptedSchema,
@@ -485,6 +486,43 @@ export async function registerWriteRoutes(
         // Error body — pass through verbatim
         const body = await upstreamRes.json().catch(() => null as unknown);
         return reply.status(upstreamRes.status).send(body);
+      } catch (err) {
+        return mapUpstreamErrorToReply(err, reply);
+      }
+    },
+  );
+
+  // ─── Plan 48-02 — POST /api/linkedin/posts (sync create, body: CreatePostRequestSchema) ─
+  //
+  // Dashboard composer entrypoint. Plan 48-01 added pm-authority's
+  // POST /v1/posts which returns 201 + PostDTO; we re-send that verbatim.
+  // Upstream 4xx (validation, project-not-found) passes through the standard
+  // mapper so the dashboard's error discriminator handles it uniformly.
+  //
+  // validateStatuses:[200,201] is load-bearing: pm-authority returns 201, so
+  // without it callUpstream's default would only PostSchema-validate 200
+  // bodies and leak an unchecked 201 through. We keep 200 in the list for
+  // robustness if pm-authority's status code ever drifts.
+  fastify.post<{ Body: unknown }>(
+    '/api/linkedin/posts',
+    { onRequest: [fastify.authenticate] },
+    async (request, reply) => {
+      const body = await validateBody(
+        CreatePostRequestSchema,
+        request.body,
+        reply,
+      );
+      if (body === null) return;
+      try {
+        const { status, data } = await callUpstream({
+          method: 'POST',
+          path: '/v1/posts',
+          body,
+          timeoutMs: FAST_MUTATION_TIMEOUT_MS,
+          responseSchema: PostSchema,
+          validateStatuses: [200, 201],
+        });
+        return reply.status(status).send(data);
       } catch (err) {
         return mapUpstreamErrorToReply(err, reply);
       }

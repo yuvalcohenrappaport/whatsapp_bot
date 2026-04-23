@@ -3,7 +3,7 @@
  *
  * Features:
  *   - All-day row at top for isAllDay items
- *   - 24-hour timed grid (48px/hour) with left-side hour labels
+ *   - 24-hour timed grid (48px/hour on desktop, 64px/hour on phone) with left-side hour labels
  *   - Current-time red line when cursor day is today
  *   - Vertical item stack (full detail, no truncation)
  *
@@ -12,10 +12,18 @@
  *   - Drop computes target ms from pointer Y position + 15-min snap
  *   - Ghost position + caption updated from onDragOver
  *
- * Plan 44-04 (base), extended in Plan 44-05 (drag/drop).
+ * Mobile (Plan 50-03):
+ *   - Single full-width column (grid-cols-1 enforced)
+ *   - Hour rows grow to 64px (up from desktop 48px) for comfortable touch targets
+ *   - Floating + New FAB (bottom-right, safe-area-aware) replaces empty-slot click
+ *     discovery — triggers the same onSlotClick flow as desktop
+ *
+ * Plan 44-04 (base), extended in Plan 44-05 (drag/drop), extended in Plan 50-03 (mobile).
  */
 import { useMemo, useRef, useEffect, useState } from 'react';
+import { Plus } from 'lucide-react';
 import { CalendarPill } from './CalendarPill';
+import { useViewport } from '@/hooks/useViewport';
 import {
   sameIstDay,
   formatIstDateShort,
@@ -29,7 +37,8 @@ import type { RescheduleMutationOpts } from '@/hooks/useCalendarMutations';
 // Constants
 // -----------------------------------------------------------------------
 
-const ROW_H = 48;
+const ROW_H_DESKTOP = 48;
+const ROW_H_MOBILE = 64;
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const SNAP_MINUTES = 15;
 
@@ -53,25 +62,27 @@ interface DayViewProps {
   onDragStart?: (e: React.DragEvent, item: CalendarItem) => void;
   onDragEnd?: (e: React.DragEvent, item: CalendarItem) => void;
   onDelete?: (item: CalendarItem) => void;
+  /** Plan 46-04 — gtasks-only "Mark complete" action, threaded to CalendarPill. */
+  onComplete?: (item: CalendarItem) => Promise<string | undefined>;
 }
 
 // -----------------------------------------------------------------------
 // Helpers
 // -----------------------------------------------------------------------
 
-function topPx(startMs: number): number {
+function topPx(startMs: number, rowH: number): number {
   const d = new Date(startMs);
-  return (d.getHours() + d.getMinutes() / 60) * ROW_H;
+  return (d.getHours() + d.getMinutes() / 60) * rowH;
 }
 
-function heightPx(startMs: number, endMs: number | null): number {
+function heightPx(startMs: number, endMs: number | null, rowH: number): number {
   if (!endMs) return 24;
-  return Math.max(24, ((endMs - startMs) / 3_600_000) * ROW_H);
+  return Math.max(24, ((endMs - startMs) / 3_600_000) * rowH);
 }
 
-function computeDropTargetMs(dayMs: number, offsetY: number): number {
+function computeDropTargetMs(dayMs: number, offsetY: number, rowH: number): number {
   const clampedY = Math.max(0, offsetY);
-  const totalMinutes = (clampedY / ROW_H) * 60;
+  const totalMinutes = (clampedY / rowH) * 60;
   const snapped = Math.floor(totalMinutes / SNAP_MINUTES) * SNAP_MINUTES;
   const dayStart = istDayStartMs(dayMs);
   return dayStart + snapped * 60_000;
@@ -97,7 +108,11 @@ export function DayView({
   onDragStart,
   onDragEnd,
   onDelete,
+  onComplete,
 }: DayViewProps) {
+  const { isMobile } = useViewport();
+  const ROW_H = isMobile ? ROW_H_MOBILE : ROW_H_DESKTOP;
+
   const today = Date.now();
   const isToday = sameIstDay(cursorMs, today);
   const dateLabel = formatIstDateShort(cursorMs);
@@ -159,7 +174,7 @@ export function DayView({
     const rect = gridRef.current?.getBoundingClientRect();
     if (!rect) return;
     const offsetY = e.clientY - rect.top + (gridRef.current?.scrollTop ?? 0);
-    const targetMs = computeDropTargetMs(cursorMs, offsetY);
+    const targetMs = computeDropTargetMs(cursorMs, offsetY, ROW_H);
     ghost.setTarget(targetMs);
   }
 
@@ -173,10 +188,17 @@ export function DayView({
     const rect = gridRef.current?.getBoundingClientRect();
     if (!rect) return;
     const offsetY = e.clientY - rect.top + (gridRef.current?.scrollTop ?? 0);
-    const targetMs = computeDropTargetMs(cursorMs, offsetY);
+    const targetMs = computeDropTargetMs(cursorMs, offsetY, ROW_H);
 
     ghost.hide();
     void reschedule.mutate({ item, toMs: targetMs });
+  }
+
+  /** FAB: open create at the next round hour from now (or 09:00 if before 9am). */
+  function handleFabClick() {
+    const d = new Date();
+    const nextHour = Math.min(d.getHours() + 1, 23);
+    onSlotClick?.(cursorMs, nextHour, 0);
   }
 
   return (
@@ -209,6 +231,7 @@ export function DayView({
               onDragStart={onDragStart}
               onDragEnd={onDragEnd}
               onDelete={onDelete}
+              onComplete={onComplete}
             />
           ))}
         </div>
@@ -225,6 +248,8 @@ export function DayView({
           className="relative"
           style={{ height: `${24 * ROW_H}px` }}
           onClick={(e) => {
+            // On mobile, empty-slot click is handled by the FAB — ignore grid clicks.
+            if (isMobile) return;
             const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
             const offsetY = e.clientY - rect.top;
             const totalMinutes = Math.floor((offsetY / ROW_H) * 60);
@@ -265,8 +290,8 @@ export function DayView({
                 key={item.id}
                 className="absolute left-0 right-1 z-10"
                 style={{
-                  top: `${topPx(item.start)}px`,
-                  height: `${heightPx(item.start, item.end)}px`,
+                  top: `${topPx(item.start, ROW_H)}px`,
+                  height: `${heightPx(item.start, item.end, ROW_H)}px`,
                   padding: '1px',
                 }}
                 onClick={(e) => e.stopPropagation()}
@@ -274,7 +299,7 @@ export function DayView({
                 <div className="h-full">
                   <CalendarPill
                     item={item}
-                    compact={heightPx(item.start, item.end) < 40}
+                    compact={heightPx(item.start, item.end, ROW_H) < 40}
                     flashing={flashingIds.has(item.id)}
                     past={item.start < today}
                     draggingId={draggingId}
@@ -283,6 +308,7 @@ export function DayView({
                     onDragStart={onDragStart}
                     onDragEnd={onDragEnd}
                     onDelete={onDelete}
+                    onComplete={onComplete}
                   />
                 </div>
               </div>
@@ -290,6 +316,23 @@ export function DayView({
           </div>
         </div>
       </div>
+
+      {/* FAB: phone-only floating + New item button (z-30, below StickyActionBar z-40) */}
+      {isMobile && (
+        <button
+          type="button"
+          onClick={handleFabClick}
+          className={[
+            'fixed z-30 right-4 size-14 rounded-full shadow-lg',
+            'bg-primary text-primary-foreground hover:bg-primary/90',
+            'flex items-center justify-center',
+          ].join(' ')}
+          style={{ bottom: 'calc(env(safe-area-inset-bottom) + 1rem)' }}
+          aria-label="New item"
+        >
+          <Plus className="size-6" />
+        </button>
+      )}
     </div>
   );
 }

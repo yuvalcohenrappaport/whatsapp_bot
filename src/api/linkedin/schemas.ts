@@ -241,6 +241,47 @@ export const GenerateLessonRunRequestSchema = z
   .strict();
 export type GenerateLessonRunRequest = z.infer<typeof GenerateLessonRunRequestSchema>;
 
+/**
+ * Body for POST /api/linkedin/posts — dashboard composer (Plan 48-02).
+ *
+ * Mirrors pm-authority's CreatePostRequest Pydantic model (Plan 48-01).
+ * .strict() so dashboard bugs (typos, stray fields) fail fast at the
+ * proxy BEFORE we call upstream — matches the pattern of every other
+ * write-side request body in this file.
+ *
+ * Cross-field refine enforces language ↔ content_he parity, matching the
+ * @model_validator(mode="after") on the pm-authority side:
+ *   - language='en'            → content_he MUST be absent / null / empty
+ *   - language='he' or 'he+en' → content_he MUST be a non-empty string
+ */
+export const CreatePostRequestSchema = z
+  .object({
+    title: z.string().min(1).max(200),
+    content: z.string().min(1),
+    content_he: z.string().nullable().optional(),
+    language: z.enum(['en', 'he', 'he+en']),
+    project_name: z.string().min(1),
+    perspective: z.enum(['yuval', 'claude']).default('yuval'),
+  })
+  .strict()
+  .refine(
+    (v) => {
+      if (v.language === 'en') {
+        return v.content_he == null || v.content_he === '';
+      }
+      if (v.language === 'he' || v.language === 'he+en') {
+        return typeof v.content_he === 'string' && v.content_he.length > 0;
+      }
+      return true;
+    },
+    {
+      message:
+        'content_he is required for language=he|he+en and forbidden for language=en',
+      path: ['content_he'],
+    },
+  );
+export type CreatePostRequest = z.infer<typeof CreatePostRequestSchema>;
+
 // ─── Query strings ───────────────────────────────────────────────────────────
 
 /**

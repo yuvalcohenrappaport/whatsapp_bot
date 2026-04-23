@@ -1,7 +1,20 @@
 # Requirements: WhatsApp Bot
 
-**Defined:** 2026-03-30 (v1.6) · updated 2026-04-20 (v1.9)
+**Defined:** 2026-03-30 (v1.6) · updated 2026-04-20 (v1.9 + v2.0 seed)
 **Core Value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
+
+## v2.0 Requirements
+
+Requirements for the **Dashboard UX Polish** milestone. Lift the dashboard's UX quality across surfaces, starting with a phone-first mobile pass — Calendar as showcase + global mobile primitives + daily-driver polish. Inverts the v1.x "Mobile / small-screen optimization" out-of-scope row (the dashboard is now used from a phone via Tailscale, not just laptop).
+
+### Mobile UI Polish
+
+- [x] **MOBILE-01**: Global mobile primitives shipped — 44px-floor tap targets on shadcn `<Button>`, ≥16px input font (`text-base md:text-sm`) on `<Input>` + `<Textarea>` to suppress iOS Safari focus auto-zoom, safe-area insets (`env(safe-area-inset-*)`) on `AppLayout`, new `<StickyActionBar>` primitive, new `useViewport()` hook returning `{isMobile, isTablet, isDesktop}` (extends rather than replaces existing `useIsMobile()` in `use-mobile.ts`)
+- [x] **MOBILE-02**: Calendar phone view router — on `<768px`, default to `DayView` with horizontal swipe prev/next (60px threshold, <30px vertical drift, handwritten `useHorizontalSwipe` — no gesture library); 3-Day scrollable; new `MonthDotsView` (read-only 7-col dot grid, tap-day → DayView) replaces `MonthView`; `WeekView` is desktop-only and never reachable from the phone view toggle
+- [x] **MOBILE-03**: Calendar components responsive on phone — `CalendarHeader` collapses to a single compact row with a 3-segment view-toggle pill; `CalendarPill` ≥28px min-height with no hover tooltip; `DayView` single-column with a floating `+ New` FAB (safe-area-inset-aware); `DayOverflowPopover`, `CreateItemPopover`, `InlineTitleEdit` all switch from Radix Popover to Radix Dialog in bottom-sheet mode below 768px
+- [x] **MOBILE-04**: Long-press → `<PillActionSheet>` replaces touch drag-and-drop on phone (desktop drag preserved via `draggable={!isMobile}` gate); `useLongPress` hook fires on ≥500ms hold with <8px movement, ignores mouse pointers; PillActionSheet exposes Reschedule / Edit title / Delete / Cancel; Reschedule uses native `<input type="datetime-local">` interpreted as IST (canonical bot timezone) and dispatches the existing `useCalendarMutations.reschedule()` — no new mutation, no new error handling, no new date-picker library; haptic via `navigator.vibrate(10)` when available
+- [x] **MOBILE-05**: Daily-driver pages mobile audit — `Overview` 2-col metric grid collapses to 1-col on phone with text scaling at <375px to prevent value-text wrap; `PendingTasks` card action row (Approve/Edit/Reject) safely sized for 320px width with full-width inline-edit textarea; `Drafts` primary actions (Send all / Regenerate where applicable) wrapped in `<StickyActionBar>` so they stay reachable while scrolling
+- [x] **MOBILE-06**: Live walkthrough on a real phone passes against the live PM2 bot via Tailscale URL — 26-check protocol covering swipe nav, dot-month tap-to-day, long-press → PillActionSheet → reschedule with **IST correctness verified by direct sqlite query against the rescheduled item**, iOS zoom-on-focus test on Safari, safe-area-inset verification on a notched device, orientation rotation, and 320px-width regression check on Overview / PendingTasks _(Plan 50-06 — 26/26 PASS on real iPhone via Tailscale to PM2 bot; see 50-06-SUMMARY.md walkthrough log)_
 
 ## v1.9 Requirements
 
@@ -15,24 +28,24 @@ Requirements for the **Dashboard Expansion** milestone. Bring the whole dashboar
 
 ### Google Tasks Full Sync
 
-- [ ] **GTASKS-01**: Backend exposes `GET /api/google-tasks/lists` returning every list the owner has access to, and `GET /api/google-tasks/items?from=<ms>&to=<ms>` returning CalendarItems with `source: 'gtasks'` and `sourceFields: { listId, listName }` spanning all lists
-- [ ] **GTASKS-02**: The unified `/api/calendar/items` aggregator + SSE include gtasks; per-source partial-failure tolerance covers gtasks (other sources still render if the Google Tasks API is down)
-- [ ] **GTASKS-03**: Dashboard renders gtasks as a new CalendarPill variant with a color assigned per list (stable hash → palette, with a dashboard setting page deferred to a later milestone)
-- [ ] **GTASKS-04**: Calendar page has a sidebar filter panel listing every gtasks list with a checkbox + color swatch; toggles persist to localStorage; hidden lists are excluded from the grid
-- [ ] **GTASKS-05**: A Google Tasks row already mirrored into `actionables` (via `todoTaskId`) renders from the `actionables` row only — gtasks de-dup prefers the richer bot-owned row
+- [x] **GTASKS-01**: Backend exposes `GET /api/google-tasks/lists` returning every list the owner has access to, and `GET /api/google-tasks/items?from=<ms>&to=<ms>` returning CalendarItems with `source: 'gtasks'` and `sourceFields: { listId, listName }` spanning all lists
+- [x] **GTASKS-02**: The unified `/api/calendar/items` aggregator + SSE include gtasks; per-source partial-failure tolerance covers gtasks (other sources still render if the Google Tasks API is down)
+- [x] **GTASKS-03**: Dashboard renders gtasks as a new CalendarPill variant with a color assigned per list (stable hash → palette, with a dashboard setting page deferred to a later milestone)
+- [x] **GTASKS-04**: Calendar page has a sidebar filter panel listing every gtasks list with a checkbox + color swatch; toggles persist to localStorage; hidden lists are excluded from the grid
+- [x] **GTASKS-05**: A Google Tasks row already mirrored into `actionables` (via `todoTaskId`) renders from the `actionables` row only — gtasks de-dup prefers the richer bot-owned row
 
 ### Google Calendar Full Sync
 
-- [ ] **GCAL-01**: Backend exposes `GET /api/google-calendar/calendars` returning every calendar the owner has access to, and `GET /api/google-calendar/events?from=<ms>&to=<ms>` returning CalendarItems with `source: 'gcal'` and `sourceFields: { calendarId, calendarName, colorId }` spanning every owned/writable calendar
-- [ ] **GCAL-02**: Recurring events are expanded via `events.list(singleEvents: true)`; all-day events set `isAllDay: true`; `end` is mapped to millis (event end exclusive → inclusive delta if needed)
+- [x] **GCAL-01**: Backend exposes `GET /api/google-calendar/calendars` returning every calendar the owner has access to, and `GET /api/google-calendar/events?from=<ms>&to=<ms>` returning CalendarItems with `source: 'gcal'` and `sourceFields: { calendarId, calendarName, colorId }` spanning every owned/writable calendar
+- [x] **GCAL-02**: Recurring events are expanded via `events.list(singleEvents: true)`; all-day events set `isAllDay: true`; `end` is mapped to millis (event end exclusive → inclusive delta if needed)
 - [ ] **GCAL-03**: The unified aggregator + SSE include gcal with per-source partial-failure tolerance
-- [ ] **GCAL-04**: Calendar page's sidebar filter extends to gcal calendars (same checkbox + swatch + localStorage pattern as gtasks)
-- [ ] **GCAL-05**: A gcal event whose Google id matches an existing `personal_pending_events.calendar_event_id` is dropped from the gcal payload — the bot-owned row wins (editable, richer metadata)
-- [ ] **GCAL-06**: gcal pills are read-only in the dashboard calendar — no drag, no inline edit, no delete (writing back to Google Calendar is out of scope for this milestone)
+- [x] **GCAL-04**: Calendar page's sidebar filter extends to gcal calendars (same checkbox + swatch + localStorage pattern as gtasks)
+- [x] **GCAL-05**: A gcal event whose Google id matches an existing `personal_pending_events.calendar_event_id` is dropped from the gcal payload — the bot-owned row wins (editable, richer metadata)
+- [x] **GCAL-06**: gcal pills are read-only in the dashboard calendar — no drag, no inline edit, no delete (writing back to Google Calendar is out of scope for this milestone)
 
 ### LinkedIn Post Composer (Dashboard)
 
-- [ ] **LIN-NEW-01**: Dashboard `/linkedin` queue page exposes a "New Post" action that opens a composer with title/content/language/project fields, POSTs to pm-authority's `/v1/posts` endpoint via the existing proxy pattern (JWT-gated, sync-mutation), and returns the created post to the queue in status `PENDING_REVIEW`
+- [x] **LIN-NEW-01**: Dashboard `/linkedin` queue page exposes a "New Post" action that opens a composer with title/content/language/project fields, POSTs to pm-authority's `/v1/posts` endpoint via the existing proxy pattern (JWT-gated, sync-mutation), and returns the created post to the queue in status `PENDING_REVIEW`
 
 ### Deploy & Verification
 
@@ -149,7 +162,7 @@ Requirements for the **Task Approval & Context Enrichment** milestone. Turn comm
 - **LIN-15** (future): Sequence-mode (4-post narrative arc) generation from the dashboard
 - **LIN-16** (future): LinkedIn analytics charts/graphs (impressions over time, top hooks ranking)
 - **LIN-17** (future): OpenAPI codegen pipeline to keep Python API schemas in sync with TypeScript client types
-- **LIN-18** (future): Mobile-optimized responsive layout for the LinkedIn queue page
+- **LIN-18** (future): Mobile-optimized responsive layout for the LinkedIn queue page (`LinkedInLessonSelection`, `LinkedInVariantFinalization`, `LinkedInQueue` — Phase 50 explicitly defers these to a future v2.0 polish phase)
 - **LIN-19** (future): Bearer-token auth on the pm-authority HTTP service (if ever exposed beyond 127.0.0.1)
 
 ### Dashboard Integration
@@ -171,7 +184,10 @@ Requirements for the **Task Approval & Context Enrichment** milestone. Turn comm
 | Bearer token / JWT auth on pm-authority service | Binding to 127.0.0.1 is the security boundary; adds complexity without security gain for a single-owner localhost service |
 | OpenAPI codegen across Python ↔ TypeScript | Manual Zod schemas + keep-in-sync discipline; codegen pipeline is overhead for 14 endpoints |
 | Sequence-mode (4-post) generation from dashboard | Lesson mode only via UI; sequence mode stays CLI-only. Can be added later as LIN-15. |
-| Mobile / small-screen optimization | Desktop-first, same as existing dashboard (Tailscale SSH from laptop) |
+| Mobile / small-screen optimization (v1.x stance) | Desktop-first through v1.9. **Inverted by v2.0 milestone — see MOBILE-01..06.** |
+| Tablet-specific layouts (769–1024px) | Phase 50 keeps tablet at desktop layout; revisit if it becomes a friction point |
+| Reduced-motion or haptic-preference UI | Phase 50 has no preference UI — `navigator.vibrate(10)` silently no-ops if API missing |
+| LinkedIn queue mobile pass | Phase 50 explicitly defers `LinkedInLessonSelection`, `LinkedInVariantFinalization`, `LinkedInQueue` to a future v2.0 polish phase (LIN-18) |
 | Multi-user auth / RBAC | Single-owner tool — no multi-tenant use case |
 | Post editing after PUBLISHED | Read-only after LinkedIn publish. No way to patch a posted tweet. |
 | Removing or superseding the Telegram bot | Telegram bot stays as fallback review UX — dashboard is strictly additive |
@@ -185,6 +201,22 @@ Requirements for the **Task Approval & Context Enrichment** milestone. Turn comm
 
 ## Traceability
 
+### v2.0 Traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| MOBILE-01 | Phase 50 | Complete (2026-04-20 — useViewport hook + StickyActionBar + Button 44px tap-target floor + Input/Textarea text-base iOS zoom kill + AppLayout safe-area insets; all live-verified on iPhone via Tailscale; commits 6eb8b53..1d2674d; see 50-06-SUMMARY.md MOBILE-01) |
+| MOBILE-02 | Phase 50 | Complete (2026-04-20 — Day default on phone + horizontal swipe prev/next (60px/30px-drift) + vertical-scroll preservation + 3-Day scrollable + MonthDotsView dot grid (7-col) + tap-day→DayView; WeekView never mounts on phone; live-verified; commits cdc2179..44c3dda; see 50-06-SUMMARY.md MOBILE-02) |
+| MOBILE-03 | Phase 50 | Complete (2026-04-20 — CalendarHeader compact row + CalendarPill 28px min + DayView +New FAB + DayOverflowPopover/CreateItemPopover/InlineTitleEdit as bottom sheets; live-verified; commits 087f2c1..0dce2b9; see 50-06-SUMMARY.md MOBILE-03) |
+| MOBILE-04 | Phase 50 | Complete (2026-04-20 — useLongPress 500ms/8px + PillActionSheet (Reschedule/Edit/Delete/Cancel) + datetime-local IST reschedule + haptic; touch drag dead; desktop drag intact; **CONTEXT risk #4 IST correctness verified by sqlite query against actionables.due_at**; commits 1f7f912..6a1769e; see 50-06-SUMMARY.md MOBILE-04) |
+| MOBILE-05 | Phase 50 | Complete (2026-04-20 — Overview 1-col metric grid at phone width + PendingTasks grid-cols-3 action row 320px-safe + Drafts Clear-all in StickyActionBar; live-verified; commits bcfe195..6533427; see 50-06-SUMMARY.md MOBILE-05) |
+| MOBILE-06 | Phase 50 | Complete (2026-04-20 — 26/26 walkthrough checks PASS on real iPhone via Tailscale to PM2 bot; StatusStrip hotfix commit 71a9b37 applied mid-walkthrough + re-verified; full commit chain 6eb8b53..71a9b37; see 50-06-SUMMARY.md walkthrough log) |
+
+**v2.0 Coverage:**
+- v2.0 requirements: 6 total
+- Mapped to phases: 6 (Phase 50)
+- Unmapped: 0 ✓
+
 ### v1.9 Traceability
 
 | Requirement | Phase | Status |
@@ -192,18 +224,18 @@ Requirements for the **Task Approval & Context Enrichment** milestone. Turn comm
 | DASH-APP-01 | Phase 45 | Complete (2026-04-20 — /pending-tasks page renders Approve/Reject/Edit per pending row live on http://100.124.47.99:3000/pending-tasks; four JWT-gated POST routes at /api/actionables/:id/{approve|reject|edit|unreject} served by PM2 whatsapp-bot (bundle index-BWm4-BDb.js); SC#1 observed live by owner in 45-04 walkthrough; see 45-04-SUMMARY.md) |
 | DASH-APP-02 | Phase 45 | Complete (2026-04-20 — dashboard Approve invokes approveActionable (exported from Plan 45-01), which runs Phase 42 Gemini enrichment + Google Tasks push with the safe fallback inherited from Phase 42; SC#2 observed live — enriched Recent row + self-chat ✅ echo + Google Tasks entry within 3s; SC#5 concurrent WhatsApp race observed live — exactly one Tasks entry + one echo, losing surface got `Already handled in WhatsApp` toast without rollback; see 45-04-SUMMARY.md) |
 | DASH-APP-03 | Phase 45 | Complete (2026-04-20 — POST /edit rewrites task text via updateActionableTask, then falls through to approveActionable so one ✅ echo fires with the edited title matching the WhatsApp `edit:` grammar; SC#4 observed live — Hebrew RTL card-morph + Cmd+Enter save + enriched-from-edited-text Recent row within 3s; SC#3 reject+undo within 5s verified live (silent unreject), grace-closed post-10s shows 'Undo window closed' toast; SSE via Plan 43-02 3s hash-poll unchanged; see 45-04-SUMMARY.md) |
-| GTASKS-01 | Phase 46 | Not started |
-| GTASKS-02 | Phase 46 | Not started |
-| GTASKS-03 | Phase 46 | Not started |
-| GTASKS-04 | Phase 46 | Not started |
-| GTASKS-05 | Phase 46 | Not started |
-| GCAL-01 | Phase 47 | Not started |
-| GCAL-02 | Phase 47 | Not started |
-| GCAL-03 | Phase 47 | Not started |
-| GCAL-04 | Phase 47 | Not started |
-| GCAL-05 | Phase 47 | Not started |
-| GCAL-06 | Phase 47 | Not started |
-| LIN-NEW-01 | Phase 48 | Not started |
+| GTASKS-01 | Phase 46 | Complete (Plan 46-01, 2026-04-21 — /api/google-tasks/lists + /items JWT-gated routes in src/api/routes/googleTasks.ts; todoService.getAllTaskLists + getTaskItemsInWindow with per-list Promise.allSettled error isolation; server-side dedup against approved actionables via getApprovedActionableTodoTaskIds; 10/10 vitest green; commits d7217ae + a8794de) |
+| GTASKS-02 | Phase 46 | Complete (Plan 46-02, 2026-04-21 — unified /api/calendar/items aggregator 5th allSettled slot invoking fetchGtasksCalendarItems; sources.gtasks added to CalendarEnvelope; hashCalendarEnvelope covers gtasks status bits; partial failure isolated; 23/23 vitest green; commit 9cb40a6) |
+| GTASKS-03 | Phase 46 | Complete (Plan 46-03, 2026-04-21 — dashboard CalendarPill SOURCE_STRIPE/BG/ICON maps include gtasks sky fallback + ListTodo icon; per-list color from hashListColor(listId) server-side → sourceFields.color → useCalendarFilter.resolveItemColor with per-list colorOverride layer; 47-03 shipped component infrastructure, 46-03 wired the missing useCalendarStream gtasks slice + schema tightening; commit 34bf971) |
+| GTASKS-04 | Phase 46 | Complete (Plan 46-03, 2026-04-21 — CalendarFilterPanel renders Google Tasks section with per-list toggle row + color swatch + item count + gear override (shipped 47-03); useCalendarFilter.filteredItems excludes hidden lists; prefs persist to localStorage key 'calFilterPrefs_v1'; new lists default visible; mobile CalendarFilterPanelSheet opens from CalendarHeader SlidersHorizontal button; commit 34bf971) |
+| GTASKS-05 | Phase 46 | Complete (Plan 46-01 server-side dedup via getApprovedActionableTodoTaskIds + Set.has intersection in fetchGtasksCalendarItems; wired into aggregator via Plan 46-02; commits a8794de + 9cb40a6) |
+| GCAL-01 | Phase 47 | Complete (Plan 47-01, 2026-04-20) |
+| GCAL-02 | Phase 47 | Complete (Plan 47-01, 2026-04-20) |
+| GCAL-03 | Phase 47 | Complete (Plan 47-02, 2026-04-21 — aggregator 4th slot + sources.gcal) |
+| GCAL-04 | Phase 47 | Complete (Plan 47-03, 2026-04-21 — dashboard CalendarFilterPanel gcal section + useCalendarStream gcal slice + CalendarPill gcal visuals) |
+| GCAL-05 | Phase 47 | Complete (Plan 47-01, 2026-04-20) |
+| GCAL-06 | Phase 47 | Complete (Plan 47-03, 2026-04-21 — gcal pills read-only: draggable gated on isReadOnly, onDelete suppressed, InlineTitleEdit suppressed, PillActionSheet shows 'Open in Google Calendar' anchor only) |
+| LIN-NEW-01 | Phase 48 | In Progress (Plans 48-01 pm-authority + 48-02 proxy shipped 2026-04-20; awaits Plan 48-03 dashboard UI) |
 | VER-01 | Phase 49 | Not started |
 
 **v1.9 Coverage:**
@@ -286,4 +318,4 @@ Requirements for the **Task Approval & Context Enrichment** milestone. Turn comm
 
 ---
 *Requirements defined: 2026-03-30 (v1.6)*
-*Last updated: 2026-04-19 — v1.8 Task Approval & Context Enrichment requirements added (18 items across ACT / DETC / APPR / ENRI / DASH-ACT / MIGR categories)*
+*Last updated: 2026-04-20 — v2.0 Dashboard UX Polish requirements seeded (6 items: MOBILE-01..06 covering global mobile primitives, calendar mobile strategy, daily-driver page polish, live phone walkthrough)*

@@ -9,7 +9,9 @@ export function AppLayout() {
 
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-full bg-background text-foreground gradient-mesh-bg">
+      {/* Phase 50 mobile: env(safe-area-inset-*) clears the iOS notch + home bar.
+          Desktop / non-notched devices fall back to 0 (no visible change). */}
+      <div className="flex h-screen w-full bg-background text-foreground gradient-mesh-bg pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
         <AppSidebar />
         <div className="flex flex-col flex-1 min-w-0">
           <Topbar status={status} qr={qr} />

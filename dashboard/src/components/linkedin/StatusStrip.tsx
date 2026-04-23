@@ -60,7 +60,9 @@ export function StatusStrip({
   }, []);
 
   const wrapperClass = cn(
-    'sticky top-0 z-10 -mx-4 md:-mx-6 px-4 md:px-6 py-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b',
+    // On phone (<md): 6 cards stack to ~450px and would consume half the
+    // viewport if pinned. Only stick at md+ where the grid compresses to 3/6 cols.
+    'md:sticky md:top-0 z-10 -mx-4 md:-mx-6 px-4 md:px-6 py-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b',
     className,
   );
 

@@ -1,7 +1,8 @@
 /**
  * CreateItemPopover — quick-create popover for new calendar items.
  *
- * Opens when the user clicks an empty time slot in any view.
+ * Desktop: Opens as a Popover anchored to the clicked slot.
+ * Phone  : Opens as a Dialog in bottom-sheet style (Plan 50-03).
  *
  * Contents:
  *   1. Type chips: Task | Event | LinkedIn post (default: Task)
@@ -21,7 +22,7 @@
  *   navigates to /linkedin/queue?intent=create. This is a v1 UX concession,
  *   not a hack — documented in useCalendarMutations.ts.
  *
- * Plan 44-05.
+ * Plan 44-05 (base), extended in Plan 50-03 (mobile bottom-sheet branch).
  */
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -30,6 +31,13 @@ import {
   PopoverContent,
   PopoverAnchor,
 } from '@/components/ui/popover';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -40,7 +48,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useCreateMutation } from '@/hooks/useCalendarMutations';
 import { useContacts } from '@/hooks/useContacts';
-import { formatIstTime } from '@/lib/ist';
+import { useViewport } from '@/hooks/useViewport';
 
 // -----------------------------------------------------------------------
 // Types
@@ -70,7 +78,6 @@ interface CreateItemPopoverProps {
 
 /** Format ms timestamp as "HH:mm" for controlled input. */
 function msToTimeInput(ms: number): string {
-  const d = new Date(ms);
   return new Date(ms).toLocaleTimeString('en-GB', {
     timeZone: 'Asia/Jerusalem',
     hour: '2-digit',
@@ -137,15 +144,18 @@ function TypeChip({
 }
 
 // -----------------------------------------------------------------------
-// Component
+// Form body — shared between Popover and Dialog branches
 // -----------------------------------------------------------------------
 
-export function CreateItemPopover({
+function CreateItemForm({
   anchor,
-  open,
   onOpenChange,
   onCreated,
-}: CreateItemPopoverProps) {
+}: {
+  anchor: CreateItemAnchor;
+  onOpenChange: (open: boolean) => void;
+  onCreated?: () => void;
+}) {
   const navigate = useNavigate();
   const { mutate: createMutate } = useCreateMutation();
   const { data: contacts } = useContacts();
@@ -153,7 +163,7 @@ export function CreateItemPopover({
   const [type, setType] = useState<ItemType>('task');
   const [title, setTitle] = useState('');
   const [timeInput, setTimeInput] = useState('09:00');
-  const [duration, setDuration] = useState('01:00'); // HH:mm for event duration
+  const [duration, setDuration] = useState('01:00');
   const [contactJid, setContactJid] = useState<string>('');
   const [location, setLocation] = useState('');
   const [saving, setSaving] = useState(false);
@@ -161,28 +171,22 @@ export function CreateItemPopover({
 
   const titleRef = useRef<HTMLInputElement>(null);
 
-  // Reset state when anchor changes (new slot clicked).
+  // Reset state when anchor changes.
   useEffect(() => {
-    if (anchor && open) {
-      const slotMs = anchor.hourMs ?? anchor.dateMs;
-      setType('task');
-      setTitle('');
-      setTimeInput(msToTimeInput(slotMs));
-      setDuration('01:00');
-      setContactJid('');
-      setLocation('');
-      setError(null);
-      setSaving(false);
-      // Auto-focus title after a tick (popover animation).
-      setTimeout(() => titleRef.current?.focus(), 50);
-    }
-  }, [anchor, open]);
+    const slotMs = anchor.hourMs ?? anchor.dateMs;
+    setType('task');
+    setTitle('');
+    setTimeInput(msToTimeInput(slotMs));
+    setDuration('01:00');
+    setContactJid('');
+    setLocation('');
+    setError(null);
+    setSaving(false);
+    setTimeout(() => titleRef.current?.focus(), 50);
+  }, [anchor]);
 
   async function handleSave() {
-    if (!anchor) return;
-
     if (type === 'linkedin') {
-      // LinkedIn create-navigate concession — see file header.
       onOpenChange(false);
       navigate('/linkedin/queue?intent=create');
       return;
@@ -214,7 +218,6 @@ export function CreateItemPopover({
           },
         });
       } else {
-        // event
         const [dh, dm] = duration.split(':').map(Number);
         const durationMs = ((dh || 0) * 60 + (dm || 0)) * 60_000 || 3_600_000;
         await createMutate({
@@ -245,8 +248,170 @@ export function CreateItemPopover({
     }
   }
 
+  return (
+    <div onKeyDown={handleKeyDown}>
+      {/* Type chips */}
+      <div className="flex gap-1.5 mb-3">
+        {(['task', 'event', 'linkedin'] as ItemType[]).map((t) => (
+          <TypeChip
+            key={t}
+            type={t}
+            selected={type === t}
+            onClick={() => setType(t)}
+          />
+        ))}
+      </div>
+
+      {/* LinkedIn notice */}
+      {type === 'linkedin' && (
+        <p className="text-xs text-muted-foreground mb-3">
+          LinkedIn posts require a lesson-run flow.
+          Saving will open the LinkedIn queue.
+        </p>
+      )}
+
+      {/* Title */}
+      {type !== 'linkedin' && (
+        <input
+          ref={titleRef}
+          type="text"
+          placeholder="Title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="w-full border border-input bg-background rounded-md px-2 py-1.5 text-sm mb-2 outline-none focus:ring-1 focus:ring-ring"
+        />
+      )}
+
+      {/* Start time */}
+      {type !== 'linkedin' && (
+        <div className="flex items-center gap-2 mb-2">
+          <label className="text-xs text-muted-foreground w-20 shrink-0">Start time</label>
+          <input
+            type="time"
+            value={timeInput}
+            onChange={(e) => setTimeInput(e.target.value)}
+            className="border border-input bg-background rounded-md px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-ring flex-1"
+          />
+        </div>
+      )}
+
+      {/* Duration — Event only */}
+      {type === 'event' && (
+        <div className="flex items-center gap-2 mb-2">
+          <label className="text-xs text-muted-foreground w-20 shrink-0">Duration</label>
+          <input
+            type="time"
+            value={duration}
+            onChange={(e) => setDuration(e.target.value)}
+            className="border border-input bg-background rounded-md px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-ring flex-1"
+          />
+        </div>
+      )}
+
+      {/* Location — Event only */}
+      {type === 'event' && (
+        <div className="flex items-center gap-2 mb-2">
+          <label className="text-xs text-muted-foreground w-20 shrink-0">Location</label>
+          <input
+            type="text"
+            placeholder="Optional"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            className="border border-input bg-background rounded-md px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-ring flex-1"
+          />
+        </div>
+      )}
+
+      {/* Contact picker — Task only */}
+      {type === 'task' && contacts && contacts.length > 0 && (
+        <div className="flex items-center gap-2 mb-2">
+          <label className="text-xs text-muted-foreground w-20 shrink-0">Contact</label>
+          <Select value={contactJid || '__self__'} onValueChange={setContactJid}>
+            <SelectTrigger className="h-7 text-xs flex-1">
+              <SelectValue placeholder="Optional" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__self__">None</SelectItem>
+              {contacts.map((c) => (
+                <SelectItem key={c.jid} value={c.jid}>
+                  {c.name ?? c.jid}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {/* Error */}
+      {error && (
+        <p className="text-xs text-destructive mb-2">{error}</p>
+      )}
+
+      {/* Actions */}
+      <div className="flex justify-end gap-2 mt-1">
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 text-xs"
+          onClick={() => onOpenChange(false)}
+        >
+          Cancel
+        </Button>
+        <Button
+          size="sm"
+          className="h-7 text-xs"
+          disabled={saving}
+          onClick={() => void handleSave()}
+        >
+          {type === 'linkedin' ? 'Open queue' : saving ? 'Saving…' : 'Save'}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// -----------------------------------------------------------------------
+// Component
+// -----------------------------------------------------------------------
+
+export function CreateItemPopover({
+  anchor,
+  open,
+  onOpenChange,
+  onCreated,
+}: CreateItemPopoverProps) {
+  const { isMobile } = useViewport();
+
   if (!anchor) return null;
 
+  // Phone: bottom-sheet dialog
+  if (isMobile) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent
+          className={[
+            'fixed bottom-0 left-0 right-0 top-auto',
+            'translate-x-0 translate-y-0',
+            'max-w-none rounded-b-none rounded-t-2xl',
+            'data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom',
+          ].join(' ')}
+          style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 1rem)' }}
+        >
+          <DialogHeader>
+            <DialogTitle>New item</DialogTitle>
+          </DialogHeader>
+          <CreateItemForm
+            anchor={anchor}
+            onOpenChange={onOpenChange}
+            onCreated={onCreated}
+          />
+          <DialogFooter />
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // Desktop: existing Popover anchored to slot element
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       {/* Anchor element for positioning — invisible 0-size div injected at slot position */}
@@ -261,124 +426,12 @@ export function CreateItemPopover({
         className="w-80 p-3"
         align="start"
         side="bottom"
-        onKeyDown={handleKeyDown}
       >
-        {/* Type chips */}
-        <div className="flex gap-1.5 mb-3">
-          {(['task', 'event', 'linkedin'] as ItemType[]).map((t) => (
-            <TypeChip
-              key={t}
-              type={t}
-              selected={type === t}
-              onClick={() => setType(t)}
-            />
-          ))}
-        </div>
-
-        {/* LinkedIn notice */}
-        {type === 'linkedin' && (
-          <p className="text-xs text-muted-foreground mb-3">
-            LinkedIn posts require a lesson-run flow.
-            Saving will open the LinkedIn queue.
-          </p>
-        )}
-
-        {/* Title */}
-        {type !== 'linkedin' && (
-          <input
-            ref={titleRef}
-            type="text"
-            placeholder="Title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="w-full border border-input bg-background rounded-md px-2 py-1.5 text-sm mb-2 outline-none focus:ring-1 focus:ring-ring"
-          />
-        )}
-
-        {/* Start time */}
-        {type !== 'linkedin' && (
-          <div className="flex items-center gap-2 mb-2">
-            <label className="text-xs text-muted-foreground w-20 shrink-0">Start time</label>
-            <input
-              type="time"
-              value={timeInput}
-              onChange={(e) => setTimeInput(e.target.value)}
-              className="border border-input bg-background rounded-md px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-ring flex-1"
-            />
-          </div>
-        )}
-
-        {/* Duration — Event only */}
-        {type === 'event' && (
-          <div className="flex items-center gap-2 mb-2">
-            <label className="text-xs text-muted-foreground w-20 shrink-0">Duration</label>
-            <input
-              type="time"
-              value={duration}
-              onChange={(e) => setDuration(e.target.value)}
-              className="border border-input bg-background rounded-md px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-ring flex-1"
-            />
-          </div>
-        )}
-
-        {/* Location — Event only */}
-        {type === 'event' && (
-          <div className="flex items-center gap-2 mb-2">
-            <label className="text-xs text-muted-foreground w-20 shrink-0">Location</label>
-            <input
-              type="text"
-              placeholder="Optional"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              className="border border-input bg-background rounded-md px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-ring flex-1"
-            />
-          </div>
-        )}
-
-        {/* Contact picker — Task only */}
-        {type === 'task' && contacts && contacts.length > 0 && (
-          <div className="flex items-center gap-2 mb-2">
-            <label className="text-xs text-muted-foreground w-20 shrink-0">Contact</label>
-            <Select value={contactJid || '__self__'} onValueChange={setContactJid}>
-              <SelectTrigger className="h-7 text-xs flex-1">
-                <SelectValue placeholder="Optional" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__self__">None</SelectItem>
-                {contacts.map((c) => (
-                  <SelectItem key={c.jid} value={c.jid}>
-                    {c.name ?? c.jid}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-
-        {/* Error */}
-        {error && (
-          <p className="text-xs text-destructive mb-2">{error}</p>
-        )}
-
-        {/* Actions */}
-        <div className="flex justify-end gap-2 mt-1">
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 text-xs"
-            onClick={() => onOpenChange(false)}
-          >
-            Cancel
-          </Button>
-          <Button
-            size="sm"
-            className="h-7 text-xs"
-            disabled={saving}
-            onClick={() => void handleSave()}
-          >
-            {type === 'linkedin' ? 'Open queue' : saving ? 'Saving…' : 'Save'}
-          </Button>
-        </div>
+        <CreateItemForm
+          anchor={anchor}
+          onOpenChange={onOpenChange}
+          onCreated={onCreated}
+        />
       </PopoverContent>
     </Popover>
   );

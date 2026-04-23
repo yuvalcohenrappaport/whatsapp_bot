@@ -60,10 +60,22 @@ vi.mock('../../api/linkedin/errors.js', () => ({
     mockMapUpstreamErrorToReply(err, reply as never),
 }));
 
+// Mock Google Calendar fetcher (Plan 47-02: gcal as 4th aggregator source)
+vi.mock('../routes/googleCalendar.js', () => ({
+  fetchGcalCalendarItems: vi.fn().mockResolvedValue([]),
+}));
+
+// Mock Google Tasks fetcher (Plan 46-02: gtasks as 5th aggregator source)
+vi.mock('../routes/googleTasks.js', () => ({
+  fetchGtasksCalendarItems: vi.fn().mockResolvedValue([]),
+}));
+
 // Import after mocks
 const { default: calendarRoutes, hashCalendarEnvelope } = await import(
   '../routes/calendar.js'
 );
+const { fetchGcalCalendarItems } = await import('../routes/googleCalendar.js');
+const { fetchGtasksCalendarItems } = await import('../routes/googleTasks.js');
 
 // ─── Fixtures ──────────────────────────────────────────────────────────
 
@@ -243,7 +255,7 @@ describe('calendar routes — auth-passing server', () => {
     const body = res.json() as { items: unknown[]; sources: Record<string, string> };
     expect(body).toHaveProperty('items');
     expect(body).toHaveProperty('sources');
-    expect(body.sources).toEqual({ tasks: 'ok', events: 'ok', linkedin: 'ok' });
+    expect(body.sources).toEqual({ tasks: 'ok', events: 'ok', linkedin: 'ok', gcal: 'ok', gtasks: 'ok' });
     // The inside item should appear
     expect(body.items).toHaveLength(1);
     expect((body.items[0] as { source: string }).source).toBe('task');
@@ -281,7 +293,7 @@ describe('calendar routes — auth-passing server', () => {
     expect(body.items).toHaveLength(3);
     const sources = body.items.map((i) => i.source).sort();
     expect(sources).toEqual(['event', 'linkedin', 'task']);
-    expect(body.sources).toEqual({ tasks: 'ok', events: 'ok', linkedin: 'ok' });
+    expect(body.sources).toEqual({ tasks: 'ok', events: 'ok', linkedin: 'ok', gcal: 'ok', gtasks: 'ok' });
   });
 
   // Test 5: LinkedIn upstream rejects → tasks + events present, sources.linkedin === 'error'
@@ -359,6 +371,136 @@ describe('calendar routes — auth-passing server', () => {
     expect(res.statusCode).toBe(502);
     expect(mockMapUpstreamErrorToReply).toHaveBeenCalled();
   });
+
+  // ─── Plan 47-02 (GCAL-03): gcal integrated as 4th aggregator source ───
+
+  // Case 20: /api/calendar/items includes gcal items when fetcher resolves with data
+  it('GET /api/calendar/items includes gcal items when fetchGcalCalendarItems resolves', async () => {
+    const now = Date.now();
+    const gcalItem = {
+      source: 'gcal' as const,
+      id: 'gcal-evt-1',
+      title: 'Team standup',
+      start: now,
+      end: now + 30 * 60 * 1000,
+      isAllDay: false,
+      language: 'en' as const,
+      sourceFields: { calendarId: 'primary', calendarName: 'Primary' },
+    };
+    vi.mocked(fetchGcalCalendarItems).mockResolvedValueOnce([gcalItem]);
+
+    const res = await server.inject({ method: 'GET', url: '/api/calendar/items' });
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as { items: Array<{ source: string; id: string }>; sources: Record<string, string> };
+    expect(body.items.some((i) => i.source === 'gcal')).toBe(true);
+    expect(body.items.find((i) => i.id === 'gcal-evt-1')?.source).toBe('gcal');
+  });
+
+  // Case 21: CalendarEnvelope.sources has gcal='ok' when fetcher resolves
+  it('GET /api/calendar/items → sources.gcal === "ok" when fetcher resolves', async () => {
+    vi.mocked(fetchGcalCalendarItems).mockResolvedValueOnce([]);
+    const res = await server.inject({ method: 'GET', url: '/api/calendar/items' });
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as { sources: Record<string, string> };
+    expect(body.sources.gcal).toBe('ok');
+  });
+
+  // Case 22: partial failure — gcal rejects → sources.gcal='error', other 3 still 'ok' with items
+  it('GET with gcal rejecting → sources.gcal=error, other sources stay ok with items', async () => {
+    const now = Date.now();
+    const task = fixtureActionable({ id: 'task-partial', fireAt: now });
+    const event = fixtureEvent({ id: 'evt-partial', eventDate: now + 1000 });
+    const post = fixturePost({ id: 'post-partial', scheduled_at: new Date(now + 2000).toISOString() });
+
+    mockGetCalendarActionables.mockReturnValue([task]);
+    mockGetApprovedEventsBetween.mockReturnValue([event]);
+    mockCallUpstream.mockResolvedValue({ status: 200, data: [post] });
+    vi.mocked(fetchGcalCalendarItems).mockRejectedValueOnce(new Error('gcal down'));
+
+    const res = await server.inject({ method: 'GET', url: '/api/calendar/items' });
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as { items: Array<{ source: string }>; sources: Record<string, string> };
+    // Other three sources still rendered
+    expect(body.items).toHaveLength(3);
+    const srcs = body.items.map((i) => i.source).sort();
+    expect(srcs).toEqual(['event', 'linkedin', 'task']);
+    // gcal marked error, others ok
+    expect(body.sources.gcal).toBe('error');
+    expect(body.sources.tasks).toBe('ok');
+    expect(body.sources.events).toBe('ok');
+    expect(body.sources.linkedin).toBe('ok');
+  });
+
+  // ─── Plan 46-02 (GTASKS-02): gtasks integrated as 5th aggregator source ───
+
+  // Case 24: /api/calendar/items includes gtasks items when fetcher resolves with data
+  it('GET /api/calendar/items includes gtasks items when fetchGtasksCalendarItems resolves', async () => {
+    const now = Date.now();
+    const gtasksItem = {
+      source: 'gtasks' as const,
+      id: 'gtasks-task-1',
+      title: 'Buy groceries',
+      start: now,
+      end: null,
+      isAllDay: false,
+      language: 'en' as const,
+      sourceFields: { listId: 'list-1', listName: 'Personal', color: 'bg-emerald-500', sourceColor: 'bg-emerald-500' },
+    };
+    vi.mocked(fetchGtasksCalendarItems).mockResolvedValueOnce([gtasksItem]);
+
+    const res = await server.inject({ method: 'GET', url: '/api/calendar/items' });
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as { items: Array<{ source: string; id: string }>; sources: Record<string, string> };
+    expect(body.items.some((i) => i.source === 'gtasks')).toBe(true);
+    expect(body.items.find((i) => i.id === 'gtasks-task-1')?.source).toBe('gtasks');
+  });
+
+  // Case 25: CalendarEnvelope.sources has gtasks='ok' when fetcher resolves
+  it('GET /api/calendar/items → sources.gtasks === "ok" when fetcher resolves', async () => {
+    vi.mocked(fetchGtasksCalendarItems).mockResolvedValueOnce([]);
+    const res = await server.inject({ method: 'GET', url: '/api/calendar/items' });
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as { sources: Record<string, string> };
+    expect(body.sources.gtasks).toBe('ok');
+  });
+
+  // Case 26: partial failure — gtasks rejects → sources.gtasks='error', other 4 still 'ok' with items
+  it('GET with gtasks rejecting → sources.gtasks=error, other sources stay ok with items', async () => {
+    const now = Date.now();
+    const task = fixtureActionable({ id: 'task-gt-partial', fireAt: now });
+    const event = fixtureEvent({ id: 'evt-gt-partial', eventDate: now + 1000 });
+    const post = fixturePost({ id: 'post-gt-partial', scheduled_at: new Date(now + 2000).toISOString() });
+    const gcalItem = {
+      source: 'gcal' as const,
+      id: 'gcal-gt-partial',
+      title: 'Meeting',
+      start: now + 3000,
+      end: now + 3000 + 30 * 60 * 1000,
+      isAllDay: false,
+      language: 'en' as const,
+      sourceFields: { calendarId: 'primary', calendarName: 'Primary' },
+    };
+
+    mockGetCalendarActionables.mockReturnValue([task]);
+    mockGetApprovedEventsBetween.mockReturnValue([event]);
+    mockCallUpstream.mockResolvedValue({ status: 200, data: [post] });
+    vi.mocked(fetchGcalCalendarItems).mockResolvedValueOnce([gcalItem]);
+    vi.mocked(fetchGtasksCalendarItems).mockRejectedValueOnce(new Error('gtasks down'));
+
+    const res = await server.inject({ method: 'GET', url: '/api/calendar/items' });
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as { items: Array<{ source: string }>; sources: Record<string, string> };
+    // Other four sources still rendered
+    expect(body.items).toHaveLength(4);
+    const srcs = body.items.map((i) => i.source).sort();
+    expect(srcs).toEqual(['event', 'gcal', 'linkedin', 'task']);
+    // gtasks marked error, others ok
+    expect(body.sources.gtasks).toBe('error');
+    expect(body.sources.tasks).toBe('ok');
+    expect(body.sources.events).toBe('ok');
+    expect(body.sources.linkedin).toBe('ok');
+    expect(body.sources.gcal).toBe('ok');
+  });
 });
 
 // ─── hashCalendarEnvelope unit tests ──────────────────────────────────
@@ -377,7 +519,13 @@ describe('hashCalendarEnvelope (plan 44-03)', () => {
         sourceFields: {},
       },
     ],
-    sources: { tasks: 'ok' as const, events: 'ok' as const, linkedin: 'ok' as const },
+    sources: {
+      tasks: 'ok' as const,
+      events: 'ok' as const,
+      linkedin: 'ok' as const,
+      gcal: 'ok' as const,
+      gtasks: 'ok' as const,
+    },
   };
 
   // Test 7a: same envelope → same hash
@@ -400,7 +548,16 @@ describe('hashCalendarEnvelope (plan 44-03)', () => {
 
   // Empty envelope stable
   it('empty envelope hashes stably', () => {
-    const empty = { items: [], sources: { tasks: 'ok' as const, events: 'ok' as const, linkedin: 'ok' as const } };
+    const empty = {
+      items: [],
+      sources: {
+        tasks: 'ok' as const,
+        events: 'ok' as const,
+        linkedin: 'ok' as const,
+        gcal: 'ok' as const,
+        gtasks: 'ok' as const,
+      },
+    };
     const h1 = hashCalendarEnvelope(empty);
     const h2 = hashCalendarEnvelope(empty);
     expect(h1).toBe(h2);
@@ -408,8 +565,40 @@ describe('hashCalendarEnvelope (plan 44-03)', () => {
 
   // sources status change → different hash
   it('changing sources status changes hash', () => {
-    const before = hashCalendarEnvelope({ items: [], sources: { tasks: 'ok', events: 'ok', linkedin: 'ok' } });
-    const after = hashCalendarEnvelope({ items: [], sources: { tasks: 'ok', events: 'ok', linkedin: 'error' } });
+    const before = hashCalendarEnvelope({
+      items: [],
+      sources: { tasks: 'ok', events: 'ok', linkedin: 'ok', gcal: 'ok', gtasks: 'ok' },
+    });
+    const after = hashCalendarEnvelope({
+      items: [],
+      sources: { tasks: 'ok', events: 'ok', linkedin: 'error', gcal: 'ok', gtasks: 'ok' },
+    });
+    expect(before).not.toBe(after);
+  });
+
+  // Plan 47-02 Case 23: hash changes when gcal status flips ok ↔ error
+  it('changing gcal source status changes hash (SSE fires on gcal flip)', () => {
+    const before = hashCalendarEnvelope({
+      items: [],
+      sources: { tasks: 'ok', events: 'ok', linkedin: 'ok', gcal: 'ok', gtasks: 'ok' },
+    });
+    const after = hashCalendarEnvelope({
+      items: [],
+      sources: { tasks: 'ok', events: 'ok', linkedin: 'ok', gcal: 'error', gtasks: 'ok' },
+    });
+    expect(before).not.toBe(after);
+  });
+
+  // Plan 46-02 Case 24: hash changes when gtasks status flips ok ↔ error
+  it('changing gtasks source status changes hash (SSE fires on gtasks flip)', () => {
+    const before = hashCalendarEnvelope({
+      items: [],
+      sources: { tasks: 'ok', events: 'ok', linkedin: 'ok', gcal: 'ok', gtasks: 'ok' },
+    });
+    const after = hashCalendarEnvelope({
+      items: [],
+      sources: { tasks: 'ok', events: 'ok', linkedin: 'ok', gcal: 'ok', gtasks: 'error' },
+    });
     expect(before).not.toBe(after);
   });
 });

@@ -18,11 +18,17 @@
  *   event    → indigo-500 stripe + Calendar
  *   linkedin → violet-500 stripe + Linkedin
  *
- * Plan 44-04 (base), extended in Plan 44-05 (drag + click split + ghost mode).
+ * Plan 44-04 (base), extended in Plan 44-05 (drag + click split + ghost mode),
+ * extended in Plan 50-03 (mobile: min-h-7, no tooltip, full-pill tap target),
+ * extended in Plan 50-04 (mobile: long-press → PillActionSheet; drag gate !isMobile && !past && !ghost).
  */
-import { CheckCircle2, Calendar, Linkedin, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { CheckCircle2, Calendar, Linkedin, ListTodo, CalendarClock, Trash2 } from 'lucide-react';
 import { formatIstTime } from '@/lib/ist';
+import { useViewport } from '@/hooks/useViewport';
+import { useLongPress } from '@/hooks/useLongPress';
 import { InlineTitleEdit } from './InlineTitleEdit';
+import { PillActionSheet } from './PillActionSheet';
 import type { CalendarItem } from '@/api/calendarSchemas';
 
 // -----------------------------------------------------------------------
@@ -38,28 +44,39 @@ TRANSPARENT_PNG.src =
 // Source → visual config
 // -----------------------------------------------------------------------
 
+// Source-level visual fallbacks. For gtasks/gcal the real color comes from
+// `item.sourceFields.color` (hashed per listId/calendarId on the server);
+// the map entries below are defaults applied when a color override is absent.
 const SOURCE_STRIPE = {
   task: 'border-emerald-500',
   event: 'border-indigo-500',
   linkedin: 'border-violet-500',
+  gtasks: 'border-sky-500',
+  gcal: 'border-rose-500',
 } as const;
 
 const SOURCE_BG = {
   task: 'bg-emerald-500/10 hover:bg-emerald-500/20',
   event: 'bg-indigo-500/10 hover:bg-indigo-500/20',
   linkedin: 'bg-violet-500/10 hover:bg-violet-500/20',
+  gtasks: 'bg-sky-500/10 hover:bg-sky-500/20',
+  gcal: 'bg-rose-500/10 hover:bg-rose-500/20',
 } as const;
 
 const SOURCE_ICON = {
   task: CheckCircle2,
   event: Calendar,
   linkedin: Linkedin,
+  gtasks: ListTodo,
+  gcal: CalendarClock,
 } as const;
 
 const SOURCE_ICON_COLOR = {
   task: 'text-emerald-500',
   event: 'text-indigo-500',
   linkedin: 'text-violet-500',
+  gtasks: 'text-sky-500',
+  gcal: 'text-rose-500',
 } as const;
 
 // -----------------------------------------------------------------------
@@ -86,6 +103,12 @@ interface CalendarPillProps {
   onDragEnd?: (e: React.DragEvent, item: CalendarItem) => void;
   /** Delete callback — shows Trash2 icon on hover (non-compact, non-ghost). */
   onDelete?: (item: CalendarItem) => void;
+  /**
+   * Plan 46-04 — gtasks-only "Mark complete" long-press action. Threaded
+   * through to PillActionSheet; caller returns the item.id on success so
+   * Calendar.tsx can add it to deletedIds for optimistic removal.
+   */
+  onComplete?: (item: CalendarItem) => Promise<string | undefined>;
 }
 
 // -----------------------------------------------------------------------
@@ -107,15 +130,47 @@ export function CalendarPill({
   onDragStart,
   onDragEnd,
   onDelete,
+  onComplete,
 }: CalendarPillProps) {
+  const { isMobile } = useViewport();
   const Icon = SOURCE_ICON[item.source];
   const stripeClass = SOURCE_STRIPE[item.source];
   const bgClass = SOURCE_BG[item.source];
   const iconColor = SOURCE_ICON_COLOR[item.source];
   const isRtl = item.language === 'he';
 
+  // GCAL-06 — gcal items are read-only in the dashboard calendar. The server
+  // also marks sourceFields.readOnly=true, but the source check is the
+  // authoritative guard since any future read-only source can opt in the same
+  // way the gtasks source does NOT.
+  const isReadOnly =
+    item.source === 'gcal' || (item.sourceFields as Record<string, unknown>)?.readOnly === true;
+
   // Origin pill fades to 40% during drag; ghost pill is 70% (stable).
   const isDraggingOrigin = draggingId === item.id;
+
+  // Mobile: 28px min-height, smaller padding — source color left bar preserved.
+  const mobileClasses = isMobile ? 'min-h-7 text-xs px-2 py-1' : '';
+
+  // Mobile long-press → action sheet. Desktop: not attached (drag/click unaffected).
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const longPressHandlers = useLongPress(() => {
+    if (ghost) return; // ghost pills don't open action sheet
+    const vibrate = typeof window !== 'undefined' && typeof window.navigator?.vibrate === 'function';
+    if (vibrate) window.navigator.vibrate(10);
+    setSheetOpen(true);
+  }, { ms: 500 });
+  const phoneInteractionProps = isMobile ? longPressHandlers : {};
+
+  // openInlineEdit: triggers the title-click handler to enter inline-edit mode.
+  // On mobile, InlineTitleEdit immediately shows as a Dialog bottom-sheet (Plan 50-03).
+  function openInlineEdit() {
+    if (onTitleClick) {
+      // Create a synthetic MouseEvent — InlineTitleEdit's mobile branch ignores the event object.
+      const syntheticEvent = new MouseEvent('click', { bubbles: false }) as unknown as React.MouseEvent;
+      onTitleClick(syntheticEvent);
+    }
+  }
 
   function handleDragStart(e: React.DragEvent) {
     if (past) {
@@ -136,22 +191,26 @@ export function CalendarPill({
     onDragEnd?.(e, item);
   }
 
-  return (
+  const pillContent = (
+    <>
     <button
       type="button"
       dir={isRtl ? 'rtl' : 'ltr'}
-      draggable={!past && !ghost}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
+      draggable={!isMobile && !past && !ghost && !isReadOnly}
+      onDragStart={isMobile || isReadOnly ? undefined : handleDragStart}
+      onDragEnd={isMobile || isReadOnly ? undefined : handleDragEnd}
+      {...phoneInteractionProps}
       onClick={ghost ? undefined : onOpenDetails}
-      title={past ? 'Past item' : item.title}
+      // On mobile, suppress title attribute — tooltip would block tap action.
+      title={isMobile ? undefined : past ? 'Past item' : item.title}
       className={[
         'group relative w-full rounded-sm text-left border-l-[3px] px-1.5 py-0.5 text-xs',
         stripeClass,
         bgClass,
+        mobileClasses,
         'transition-colors duration-[300ms]',
         flashing ? 'bg-amber-100 dark:bg-amber-900/30' : '',
-        past ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer',
+        past ? 'opacity-70 cursor-not-allowed' : isReadOnly ? 'cursor-default' : 'cursor-pointer',
         isDraggingOrigin ? 'opacity-40' : '',
         ghost ? 'pointer-events-none opacity-90' : '',
       ]
@@ -171,7 +230,13 @@ export function CalendarPill({
         ) : (
           <span
             className={compact ? 'line-clamp-1' : 'line-clamp-2'}
-            onClick={onTitleClick ? (e) => { e.stopPropagation(); onTitleClick(e); } : undefined}
+            onClick={
+              isReadOnly
+                ? undefined  // GCAL-06 — read-only pills do not open the inline title editor
+                : onTitleClick
+                ? (e) => { e.stopPropagation(); onTitleClick(e); }
+                : undefined
+            }
           >
             {item.title}
           </span>
@@ -182,10 +247,11 @@ export function CalendarPill({
           {formatIstTime(item.start)}
         </div>
       )}
-      {/* Trash icon — visible on every non-ghost pill (including compact month pills
-          and short week/day pills). Uses span (not button) because the outer element
-          is already a <button> and HTML5 forbids nested interactive buttons. */}
-      {!ghost && onDelete && (
+      {/* Trash icon — visible on every non-ghost, non-read-only pill (including
+          compact month pills and short week/day pills). Uses span (not button)
+          because the outer element is already a <button> and HTML5 forbids
+          nested interactive buttons. Gcal pills suppress this — GCAL-06. */}
+      {!ghost && !isReadOnly && onDelete && (
         <span
           role="button"
           tabIndex={0}
@@ -208,5 +274,21 @@ export function CalendarPill({
         </span>
       )}
     </button>
+    {isMobile && sheetOpen && (
+      <PillActionSheet
+        item={item}
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        onEditTitle={openInlineEdit}
+        onDelete={onDelete}
+        onComplete={onComplete}
+      />
+    )}
+    </>
   );
+
+  // On mobile: return the pill directly (no tooltip wrapper — tap = action).
+  // On desktop: return the pill as-is (tooltip was never a wrapper here; it's
+  // driven by the `title` attribute which is suppressed on mobile above).
+  return pillContent;
 }

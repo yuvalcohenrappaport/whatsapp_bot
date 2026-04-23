@@ -387,7 +387,7 @@ export default function PendingTasksPage() {
           </h2>
         </div>
         {/* Filter chips */}
-        <div className="flex flex-wrap gap-2 mb-4">
+        <div className="flex overflow-x-auto whitespace-nowrap gap-2 mb-4 pb-1 -mb-1">
           {(['all', 'approved', 'rejected', 'expired'] as const).map(
             (chip) => {
               const active = recentFilter === chip;

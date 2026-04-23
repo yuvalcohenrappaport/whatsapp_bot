@@ -194,7 +194,12 @@ export function PendingActionableCard(props: PendingActionableCardProps) {
        * locks the button order to ✅/✏️/❌ regardless of the card's RTL
        * direction (CONTEXT §Button UX placement).
        */}
-      <div className="flex items-center gap-2 pt-2" dir="ltr">
+      {/*
+       * On phone (< sm) we switch to a 3-column grid so each button gets
+       * equal width and the row never wraps at 320px. On sm+ we revert to
+       * the original flex row (unchanged desktop appearance).
+       */}
+      <div className="grid grid-cols-3 sm:flex sm:items-center gap-2 pt-2" dir="ltr">
         {editing ? (
           <>
             <Button
@@ -202,6 +207,7 @@ export function PendingActionableCard(props: PendingActionableCardProps) {
               size="sm"
               onClick={cancel}
               disabled={busy}
+              className="min-w-0"
             >
               Cancel
             </Button>
@@ -210,9 +216,10 @@ export function PendingActionableCard(props: PendingActionableCardProps) {
               onClick={save}
               disabled={saveDisabled}
               aria-label="Save and approve"
+              className="col-span-2 sm:col-span-1 min-w-0"
             >
-              <Check className="size-4" />
-              Save &amp; Approve
+              <Check className="size-4 shrink-0" />
+              <span className="truncate">Save &amp; Approve</span>
             </Button>
           </>
         ) : (
@@ -222,9 +229,10 @@ export function PendingActionableCard(props: PendingActionableCardProps) {
               onClick={onApprove}
               disabled={busy}
               aria-label="Approve"
+              className="min-w-0"
             >
-              <Check className="size-4" />
-              Approve
+              <Check className="size-4 shrink-0" />
+              <span className="truncate">Approve</span>
             </Button>
             <Button
               variant="outline"
@@ -232,9 +240,10 @@ export function PendingActionableCard(props: PendingActionableCardProps) {
               onClick={enterEditMode}
               disabled={busy}
               aria-label="Edit"
+              className="min-w-0"
             >
-              <Pencil className="size-4" />
-              Edit
+              <Pencil className="size-4 shrink-0" />
+              <span className="truncate">Edit</span>
             </Button>
             <Button
               variant="outline"
@@ -242,9 +251,10 @@ export function PendingActionableCard(props: PendingActionableCardProps) {
               onClick={onReject}
               disabled={busy}
               aria-label="Reject"
+              className="min-w-0"
             >
-              <X className="size-4" />
-              Reject
+              <X className="size-4 shrink-0" />
+              <span className="truncate">Reject</span>
             </Button>
           </>
         )}
