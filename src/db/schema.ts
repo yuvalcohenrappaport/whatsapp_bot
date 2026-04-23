@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, real, index } from 'drizzle-orm/sqlite-core';
 
 export const messages = sqliteTable(
   'messages',
@@ -149,6 +149,13 @@ export const tripContexts = sqliteTable('trip_contexts', {
   updatedAt: integer('updated_at')
     .notNull()
     .$defaultFn(() => Date.now()),
+  // Phase 51 v2.1 — trip lifecycle columns (drizzle/0022_v21_phase51_trip_memory.sql)
+  startDate: text('start_date'), // ISO-8601 YYYY-MM-DD
+  endDate: text('end_date'), // ISO-8601 YYYY-MM-DD
+  budgetByCategory: text('budget_by_category').notNull().default('{}'), // JSON: { flights, lodging, food, activities, transit, shopping, other }
+  calendarId: text('calendar_id'), // null = primary Google Calendar
+  status: text('status').notNull().default('active'), // 'active' | 'archived'
+  briefingTime: text('briefing_time'), // 'HH:MM' in destination-tz
 });
 
 export const tripDecisions = sqliteTable(
@@ -164,10 +171,47 @@ export const tripDecisions = sqliteTable(
     createdAt: integer('created_at')
       .notNull()
       .$defaultFn(() => Date.now()),
+    // Phase 51 v2.1 — structured columns (drizzle/0022_v21_phase51_trip_memory.sql).
+    // Enums enforced in app layer (matches existing `type` column convention).
+    proposedBy: text('proposed_by'), // phone/JID of group member, nullable
+    category: text('category'), // 'flights' | 'lodging' | 'food' | 'activities' | 'transit' | 'shopping' | 'other'
+    costAmount: real('cost_amount'), // numeric cost, nullable
+    costCurrency: text('cost_currency'), // ISO-4217, nullable
+    conflictsWith: text('conflicts_with').notNull().default('[]'), // JSON array of decision IDs
+    origin: text('origin').notNull().default('inferred'), // 'inferred' | 'self_reported' | 'multimodal' | 'dashboard'
+    metadata: text('metadata'), // JSON blob for edge-case fields
+    archived: integer('archived', { mode: 'boolean' }).notNull().default(false), // flipped by auto-archive cron
   },
   (table) => [
     index('idx_trip_decisions_group').on(table.groupJid),
     index('idx_trip_decisions_type').on(table.groupJid, table.type),
+  ],
+);
+
+// Phase 51 v2.1 — landing zone for expired trip_contexts rows.
+// Daily 02:00 IST cron moves rows here when now > end_date + 3 days
+// (see src/cron/archiveTripsCron.ts in a later plan).
+export const tripArchive = sqliteTable(
+  'trip_archive',
+  {
+    id: text('id').primaryKey(), // UUID (fresh per archive, distinct from groupJid)
+    groupJid: text('group_jid').notNull(),
+    destination: text('destination'),
+    dates: text('dates'),
+    contextSummary: text('context_summary'),
+    lastClassifiedAt: integer('last_classified_at'), // Unix ms
+    updatedAt: integer('updated_at').notNull(),
+    startDate: text('start_date'),
+    endDate: text('end_date'),
+    budgetByCategory: text('budget_by_category').notNull().default('{}'),
+    calendarId: text('calendar_id'),
+    status: text('status').notNull(), // 'archived' at minimum
+    briefingTime: text('briefing_time'),
+    archivedAt: integer('archived_at').notNull(), // Unix ms when cron moved the row
+  },
+  (table) => [
+    index('idx_trip_archive_group').on(table.groupJid),
+    index('idx_trip_archive_end_date').on(table.endDate),
   ],
 );
 
