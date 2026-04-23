@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import pino from 'pino';
 import { config } from '../config.js';
 import { calendarDetection } from './CalendarDetectionService.js';
+import { commitmentDetection } from '../commitments/CommitmentDetectionService.js';
 import { computeContentHash, isSimilarEvent } from './calendarDedup.js';
 import {
   insertPersonalPendingEvent,
@@ -64,7 +65,12 @@ export async function processPrivateMessage(params: {
     if (contactJid === config.USER_JID) return;
 
     // Enhanced pre-filter: must have a digit AND a date keyword
-    if (!calendarDetection.hasDateSignal(text) || !hasDateKeyword(text)) return;
+    if (!hasDateKeyword(text)) return;
+
+    // Skip task-like messages (action verb present) — the task pipeline
+    // will handle these. Prevents "buy milk tomorrow" creating both a
+    // task AND a calendar event.
+    if (commitmentDetection.hasActionVerb(text)) return;
 
     // Forwarded message dedup via content hash
     let contentHash: string | null = null;
@@ -168,7 +174,12 @@ export async function processGroupMessage(params: {
     const { messageId, groupJid, groupName, senderJid, senderName, text, timestamp, isForwarded } = params;
 
     // Enhanced pre-filter: must have a digit AND a date keyword
-    if (!calendarDetection.hasDateSignal(text) || !hasDateKeyword(text)) return;
+    if (!hasDateKeyword(text)) return;
+
+    // Skip task-like messages (action verb present) — the task pipeline
+    // will handle these. Prevents "buy milk tomorrow" creating both a
+    // task AND a calendar event.
+    if (commitmentDetection.hasActionVerb(text)) return;
 
     // Forwarded message dedup via content hash
     let contentHash: string | null = null;

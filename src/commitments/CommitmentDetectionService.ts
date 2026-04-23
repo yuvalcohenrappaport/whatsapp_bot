@@ -27,7 +27,15 @@ const ACTION_VERBS_EN =
   /\b(I'll|I will|let me|I'm going to|I need to|I have to|I should|I can|gonna|going to|will send|will check|will do|will get|will call|will email|will update)\b/i;
 
 const ACTION_VERBS_HE =
-  /(אני א|אשלח|אבדוק|אחזור|אעשה|אטפל|אדאג|אקח|צריך ל|הולך ל|מתכוון ל)/;
+  /(אני א|אני מ|אשלח|אבדוק|אחזור|אעשה|אטפל|אדאג|אקח|ארשום|אקנה|אגיד|אבוא|אחזיר|אתקשר|אכתוב|אזמין|אשאל|אסיים|אפגש|אראה|אמצא|אביא|אמליץ|אפנה|אנסה|אחליט|אכין|אעדכן|אבקש|אחכה|אענה|אקבע|אתחיל|אשמור|אבטל|אסדר|אכבס|אוריד|אעלה|אתקדם|אשתדל|אשלים|אריץ|אציג|אאשר|אשלוף|אמסור|צריך ל|צריכה ל|חייב ל|חייבת ל|הולך ל|הולכת ל|הולכים ל|הולכות ל|מתכוון ל|מתכוונת ל)/;
+
+// Narrower set of first-person commitment verbs used by hasActionVerb() to
+// gate the calendar pipeline. Excludes motion/intention verbs (הולך ל,
+// מתכוון ל, אני א, אני מ) and obligation forms (צריך ל, חייב ל) because
+// those can describe events ("going to a restaurant", "need to be at the
+// meeting") — we want those to still reach event detection.
+const STRONG_ACTION_VERBS_HE =
+  /(אשלח|אבדוק|אחזור|אעשה|אטפל|אדאג|אקח|ארשום|אקנה|אגיד|אחזיר|אתקשר|אכתוב|אזמין|אשאל|אסיים|אמצא|אביא|אמליץ|אפנה|אנסה|אחליט|אכין|אעדכן|אבקש|אחכה|אענה|אשמור|אבטל|אסדר|אכבס|אוריד|אעלה|אשתדל|אשלים|אריץ|אציג|אאשר|אשלוף|אמסור|צריך ל|צריכה ל|חייב ל|חייבת ל)/;
 
 const TEMPORAL_MARKERS_EN =
   /\b(tomorrow|tonight|today|next week|next month|by monday|by tuesday|by wednesday|by thursday|by friday|this week|this evening|in the morning|later today|by end of day|by eod|asap)\b/i;
@@ -95,6 +103,16 @@ export class CommitmentDetectionService {
       return true;
 
     return false;
+  }
+
+  /**
+   * True if the message contains a first-person commitment action verb
+   * (e.g. "I'll send", "צריך לקנות"). Used by the calendar pipeline to
+   * skip event detection on task-like messages, preventing duplicate
+   * task+event outputs for "buy milk tomorrow"-style sends.
+   */
+  hasActionVerb(text: string): boolean {
+    return ACTION_VERBS_EN.test(text) || STRONG_ACTION_VERBS_HE.test(text);
   }
 
   /**

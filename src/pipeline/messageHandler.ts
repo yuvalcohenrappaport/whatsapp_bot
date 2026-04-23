@@ -375,13 +375,22 @@ async function processMessage(sock: WASocket, msg: WAMessage): Promise<void> {
         timestamp,
         fromMe: true,
       });
+      processPrivateMessage({
+        messageId: msg.key.id!,
+        contactJid,
+        contactName: null,
+        text,
+        timestamp,
+        fromMe: true,
+        isForwarded: isForwardedMessage(msg),
+      }).catch(() => {});
     }
     return;
   }
 
   // Debug: log fromMe messages that didn't match self-chat (possible JID format mismatch)
   if (fromMe && text && !contactJid.endsWith('@g.us')) {
-    logger.debug({ contactJid, userJid: config.USER_JID, text: text.slice(0, 30) }, 'fromMe message not matched as self-chat');
+    logger.info({ contactJid, userJid: config.USER_JID, userLid: config.USER_LID, text: text.slice(0, 50) }, 'fromMe message not matched as self-chat');
   }
 
   // Outgoing messages to regular contacts: persist for live style learning and reset auto count
