@@ -17,6 +17,7 @@ import { setGroupMessageCallback } from '../pipeline/messageHandler.js';
 import { handleTravelMention } from './travelHandler.js';
 import { handleKeywordRules } from './keywordHandler.js';
 import { addToTripContextDebounce } from './tripContextManager.js';
+import { handleSelfReportCommand } from './tripPreferences.js';
 import { createSuggestion, handleConfirmReject, restorePendingSuggestions } from './suggestionTracker.js';
 import { processGroupMessage } from '../calendar/personalCalendarPipeline.js';
 
@@ -317,6 +318,13 @@ export function initGroupPipeline(): void {
           // Reply-to-delete -- runs immediately, terminal (before fromMe guard so owner can delete events)
           const wasDelete = await handleReplyToDelete(groupJid, msg, quotedMessageId);
           if (wasDelete) return;
+
+          // Self-report commands (!pref, !budget, !dates) -- terminal when matched.
+          // Placed BEFORE the fromMe guard so the owner can self-report too,
+          // and BEFORE addToTripContextDebounce so the literal command text
+          // never enters the classifier buffer (would confuse it).
+          const wasSelfReport = await handleSelfReportCommand(groupJid, msg);
+          if (wasSelfReport) return;
         }
 
         // Keyword auto-response -- runs for all messages including own
