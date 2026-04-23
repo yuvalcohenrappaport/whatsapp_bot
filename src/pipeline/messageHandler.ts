@@ -357,7 +357,25 @@ async function processMessage(sock: WASocket, msg: WAMessage): Promise<void> {
     (contactJid === config.USER_JID ||
       (config.USER_LID !== undefined && contactJid === config.USER_LID));
   if (isSelfChat) {
-    await handleOwnerCommand(sock, msg);
+    const handled = await handleOwnerCommand(sock, msg);
+    // Only route USER_LID-form self-chat to detection. User-typed self-chat arrives
+    // as USER_LID (baileys 7); the bot's own outgoing messages to USER_JID get echoed
+    // back in the legacy form — routing those would create a detection feedback loop
+    // from our own preview/notification messages.
+    if (
+      !handled &&
+      config.USER_LID !== undefined &&
+      contactJid === config.USER_LID
+    ) {
+      routeDetection({
+        messageId: msg.key.id!,
+        contactJid,
+        contactName: null,
+        text,
+        timestamp,
+        fromMe: true,
+      });
+    }
     return;
   }
 

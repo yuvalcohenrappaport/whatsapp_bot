@@ -45,17 +45,6 @@ function isBlocklisted(contactJid: string): boolean {
   }
 }
 
-function isIncomingAllowed(contactJid: string): boolean {
-  const raw = getSetting('commitment_incoming_allowlist');
-  if (!raw) return false;
-  try {
-    const list = JSON.parse(raw) as string[];
-    return Array.isArray(list) && list.includes(contactJid);
-  } catch {
-    return false;
-  }
-}
-
 // ─── Main pipeline entry point ───────────────────────────────────────────────
 
 /**
@@ -76,10 +65,10 @@ export async function processDetection(params: {
     // Guards in the exact order of commitmentPipeline.processCommitment steps a-g.
     // a. Master switch
     if (getSetting('commitment_detection_enabled') === 'false') return;
-    // b. Skip self-chat
-    if (contactJid === config.USER_JID) return;
-    // c. Incoming messages: must be on allowlist
-    if (!fromMe && !isIncomingAllowed(contactJid)) return;
+    // b. Self-chat is allowed — messageHandler gates it via handleOwnerCommand's
+    //    return value, so only non-command self-chat text reaches here.
+    // c. Incoming detection is on by default for all contacts. Use the blocklist
+    //    below to opt specific chats out.
     // d. Blocklist
     if (isBlocklisted(contactJid)) return;
     // e. Cheap pre-filter (action verbs / temporal markers)
