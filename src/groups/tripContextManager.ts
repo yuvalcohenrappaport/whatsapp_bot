@@ -12,6 +12,7 @@ import {
   getUnresolvedOpenItems,
   resolveOpenItem,
 } from '../db/queries/tripMemory.js';
+import { runAfterInsert } from './conflictDetector.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
 
@@ -360,8 +361,9 @@ async function processTripContext(
     let decisionsInserted = 0;
     for (const decision of result.decisions) {
       if (decision.confidence === 'low') continue;
+      const decisionId = crypto.randomUUID();
       insertTripDecision({
-        id: crypto.randomUUID(),
+        id: decisionId,
         groupJid,
         type: decision.type,
         value: decision.value,
@@ -369,6 +371,8 @@ async function processTripContext(
         sourceMessageId: messages[0]?.id ?? null,
       });
       decisionsInserted++;
+      // Fire-and-forget — conflict detector never throws.
+      runAfterInsert(groupJid, decisionId).catch(() => {});
     }
 
     // 7. Persist open questions

@@ -8,6 +8,7 @@ import {
   TRIP_CATEGORIES,
   type TripCategory,
 } from '../db/queries/tripMemory.js';
+import { runAfterInsert } from './conflictDetector.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
 
@@ -67,8 +68,9 @@ function handlePref(groupJid: string, msg: GroupMsg, text: string): true {
     return true;
   }
 
+  const decisionId = crypto.randomUUID();
   insertTripDecision({
-    id: crypto.randomUUID(),
+    id: decisionId,
     groupJid,
     // `tripDecisions.type` enum doesn't have a `preference` value; 'activity'
     // is the closest existing bucket. `origin='self_reported'` distinguishes
@@ -84,6 +86,10 @@ function handlePref(groupJid: string, msg: GroupMsg, text: string): true {
     costAmount: null,
     costCurrency: null,
   });
+
+  // Fire-and-forget — self-reported preferences can conflict with
+  // classifier-inferred decisions too. runAfterInsert never throws.
+  runAfterInsert(groupJid, decisionId).catch(() => {});
 
   logger.info(
     { groupJid, senderJid: msg.senderJid },
