@@ -136,10 +136,19 @@ describe('tripClassifier accuracy (real Gemini)', () => {
 });
 
 // Mock Gemini BEFORE importing processTripContext consumers (vi.mock is hoisted).
-vi.mock('../../ai/provider.js', () => ({
-  generateJson: vi.fn(),
-  generateText: vi.fn().mockResolvedValue(null),
-}));
+// By default delegate to the real module so the accuracy suite can still hit
+// Gemini; the persistence suite overrides `generateJson` per-test.
+vi.mock('../../ai/provider.js', async () => {
+  const actual =
+    await vi.importActual<typeof import('../../ai/provider.js')>(
+      '../../ai/provider.js',
+    );
+  return {
+    ...actual,
+    generateJson: vi.fn(actual.generateJson),
+    generateText: vi.fn(actual.generateText),
+  };
+});
 
 describe('persistence (mocked Gemini)', () => {
   beforeEach(() => {
@@ -148,7 +157,7 @@ describe('persistence (mocked Gemini)', () => {
 
   it('calls insertTripDecision with proposedBy, category, costAmount, costCurrency, origin=inferred', async () => {
     const { generateJson } = await import('../../ai/provider.js');
-    (generateJson as ReturnType<typeof vi.fn>).mockResolvedValue({
+    (generateJson as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       decisions: [
         {
           type: 'transport',
