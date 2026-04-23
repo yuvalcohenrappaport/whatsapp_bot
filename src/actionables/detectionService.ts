@@ -25,8 +25,10 @@ const logger = pino({ level: config.LOG_LEVEL });
 /** Per-chat JID -> last Gemini call timestamp (ms). Module-local, matches legacy. */
 const chatCooldowns = new Map<string, number>();
 
-/** 5-minute cooldown per chat to avoid rapid-fire Gemini calls. */
-const COOLDOWN_MS = 5 * 60 * 1000;
+/** 30-second cooldown per chat to avoid rapid-fire Gemini calls while still
+ *  letting burst-sends land. Was 5min; reduced because the 5min window masked
+ *  back-to-back task sends in the same chat as 'not detected'. */
+const COOLDOWN_MS = 30 * 1000;
 
 function isOnCooldown(chatJid: string): boolean {
   const last = chatCooldowns.get(chatJid);
