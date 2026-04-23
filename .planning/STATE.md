@@ -325,6 +325,7 @@ Legacy decisions from v1.6 (see phase 27-32 archive):
 - [Phase 50]: isMobile branch pattern: uniform approach across 6 calendar components — early return for mobile layout, existing desktop layout unchanged
 - [Phase 50]: Bottom-sheet Dialog: DialogContent fixed bottom-0 left-0 right-0 override pattern established as reusable mobile overlay primitive
 - [Phase 50]: device-is-IST datetime-local: new Date(value).getTime() avoids Intl.DateTimeFormat DST-boundary bug for single-user IST deployment
+- [Phase 51-richer-trip-memory]: MEM2-03 shipped: post-insert conflict detector with hard/soft/none classification
 
 ### Pending Todos
 
