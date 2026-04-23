@@ -112,7 +112,7 @@
 - [x] **Phase 44: Unified Editable Calendar** — /calendar surface merging tasks + personal events + LinkedIn posts with drag-reschedule, inline title edit, create-from-slot popover, delete-with-undo, SSE live sync, month/week/day views (completed 2026-04-20 — v1.9 seed)
 - [x] **Phase 45: Dashboard Pending-Tasks Write Actions** — Approve/Reject/Edit buttons on /pending-tasks page, routed through the Phase 41 `approvalHandler` with Phase 42 Gemini enrichment (completed 2026-04-20)
 - [x] **Phase 46: Google Tasks Full-List Sync** — Pull all owner's Google Tasks lists into the unified calendar with per-list color + sidebar filter; de-dup against actionables (completed 2026-04-23)
-- [ ] **Phase 47: Google Calendar Events Sync** — Pull all owner's Google Calendar events into the unified calendar (read-only); de-dup against personal_pending_events; sidebar filter mechanism extends to gcal
+- [x] **Phase 47: Google Calendar Events Sync** — Pull all owner's Google Calendar events into the unified calendar (read-only); de-dup against personal_pending_events; sidebar filter mechanism extends to gcal (completed 2026-04-23)
 - [ ] **Phase 48: LinkedIn Post Composer (Dashboard)** — "New Post" action on /linkedin queue page that composes via pm-authority's POST /v1/posts and returns the post in PENDING_REVIEW
 - [ ] **Phase 49: Deploy + Verify + Close v1.9** — PM2 redeploy both services, dashboard bundle ship, owner walkthrough on all new requirements, milestone closeout
 
@@ -427,7 +427,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 44. Unified Editable Calendar | v1.9 | 6/6 | Complete | 2026-04-20 |
 | 45. Dashboard Pending-Tasks Write Actions | v1.9 | Complete    | 2026-04-20 | 2026-04-20 |
 | 46. Google Tasks Full-List Sync | v1.9 | 5/5 | Complete | 2026-04-23 |
-| 47. Google Calendar Events Sync | 3/4 | In Progress|  | 47-01 shipped 2026-04-20 (gcalService + routes + dedup + 10-case vitest; GCAL-01/02/05) |
+| 47. Google Calendar Events Sync | v1.9 | 4/4 | Complete | 2026-04-23 |
 | 48. LinkedIn Post Composer (Dashboard) | 2/3 | In Progress|  | — |
 | 49. Deploy + Verify + Close v1.9 | v1.9 | 0/? | Not started | — |
 | 50. Dashboard Mobile UI Polish | v2.0 | Complete    | 2026-04-20 | 2026-04-20 |
@@ -486,13 +486,13 @@ Plans:
   5. A gcal event whose id matches `personal_pending_events.calendar_event_id` is dropped — the bot-owned row renders instead
   6. gcal pills are read-only — drag disabled, no inline edit, no delete
 
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 - [x] 47-01-PLAN.md — gcalService.ts + GET /api/google-calendar/{calendars,events} routes + server-side dedup against personal_pending_events.calendar_event_id (GCAL-01, GCAL-02, GCAL-05) — shipped 2026-04-20
-- [ ] 47-02-PLAN.md — Extend unified aggregator + SSE with gcal as 5th Promise.allSettled slot + partial-failure tolerance (GCAL-03)
-- [ ] 47-03-PLAN.md — Dashboard: calendarSchemas gcal variant + CalendarFilterPanel Google Calendar section + read-only pill enforcement (GCAL-04, GCAL-06)
-- [ ] 47-04-PLAN.md — Live verification on PM2: owner walkthrough of all six GCAL requirements + ROADMAP/REQUIREMENTS/STATE closeout
+- [x] 47-02-PLAN.md — Extend unified aggregator + SSE with gcal as 5th Promise.allSettled slot + partial-failure tolerance (GCAL-03) — shipped 2026-04-21
+- [x] 47-03-PLAN.md — Dashboard: calendarSchemas gcal variant + CalendarFilterPanel Google Calendar section + read-only pill enforcement (GCAL-04, GCAL-06) — shipped 2026-04-21
+- [x] 47-04-PLAN.md — Live verification on PM2: owner walkthrough of all six GCAL requirements + ROADMAP/REQUIREMENTS/STATE closeout — shipped 2026-04-23
 
 ### Phase 48: LinkedIn Post Composer (Dashboard)
 
