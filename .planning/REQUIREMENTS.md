@@ -235,7 +235,7 @@ Requirements for the **Task Approval & Context Enrichment** milestone. Turn comm
 | GCAL-04 | Phase 47 | Complete (Plan 47-03, 2026-04-21 — dashboard CalendarFilterPanel gcal section + useCalendarStream gcal slice + CalendarPill gcal visuals) |
 | GCAL-05 | Phase 47 | Complete (Plan 47-01, 2026-04-20) |
 | GCAL-06 | Phase 47 | Complete (Plan 47-03, 2026-04-21 — gcal pills read-only: draggable gated on isReadOnly, onDelete suppressed, InlineTitleEdit suppressed, PillActionSheet shows 'Open in Google Calendar' anchor only) |
-| LIN-NEW-01 | Phase 48 | In Progress (Plans 48-01 pm-authority + 48-02 proxy shipped 2026-04-20; awaits Plan 48-03 dashboard UI) |
+| LIN-NEW-01 | Phase 48 | Complete (Plan 48-03, 2026-04-23 — /linkedin New Post button + NewPostDialog composer + useLinkedInCreatePost hook live on PM2 bundle index-CiSMOBQK.js; live UAT 6/6 PASS: inline validation on blur, Hebrew cross-field `.refine()` error surfacing, happy-path creates PENDING_REVIEW delivered via SSE <3s with amber flash, localStorage defaults persist across dialog opens; commits a42c47f+2db8ce5+413a5df) |
 | VER-01 | Phase 49 | Not started |
 
 **v1.9 Coverage:**

@@ -113,7 +113,7 @@
 - [x] **Phase 45: Dashboard Pending-Tasks Write Actions** — Approve/Reject/Edit buttons on /pending-tasks page, routed through the Phase 41 `approvalHandler` with Phase 42 Gemini enrichment (completed 2026-04-20)
 - [x] **Phase 46: Google Tasks Full-List Sync** — Pull all owner's Google Tasks lists into the unified calendar with per-list color + sidebar filter; de-dup against actionables (completed 2026-04-23)
 - [x] **Phase 47: Google Calendar Events Sync** — Pull all owner's Google Calendar events into the unified calendar (read-only); de-dup against personal_pending_events; sidebar filter mechanism extends to gcal (completed 2026-04-23)
-- [ ] **Phase 48: LinkedIn Post Composer (Dashboard)** — "New Post" action on /linkedin queue page that composes via pm-authority's POST /v1/posts and returns the post in PENDING_REVIEW
+- [x] **Phase 48: LinkedIn Post Composer (Dashboard)** — "New Post" action on /linkedin queue page that composes via pm-authority's POST /v1/posts and returns the post in PENDING_REVIEW (completed 2026-04-23)
 - [ ] **Phase 49: Deploy + Verify + Close v1.9** — PM2 redeploy both services, dashboard bundle ship, owner walkthrough on all new requirements, milestone closeout
 
 ### v2.0 Dashboard UX Polish (PLANNING 2026-04-20)
@@ -428,7 +428,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 45. Dashboard Pending-Tasks Write Actions | v1.9 | Complete    | 2026-04-20 | 2026-04-20 |
 | 46. Google Tasks Full-List Sync | v1.9 | 5/5 | Complete | 2026-04-23 |
 | 47. Google Calendar Events Sync | v1.9 | 4/4 | Complete | 2026-04-23 |
-| 48. LinkedIn Post Composer (Dashboard) | 2/3 | In Progress|  | — |
+| 48. LinkedIn Post Composer (Dashboard) | v1.9 | 3/3 | Complete | 2026-04-23 |
 | 49. Deploy + Verify + Close v1.9 | v1.9 | 0/? | Not started | — |
 | 50. Dashboard Mobile UI Polish | v2.0 | Complete    | 2026-04-20 | 2026-04-20 |
 
@@ -505,12 +505,12 @@ Plans:
   3. SSE-refreshed queue shows the new post within 3s without reload
   4. Form validation inline; errors map via `mapUpstreamErrorToReply`
 
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [x] 48-01-PLAN.md — pm-authority: add `POST /v1/posts` endpoint + CreatePostRequest schema + pytest coverage (LIN-NEW-01) — shipped 2026-04-20
 - [x] 48-02-PLAN.md — whatsapp-bot Fastify proxy: add `POST /api/linkedin/posts` route + CreatePostRequestSchema + vitest + live smoke (LIN-NEW-01) — shipped 2026-04-20
-- [ ] 48-03-PLAN.md — Dashboard: useLinkedInCreatePost hook + NewPostDialog composer + LinkedInQueue header button + live UAT walkthrough (LIN-NEW-01)
+- [x] 48-03-PLAN.md — Dashboard: useLinkedInCreatePost hook + NewPostDialog composer + LinkedInQueue header button + live UAT walkthrough (LIN-NEW-01) — shipped 2026-04-23
 
 ### Phase 49: Deploy + Verify + Close v1.9
 
