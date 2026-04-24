@@ -7,6 +7,7 @@ import {
   getTripContext,
 } from '../db/queries/tripMemory.js';
 import { generateText } from '../ai/provider.js';
+import type { BriefingInput } from '../groups/dayOfBriefing.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
 
@@ -243,31 +244,16 @@ export function isInBriefingWindow(opts: {
 // import wrapped in try/catch. Tests can also inject an orchestrator via DI
 // to bypass module resolution entirely.
 
-async function defaultOrchestrator(groupJid: string): Promise<void> {
-  try {
-    const mod = (await import('../groups/dayOfBriefing.js')) as {
-      runDayOfBriefing?: (groupJid: string) => Promise<void>;
-    };
-    if (typeof mod.runDayOfBriefing !== 'function') {
-      throw new Error(
-        'dayOfBriefing.runDayOfBriefing not exported — Wave 1 stub',
-      );
-    }
-    await mod.runDayOfBriefing(groupJid);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    // Wave-1 state: module doesn't exist yet. Swallow the ERR_MODULE_NOT_FOUND
-    // so the cron tick stays green during plans 03/04 buildout; rethrow any
-    // other error so real runtime failures surface in logs.
-    if (/Cannot find module/.test(msg) || /ERR_MODULE_NOT_FOUND/.test(msg)) {
-      logger.debug(
-        { groupJid },
-        'dayOfBriefing not yet implemented — skipping (Wave 1)',
-      );
-      return;
-    }
-    throw err;
+async function defaultOrchestrator(input: BriefingInput): Promise<void> {
+  const mod = (await import('../groups/dayOfBriefing.js')) as {
+    runDayOfBriefing?: (input: BriefingInput) => Promise<void>;
+  };
+  if (typeof mod.runDayOfBriefing !== 'function') {
+    throw new Error(
+      'dayOfBriefing.runDayOfBriefing not exported — module shape unexpected',
+    );
   }
+  await mod.runDayOfBriefing(input);
 }
 
 /**
@@ -279,7 +265,7 @@ async function defaultOrchestrator(groupJid: string): Promise<void> {
  */
 export async function runBriefingCheckOnce(
   nowMs: number = Date.now(),
-  orchestrator: (groupJid: string) => Promise<void> = defaultOrchestrator,
+  orchestrator: (input: BriefingInput) => Promise<void> = defaultOrchestrator,
 ): Promise<{ checked: number; triggered: number }> {
   const rows = getActiveContextsForBriefing();
   let triggered = 0;
@@ -329,8 +315,26 @@ export async function runBriefingCheckOnce(
       continue;
     }
 
+    const todayInDestTz = dateInTz(nowMs, destTz);
+
+    const coords =
+      meta.coords &&
+      typeof meta.coords === 'object' &&
+      typeof (meta.coords as { lat?: unknown }).lat === 'number' &&
+      typeof (meta.coords as { lon?: unknown }).lon === 'number'
+        ? (meta.coords as { lat: number; lon: number })
+        : null;
+
     try {
-      await orchestrator(row.groupJid);
+      await orchestrator({
+        groupJid: row.groupJid,
+        destination: row.destination,
+        calendarId: row.calendarId,
+        destTz,
+        todayIso: todayInDestTz,
+        coords,
+        openWeatherApiKey: config.OPENWEATHER_API_KEY ?? null,
+      });
 
       // Re-read metadata from DB before patching — another worker may have
       // touched the row between our read and the orchestrator call.
@@ -344,7 +348,6 @@ export async function runBriefingCheckOnce(
         }
       }
 
-      const todayInDestTz = dateInTz(nowMs, destTz);
       upsertTripContext(row.groupJid, {
         metadata: JSON.stringify({
           ...latestMeta,
