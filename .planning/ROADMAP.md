@@ -447,7 +447,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 49. Deploy + Verify + Close v1.9 | v1.9 | 1/1 | Complete | 2026-04-23 |
 | 50. Dashboard Mobile UI Polish | v2.0 | Complete    | 2026-04-20 | 2026-04-20 |
 | 51. Richer Trip Memory | 5/5 | Complete    | 2026-04-24 | — |
-| 52. Multimodal Intake | 3/3 | Complete   | 2026-04-24 | — |
+| 52. Multimodal Intake | 3/3 | Complete    | 2026-04-24 | — |
 | 53. Smarter Search (Restaurants) | v2.1 | 0/0 | Planning | — |
 | 54. Proactive Day-Of Intelligence | v2.1 | 0/0 | Planning | — |
 | 55. Trip Dashboard View | v2.1 | 0/0 | Planning | — |
