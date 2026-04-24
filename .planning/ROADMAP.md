@@ -13,7 +13,7 @@
 - [x] **v1.8 Task Approval & Context Enrichment** — Phases 39-43 (shipped 2026-04-20) — [archive](milestones/v1.8-ROADMAP.md)
 - [x] **v1.9 Dashboard Expansion** — Phases 44-49 (shipped 2026-04-23) — [archive](milestones/v1.9-ROADMAP.md)
 - [x] **v2.0 Dashboard UX Polish** — Phase 50+ (Phase 50 seeded 2026-04-20 as mobile UI polish) (completed 2026-04-20)
-- [x] **v2.1 Travel Agent Upgrade** — Phases 51-55 (in progress 2026-04-23; Phase 51 Plans 01 + 03 + 04 shipped) — design: `docs/superpowers/specs/2026-04-23-travel-agent-v2.1-design.md` (completed 2026-04-24)
+- [ ] **v2.1 Travel Agent Upgrade** — Phases 51-55 (Phase 51 shipped 2026-04-24; Phases 52-55 pending) — design: `docs/superpowers/specs/2026-04-23-travel-agent-v2.1-design.md`
 
 ## Phases
 
@@ -131,7 +131,7 @@
 **Requirements:** `.planning/milestones/v2.1-REQUIREMENTS.md` (15 requirements)
 **Validation group:** "איטליה עכשיו" (120363423910508974@g.us)
 
-- [ ] **Phase 51: Richer Trip Memory** — Schema extension (per-person attribution, category, cost, conflicts_with, origin, budget_by_category, start/end dates, calendar_id, status), classifier upgrade, conflict detector, `!pref`/`!budget` self-report, auto-archive cron
+- [x] **Phase 51: Richer Trip Memory** — Schema extension (per-person attribution, category, cost, conflicts_with, origin, budget_by_category, start/end dates, calendar_id, status), classifier upgrade, conflict detector, `!pref`/`!budget` self-report, auto-archive cron (completed 2026-04-24)
 - [ ] **Phase 52: Multimodal Intake** — Gemini 2.5 Flash vision extracts bookings/tickets/reservations from group image/PDF drops, high-confidence extractions auto-file + trigger calendar suggest, discreet 📌 ack
 - [ ] **Phase 53: Smarter Search (Restaurants)** — New `queryType='restaurants'` branch, Gemini Maps enriched fields (photo, open_now, price, cuisine, reservation_url), compact formatter
 - [ ] **Phase 54: Proactive Day-Of Intelligence** — 15-min cron, 08:00 destination-tz briefing (day-before-travel through end_date), OpenWeather + Gemini grounded transit alerts + calendar + open questions + conflicts + budget burn, minimal fallback on failure
@@ -446,7 +446,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 48. LinkedIn Post Composer (Dashboard) | v1.9 | 3/3 | Complete | 2026-04-23 |
 | 49. Deploy + Verify + Close v1.9 | v1.9 | 1/1 | Complete | 2026-04-23 |
 | 50. Dashboard Mobile UI Polish | v2.0 | Complete    | 2026-04-20 | 2026-04-20 |
-| 51. Richer Trip Memory | 5/5 | Complete   | 2026-04-24 | — |
+| 51. Richer Trip Memory | 5/5 | Complete    | 2026-04-24 | — |
 | 52. Multimodal Intake | v2.1 | 0/0 | Planning | — |
 | 53. Smarter Search (Restaurants) | v2.1 | 0/0 | Planning | — |
 | 54. Proactive Day-Of Intelligence | v2.1 | 0/0 | Planning | — |
@@ -467,10 +467,10 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 
 **Plans:** 5/5 plans complete
 - [x] 51-01-PLAN.md — Schema migration 0022 + query helpers (foundation) _(shipped 2026-04-23 — commits `a0a57e9` + `6bf1bbc`)_
-- [ ] 51-02-PLAN.md — Classifier upgrade: extract proposed_by/category/cost with ≥0.8 accuracy on 10 Hebrew fixtures
+- [x] 51-02-PLAN.md — Classifier upgrade: extract proposed_by/category/cost with ≥0.8 accuracy on 10 Hebrew fixtures _(shipped 2026-04-23 — commits `ae78be6` + `19e60aa`)_
 - [x] 51-03-PLAN.md — Self-report commands: !pref, !budget, !dates _(shipped 2026-04-23 — commits `2b771b2` + `709e2c8`)_
 - [x] 51-04-PLAN.md — Conflict detector (hard/soft) with Hebrew alert _(shipped 2026-04-23 — commit `87f585e` core + `403b130` wiring)_
-- [ ] 51-05-PLAN.md — Daily 02:00 archive-expired-trips cron
+- [x] 51-05-PLAN.md — Daily 02:00 archive-expired-trips cron _(shipped 2026-04-24 — commit `7ab3bd2`)_
 
 ### Phase 52: Multimodal Intake
 **Goal:** Images and PDFs dropped into a `travelBotActive` group are parsed by Gemini 2.5 Flash vision; high-confidence extractions (≥0.8) auto-file as `trip_decisions` with `origin='multimodal'`, and dated extractions trigger the v1.4 `createSuggestion` calendar flow. Low-confidence results are silently discarded. Successful files produce a single-line "📌 noted" ack in the group.
