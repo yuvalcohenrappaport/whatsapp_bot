@@ -29,6 +29,60 @@ function formatReviewCount(count: number): string {
   return count >= 1000 ? `${(count / 1000).toFixed(1)}K` : String(count);
 }
 
+function isRestaurantResult(r: SearchResult): boolean {
+  // Any of the five enriched fields being defined (not undefined) signals this came from the
+  // Plan 53-01 restaurants path. We check defined-ness (not non-null) because Plan 53-01 always
+  // emits the fields as `T | null` on the restaurant branch and leaves them `undefined` on
+  // non-restaurant branches.
+  return (
+    r.photoUrl !== undefined ||
+    r.openNow !== undefined ||
+    r.priceLevel !== undefined ||
+    r.cuisine !== undefined ||
+    r.reservationUrl !== undefined
+  );
+}
+
+function formatRestaurantOneLiner(r: SearchResult, index: number): string {
+  // Main one-liner parts — each segment is optional; null/undefined segments are omitted entirely.
+  const parts: string[] = [];
+  parts.push(`${index + 1}. 🍽️ ${r.title}`);
+
+  if (r.cuisine) parts.push(r.cuisine);
+  if (r.priceLevel) parts.push(r.priceLevel);
+
+  if (r.openNow === true) parts.push('🟢');
+  else if (r.openNow === false) parts.push('🔴');
+  // openNow null/undefined → segment omitted (CONTEXT: "omit the segment if unknown")
+
+  if (r.rating !== null && r.rating !== undefined) {
+    const reviewSuffix =
+      r.reviewCount !== null && r.reviewCount !== undefined
+        ? ` (${formatReviewCount(r.reviewCount)})`
+        : '';
+    parts.push(`${r.rating}⭐${reviewSuffix}`);
+  }
+
+  // URL priority: reservation_url beats generic url (CONTEXT: "reservation_url... user clicks out to OpenTable/TheFork").
+  // NOTE: Restaurants intentionally skip the `isBookingUrl` 🛒 prefix that v1.4's `formatOneLiner` applies for
+  // hotels/activities — bookings flow via `reservationUrl` directly (OpenTable/TheFork), not OTA hotel aggregators,
+  // and the CONTEXT template line 30 explicitly ends with `· {url}` with no cart glyph. Dropping the prefix is
+  // deliberate, not an oversight.
+  const primaryUrl = r.reservationUrl || r.url;
+  if (primaryUrl) parts.push(primaryUrl);
+
+  const mainLine = parts.join(' · ');
+
+  // Photo URL on its own line — WhatsApp auto-unfurls first URL-bearing line as a link preview.
+  // CONTEXT: "Rely on Baileys' default `generateHighQualityLinkPreview` behavior; no explicit
+  // `linkPreview: true` flag needed". A plain URL on its own line is what WhatsApp clients need
+  // to trigger the unfurl — no markdown, no prefix.
+  if (r.photoUrl) {
+    return `${mainLine}\n${r.photoUrl}`;
+  }
+  return mainLine;
+}
+
 function formatOneLiner(r: SearchResult, index: number): string {
   let line = `${index + 1}. ${r.title}`;
 
@@ -70,22 +124,29 @@ export function formatTravelResults(
       : 'No results found. Try searching with different keywords.';
   }
 
-  // Header
+  const isRestaurant = results.some(isRestaurantResult);
+
+  // Header — restaurant-aware label
   let header: string;
   if (lang === 'he') {
-    header = `\u{1F30D} נמצאו ${results.length} תוצאות:`;
-    if (isFallback) {
-      header += ' (מבוסס על המלצות כלליות)';
+    if (isRestaurant) {
+      header = `🍽️ נמצאו ${results.length} מסעדות:`;
+    } else {
+      header = `\u{1F30D} נמצאו ${results.length} תוצאות:`;
     }
+    if (isFallback) header += ' (מבוסס על המלצות כלליות)';
   } else {
-    header = `\u{1F30D} Found ${results.length} results:`;
-    if (isFallback) {
-      header += ' (based on general recommendations)';
+    if (isRestaurant) {
+      header = `🍽️ Found ${results.length} restaurants:`;
+    } else {
+      header = `\u{1F30D} Found ${results.length} results:`;
     }
+    if (isFallback) header += ' (based on general recommendations)';
   }
 
-  // Build compact one-liners
-  const lines = results.map((r, i) => formatOneLiner(r, i));
+  const lines = results.map((r, i) =>
+    isRestaurant ? formatRestaurantOneLiner(r, i) : formatOneLiner(r, i),
+  );
 
   return `${header}\n\n${lines.join('\n')}`;
 }
