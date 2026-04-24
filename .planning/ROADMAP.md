@@ -503,6 +503,11 @@ Plans:
   3. `travelFormatter` restaurant template is compact (one line per result) and includes: name, cuisine, price tier, open-now indicator, rating, URL
   4. @mention "מסעדות ב..." returns ≤5 restaurant one-liners with all required fields; snapshot-tested
 
+**Plans:** 2 plans
+Plans:
+- [ ] 53-01-PLAN.md — `travelSearch.ts`: extend `SearchResult` with 5 optional nullable restaurant fields; add restaurants branch to `geminiMapsSearch` that requests photo_url/open_now/price_level/cuisine/reservation_url from Maps grounding; extend 5-result cap to restaurants; add CONTEXT observability logs; unit tests mock Gemini
+- [ ] 53-02-PLAN.md — `travelParser.ts`: strengthen classifier system-instruction with 6 locked Hebrew/English restaurant keywords (schema untouched). `travelFormatter.ts`: add `formatRestaurantOneLiner` + branch-dispatching `formatTravelResults` producing locked compact template `🍽️ {name} · {cuisine} · {price_tier} · {open_now_emoji} · {rating}⭐ · {url}` with photo URL as link-preview second line. Real-Gemini parser fixture tests + formatter snapshot tests (Hebrew + English, fields-null, regression-guard)
+
 ### Phase 54: Proactive Day-Of Intelligence
 **Goal:** Every active-trip day, at `briefing_time` destination-tz (default 08:00), within the window `[start_date − 1d, end_date]`, a single enriched morning briefing is posted to the group: today's calendar events, weather, transit alerts, unresolved questions, today's conflicts, budget burn. On any enrichment failure, the bot falls back to a minimal calendar-only template — no day skipped.
 **Depends on:** Phases 51 + 52 (memory + multimodal live)
