@@ -448,7 +448,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 50. Dashboard Mobile UI Polish | v2.0 | Complete    | 2026-04-20 | 2026-04-20 |
 | 51. Richer Trip Memory | 5/5 | Complete    | 2026-04-24 | — |
 | 52. Multimodal Intake | 3/3 | Complete    | 2026-04-24 | — |
-| 53. Smarter Search (Restaurants) | v2.1 | 0/0 | Planning | — |
+| 53. Smarter Search (Restaurants) | 1/2 | In Progress|  | — |
 | 54. Proactive Day-Of Intelligence | v2.1 | 0/0 | Planning | — |
 | 55. Trip Dashboard View | v2.1 | 0/0 | Planning | — |
 
@@ -503,7 +503,7 @@ Plans:
   3. `travelFormatter` restaurant template is compact (one line per result) and includes: name, cuisine, price tier, open-now indicator, rating, URL
   4. @mention "מסעדות ב..." returns ≤5 restaurant one-liners with all required fields; snapshot-tested
 
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
 - [ ] 53-01-PLAN.md — `travelSearch.ts`: extend `SearchResult` with 5 optional nullable restaurant fields; add restaurants branch to `geminiMapsSearch` that requests photo_url/open_now/price_level/cuisine/reservation_url from Maps grounding; extend 5-result cap to restaurants; add CONTEXT observability logs; unit tests mock Gemini
 - [ ] 53-02-PLAN.md — `travelParser.ts`: strengthen classifier system-instruction with 6 locked Hebrew/English restaurant keywords (schema untouched). `travelFormatter.ts`: add `formatRestaurantOneLiner` + branch-dispatching `formatTravelResults` producing locked compact template `🍽️ {name} · {cuisine} · {price_tier} · {open_now_emoji} · {rating}⭐ · {url}` with photo URL as link-preview second line. Real-Gemini parser fixture tests + formatter snapshot tests (Hebrew + English, fields-null, regression-guard)
