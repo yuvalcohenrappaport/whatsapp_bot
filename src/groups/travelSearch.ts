@@ -18,6 +18,12 @@ export interface SearchResult {
   rating: number | null;   // NEW
   reviewCount: number | null; // NEW
   address: string | null;  // NEW
+  // --- Phase 53: restaurant-enrichment fields (nullable; undefined on non-restaurant queries) ---
+  photoUrl?: string | null;      // direct image URL; WhatsApp auto-unfurls as link preview
+  openNow?: boolean | null;      // true=open, false=closed, null=unknown
+  priceLevel?: string | null;    // "$" | "$$" | "$$$" | "$$$$" — pass-through token, no normalization
+  cuisine?: string | null;       // free-text tag (e.g. "Italian", "פיצה", "Pan-Asian")
+  reservationUrl?: string | null; // OpenTable / TheFork / venue's own booking URL
 }
 
 // --- Primary: Gemini with Maps Grounding ---
@@ -30,8 +36,34 @@ async function geminiMapsSearch(
   searchQuery: string,
   lang: 'he' | 'en',
   resultCount: number,
+  queryType: string | null | undefined,  // NEW — 'restaurants' triggers enriched path
 ): Promise<SearchResult[]> {
   const langLabel = lang === 'he' ? 'Hebrew' : 'English';
+
+  const isRestaurantQuery = queryType === 'restaurants';
+
+  if (isRestaurantQuery) {
+    logger.info({ query: searchQuery, lang, resultCount }, 'geminiMapsSearch: restaurants-enriched path');
+  }
+
+  const existingPrompt =
+    `Find exactly ${resultCount} results for: ${searchQuery}\n` +
+    `For each result provide: name, rating (number or null), reviewCount (number or null), address (string or null), and a direct URL.\n` +
+    `Respond as a JSON array of objects with fields: title (string), url (string), rating (number or null), reviewCount (number or null), address (string or null).\n` +
+    `Respond in ${langLabel}. Output ONLY the JSON array, no markdown fences.`;
+
+  const restaurantPrompt =
+    `Find exactly ${resultCount} restaurants for: ${searchQuery}\n` +
+    `For each result provide: name, rating (number or null), reviewCount (number or null), address (string or null), direct URL, ` +
+    `photo_url (direct image URL suitable for link preview, or null), ` +
+    `open_now (true if currently open, false if closed, null if unknown), ` +
+    `price_level (one of "$", "$$", "$$$", "$$$$", or null), ` +
+    `cuisine (free-text cuisine tag e.g. "Italian", "Sushi", or null), ` +
+    `reservation_url (OpenTable / TheFork / venue booking page, or null).\n` +
+    `Respond as a JSON array of objects with fields: title (string), url (string), rating (number or null), reviewCount (number or null), address (string or null), photo_url (string or null), open_now (boolean or null), price_level (string or null), cuisine (string or null), reservation_url (string or null).\n` +
+    `Respond in ${langLabel}. Output ONLY the JSON array, no markdown fences.`;
+
+  const promptText = isRestaurantQuery ? restaurantPrompt : existingPrompt;
 
   const response = await ai.models.generateContent({
     model: config.GEMINI_MODEL,
@@ -40,11 +72,7 @@ async function geminiMapsSearch(
         role: 'user',
         parts: [
           {
-            text:
-              `Find exactly ${resultCount} results for: ${searchQuery}\n` +
-              `For each result provide: name, rating (number or null), reviewCount (number or null), address (string or null), and a direct URL.\n` +
-              `Respond as a JSON array of objects with fields: title (string), url (string), rating (number or null), reviewCount (number or null), address (string or null).\n` +
-              `Respond in ${langLabel}. Output ONLY the JSON array, no markdown fences.`,
+            text: promptText,
           },
         ],
       },
@@ -87,15 +115,37 @@ async function geminiMapsSearch(
     return [];
   }
 
-  const results: SearchResult[] = parsed.slice(0, resultCount).map((item: Record<string, unknown>) => ({
-    title: String(item.title ?? 'Result'),
-    url: String(item.url ?? ''),
-    snippet: '',
-    price: null,
-    rating: typeof item.rating === 'number' ? item.rating : null,
-    reviewCount: typeof item.reviewCount === 'number' ? item.reviewCount : null,
-    address: typeof item.address === 'string' ? item.address : null,
-  }));
+  const results: SearchResult[] = parsed.slice(0, resultCount).map((item: Record<string, unknown>) => {
+    const base: SearchResult = {
+      title: String(item.title ?? 'Result'),
+      url: String(item.url ?? ''),
+      snippet: '',
+      price: null,
+      rating: typeof item.rating === 'number' ? item.rating : null,
+      reviewCount: typeof item.reviewCount === 'number' ? item.reviewCount : null,
+      address: typeof item.address === 'string' ? item.address : null,
+    };
+
+    if (isRestaurantQuery) {
+      return {
+        ...base,
+        photoUrl: typeof item.photo_url === 'string' ? item.photo_url : null,
+        openNow: typeof item.open_now === 'boolean' ? item.open_now : null,
+        priceLevel: typeof item.price_level === 'string' ? item.price_level : null,
+        cuisine: typeof item.cuisine === 'string' ? item.cuisine : null,
+        reservationUrl: typeof item.reservation_url === 'string' ? item.reservation_url : null,
+      };
+    }
+
+    return base;
+  });
+
+  if (isRestaurantQuery) {
+    const starved = results.filter((r) => r.photoUrl == null && r.openNow == null && r.priceLevel == null && r.cuisine == null && r.reservationUrl == null);
+    if (starved.length > 0) {
+      logger.warn({ count: starved.length, total: results.length, query: searchQuery }, 'geminiMapsSearch: restaurant results missing all enriched fields — possible grounding regression');
+    }
+  }
 
   // --- Extract URLs from grounding metadata (maps chunks preferred, then web chunks as fallback) ---
   const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
@@ -348,11 +398,11 @@ export async function searchTravel(
   lang: 'he' | 'en',
   queryType?: string | null,
 ): Promise<{ results: SearchResult[]; isFallback: boolean }> {
-  const resultCount = (queryType === 'hotels' || queryType === 'activities') ? 5 : 3;
+  const resultCount = (queryType === 'hotels' || queryType === 'activities' || queryType === 'restaurants') ? 5 : 3;
 
   // Primary: Gemini with Maps Grounding
   try {
-    const mapsResults = await geminiMapsSearch(searchQuery, lang, resultCount);
+    const mapsResults = await geminiMapsSearch(searchQuery, lang, resultCount, queryType ?? null);
     if (mapsResults.length > 0) {
       return { results: mapsResults, isFallback: false };
     }
