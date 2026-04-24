@@ -358,6 +358,7 @@ Legacy decisions from v1.6 (see phase 27-32 archive):
 - [Phase 53]: Segment omission via parts.push() omission — null/undefined fields never pushed, no explicit null-check string in output
 - [Phase 53]: isRestaurantResult defined-ness heuristic — v2.2 candidate refactor to thread queryType explicitly through formatTravelResults
 - [Phase 53]: Photo URL on own line as plain text (no Baileys linkPreview flag) — WhatsApp auto-unfurl mechanism, CONTEXT LOCKED
+- [Phase 54]: Phase 54 Plan 02: Gemini grounded-search wrapper (transitAlerts) — googleSearch tool binding, null-on-failure, prompt locked byte-for-byte to spec
 
 ### Pending Todos
 
