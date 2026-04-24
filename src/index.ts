@@ -30,6 +30,7 @@ import { validateElevenLabsConnection } from './voice/client.js';
 import { initPersonalCalendarAuth } from './calendar/personalCalendarService.js';
 import { initReminderSystem } from './reminders/reminderService.js';
 import { initScheduledMessageScheduler } from './scheduler/scheduledMessageService.js';
+import { initArchiveTripsCron } from './scheduler/archiveTripsCron.js';
 import { initApprovalSystem } from './approval/approvalInit.js';
 
 const logger = pino({
@@ -64,6 +65,9 @@ async function main(): Promise<void> {
 
   initReminderScheduler();
   logger.info('Reminder scheduler initialized');
+
+  initArchiveTripsCron();
+  logger.info('Archive trips cron initialized');
 
   // Note: initReminderSystem() is called in onOpen callback (needs sock for recovery messages)
 
