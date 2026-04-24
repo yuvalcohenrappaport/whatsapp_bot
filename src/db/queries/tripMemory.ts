@@ -395,6 +395,38 @@ export function getExpiredActiveContexts(
     .map((r) => ({ groupJid: r.groupJid, endDate: r.endDate }));
 }
 
+/**
+ * Return every active (non-archived) trip context row. Called once per cron
+ * tick by briefingCron to check all in-flight trips against their per-trip
+ * briefing window.
+ *
+ * Only returns the columns the briefing cron actually needs — keeps the
+ * shape narrow so callers can't accidentally rely on implementation detail.
+ */
+export function getActiveContextsForBriefing(): Array<{
+  groupJid: string;
+  destination: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  briefingTime: string | null;
+  calendarId: string | null;
+  metadata: string | null;
+}> {
+  return db
+    .select({
+      groupJid: tripContexts.groupJid,
+      destination: tripContexts.destination,
+      startDate: tripContexts.startDate,
+      endDate: tripContexts.endDate,
+      briefingTime: tripContexts.briefingTime,
+      calendarId: tripContexts.calendarId,
+      metadata: tripContexts.metadata,
+    })
+    .from(tripContexts)
+    .where(eq(tripContexts.status, 'active'))
+    .all();
+}
+
 export function searchGroupMessages(
   groupJid: string,
   query: string,
