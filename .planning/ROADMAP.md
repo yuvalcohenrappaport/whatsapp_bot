@@ -544,6 +544,13 @@ Plans:
   7. Deploy gotcha: `pm2 restart whatsapp-bot` after `vite build` per project memory; fresh-hash assets confirmed served
   8. Live walkthrough on desktop + mobile dashboard: open Italy trip view, delete a test decision, resolve a test question, edit budget, trigger export, verify Google Doc round-trip
 
+**Plans:** 5 plans
+- [ ] 55-01-PLAN.md — Schema delta (status/lat/lng) + tripMemory query helpers (softDelete, updateBudget, listTrips, getTripBundle)
+- [ ] 55-02-PLAN.md — Backend `/api/trips/*` routes + SSE stream (JWT-gated, idempotent, archived-trip 403)
+- [ ] 55-03-PLAN.md — Dashboard foundation: Leaflet deps + Zod schemas + useTrip hook + TripsList page + sidebar/router
+- [ ] 55-04-PLAN.md — TripView page composition: 6 components (Header, Timeline, Map, DecisionsBoard, OpenQuestions, BudgetBar) + UAT (autonomous: false)
+- [ ] 55-05-PLAN.md — Google Docs export module + scope add + ExportButton + final UAT walkthrough (autonomous: false)
+
 ### Phase 45: Dashboard Pending-Tasks Write Actions
 
 **Goal:** The dashboard `/pending-tasks` page exposes Approve / Reject / Edit buttons per pending actionable row, routed through the Phase 41 `approvalHandler` so the outcome is identical to a WhatsApp quoted-reply — including Phase 42 Gemini enrichment and Google Tasks sync on approve.
