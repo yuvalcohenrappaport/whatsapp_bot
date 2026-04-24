@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { BriefingInput } from '../../groups/dayOfBriefing.js';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import Database from 'better-sqlite3';
@@ -27,6 +28,10 @@ for (const file of migrationFiles) {
 const testDb = drizzle(sqlite, { schema });
 
 // IMPORTANT: mock db client + config + ai provider BEFORE importing briefingCron.
+// Also mock dayOfBriefing so defaultOrchestrator's dynamic import resolves to a spy.
+vi.mock('../../groups/dayOfBriefing.js', () => ({
+  runDayOfBriefing: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock('../../db/client.js', () => ({ db: testDb }));
 vi.mock('../../config.js', () => ({
   config: {
@@ -46,10 +51,11 @@ const { runBriefingCheckOnce } = await import('../briefingCron.js');
 const tripMemory = await import('../../db/queries/tripMemory.js');
 
 // Mock orchestrator — this is the DI seam exposed by runBriefingCheckOnce.
-// Bypasses the real dayOfBriefing module entirely (which may or may not exist
-// yet — Plan 54-03 lands it in parallel). No HTTP calls, no send-message side
-// effects — we only exercise the cron scheduling + dedup logic here.
-const orchestratorMock = vi.fn().mockResolvedValue(undefined);
+// Bypasses the real dayOfBriefing module entirely. No HTTP calls, no
+// send-message side effects — we only exercise the cron scheduling + dedup logic here.
+const orchestratorMock = vi.fn((_: BriefingInput) =>
+  Promise.resolve<void>(undefined),
+);
 
 const GROUP = '120363777777@g.us';
 
@@ -65,9 +71,12 @@ function clearAll() {
   sqlite.exec('DELETE FROM trip_archive');
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   clearAll();
   orchestratorMock.mockClear();
+  const { runDayOfBriefing } = await import('../../groups/dayOfBriefing.js');
+  vi.mocked(runDayOfBriefing).mockClear();
+  vi.mocked(runDayOfBriefing).mockResolvedValue(undefined);
 });
 
 describe('runBriefingCheckOnce (integration)', () => {
@@ -82,7 +91,17 @@ describe('runBriefingCheckOnce (integration)', () => {
 
     const { triggered } = await runBriefingCheckOnce(NOW_MS, orchestratorMock);
     expect(triggered).toBe(1);
-    expect(orchestratorMock).toHaveBeenCalledWith(GROUP);
+    expect(orchestratorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        groupJid: GROUP,
+        destination: 'Rome',
+        calendarId: null,
+        destTz: 'Europe/Rome',
+        todayIso: TODAY_ROME,
+        coords: null,
+        openWeatherApiKey: null,
+      }),
+    );
   });
 
   it('does NOT trigger twice on same day (dedup: last_briefing_date)', async () => {
@@ -141,7 +160,9 @@ describe('runBriefingCheckOnce (integration)', () => {
 
     const { triggered } = await runBriefingCheckOnce(NOW_MS, orchestratorMock);
     expect(triggered).toBe(1);
-    expect(orchestratorMock).toHaveBeenCalledWith(GROUP);
+    expect(orchestratorMock).toHaveBeenCalledWith(
+      expect.objectContaining({ groupJid: GROUP, destination: 'Rome' }),
+    );
   });
 
   it('skips trip whose end_date is in the past', async () => {
@@ -215,5 +236,77 @@ describe('runBriefingCheckOnce (integration)', () => {
 
     // Orchestrator called exactly once across both ticks.
     expect(orchestratorMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('runBriefingCheckOnce (integration) — real runDayOfBriefing contract', () => {
+  // Note: intentionally does NOT inject an orchestrator mock via DI.
+  // Exercises the real defaultOrchestrator → dynamic import → (mocked) runDayOfBriefing path.
+  // Proves that briefingCron passes a BriefingInput-shaped object, not a bare groupJid string.
+
+  it('defaultOrchestrator invokes runDayOfBriefing with BriefingInput (not a bare string)', async () => {
+    const { runDayOfBriefing } = await import('../../groups/dayOfBriefing.js');
+    const spy = vi.mocked(runDayOfBriefing);
+    spy.mockClear();
+
+    tripMemory.upsertTripContext(GROUP, {
+      destination: 'Rome',
+      startDate: '2026-05-10',
+      endDate: '2026-05-15',
+      briefingTime: '08:00',
+      status: 'active',
+      calendarId: 'fake-calendar-id',
+      metadata: JSON.stringify({ coords: { lat: 41.9, lon: 12.5 } }),
+    });
+
+    // No DI orchestrator — use the real defaultOrchestrator path
+    const { triggered } = await runBriefingCheckOnce(NOW_MS);
+    expect(triggered).toBe(1);
+
+    expect(spy).toHaveBeenCalledTimes(1);
+    const callArg = spy.mock.calls[0][0];
+
+    // Negative guard: prove the old bug would be caught here
+    expect(typeof callArg).not.toBe('string');
+
+    // Positive shape
+    expect(callArg).toEqual(
+      expect.objectContaining({
+        groupJid: GROUP,
+        destination: 'Rome',
+        calendarId: 'fake-calendar-id',
+        destTz: 'Europe/Rome',
+        todayIso: TODAY_ROME,
+        coords: { lat: 41.9, lon: 12.5 },
+        openWeatherApiKey: null, // config mock leaves OPENWEATHER_API_KEY undefined → null
+      }),
+    );
+  });
+
+  it('defaultOrchestrator passes calendarId=null when the row has none (regression guard)', async () => {
+    const { runDayOfBriefing } = await import('../../groups/dayOfBriefing.js');
+    const spy = vi.mocked(runDayOfBriefing);
+    spy.mockClear();
+
+    tripMemory.upsertTripContext(GROUP, {
+      destination: 'Rome',
+      startDate: '2026-05-10',
+      endDate: '2026-05-15',
+      briefingTime: '08:00',
+      status: 'active',
+      // calendarId intentionally omitted → DB stores null
+    });
+
+    await runBriefingCheckOnce(NOW_MS);
+
+    expect(spy).toHaveBeenCalledTimes(1);
+    const callArg = spy.mock.calls[0][0];
+    expect(callArg).toEqual(
+      expect.objectContaining({
+        groupJid: GROUP,
+        calendarId: null,
+        coords: null, // no metadata.coords set
+      }),
+    );
   });
 });
