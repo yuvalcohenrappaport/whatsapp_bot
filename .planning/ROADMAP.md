@@ -447,7 +447,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 49. Deploy + Verify + Close v1.9 | v1.9 | 1/1 | Complete | 2026-04-23 |
 | 50. Dashboard Mobile UI Polish | v2.0 | Complete    | 2026-04-20 | 2026-04-20 |
 | 51. Richer Trip Memory | 5/5 | Complete    | 2026-04-24 | — |
-| 52. Multimodal Intake | 1/3 | In Progress|  | — |
+| 52. Multimodal Intake | 2/3 | In Progress|  | — |
 | 53. Smarter Search (Restaurants) | v2.1 | 0/0 | Planning | — |
 | 54. Proactive Day-Of Intelligence | v2.1 | 0/0 | Planning | — |
 | 55. Trip Dashboard View | v2.1 | 0/0 | Planning | — |
@@ -486,7 +486,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
   6. Stickers and <50KB images are pre-filtered and skipped before a vision call
   7. vitest fixtures cover flight confirmation, hotel booking, restaurant reservation, museum ticket, and a menu-only image (negative case)
 
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 Plans:
 - [ ] 52-01-PLAN.md — Gemini vision wrapper: `geminiVision.extractTripFact` + TripFactExtraction Zod schema + unit tests (schema / null on API error / null on schema violation)
 - [ ] 52-02-PLAN.md — `multimodalIntake.ts` orchestrator (pre-filter + download + vision + insert `origin='multimodal'` + conditional `createSuggestion` + 1-line 📌 ack) wired into `messageHandler.ts` as a media branch before text dispatch; mocked-dependency integration tests
