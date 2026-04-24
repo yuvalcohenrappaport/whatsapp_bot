@@ -134,7 +134,7 @@
 - [x] **Phase 51: Richer Trip Memory** — Schema extension (per-person attribution, category, cost, conflicts_with, origin, budget_by_category, start/end dates, calendar_id, status), classifier upgrade, conflict detector, `!pref`/`!budget` self-report, auto-archive cron (completed 2026-04-24)
 - [x] **Phase 52: Multimodal Intake** — Gemini 2.5 Flash vision extracts bookings/tickets/reservations from group image/PDF drops, high-confidence extractions auto-file + trigger calendar suggest, discreet 📌 ack (completed 2026-04-24)
 - [x] **Phase 53: Smarter Search (Restaurants)** — New `queryType='restaurants'` branch, Gemini Maps enriched fields (photo, open_now, price, cuisine, reservation_url), compact formatter (completed 2026-04-24)
-- [ ] **Phase 54: Proactive Day-Of Intelligence** — 15-min cron, 08:00 destination-tz briefing (day-before-travel through end_date), OpenWeather + Gemini grounded transit alerts + calendar + open questions + conflicts + budget burn, minimal fallback on failure
+- [x] **Phase 54: Proactive Day-Of Intelligence** — 15-min cron, 08:00 destination-tz briefing (day-before-travel through end_date), OpenWeather + Gemini grounded transit alerts + calendar + open questions + conflicts + budget burn, minimal fallback on failure (completed 2026-04-24)
 - [ ] **Phase 55: Trip Dashboard View** — `/trips/:groupJid` with header/timeline/Leaflet map/decisions board/budget bar/open questions/conflicts, minimal-edit (delete decision, resolve question, edit budget), Google Doc export
 
 ## Phase Details
@@ -449,7 +449,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 51. Richer Trip Memory | 5/5 | Complete    | 2026-04-24 | — |
 | 52. Multimodal Intake | 3/3 | Complete    | 2026-04-24 | — |
 | 53. Smarter Search (Restaurants) | 2/2 | Complete    | 2026-04-24 | — |
-| 54. Proactive Day-Of Intelligence | 2/4 | In Progress|  | — |
+| 54. Proactive Day-Of Intelligence | 4/4 | Complete   | 2026-04-24 | — |
 | 55. Trip Dashboard View | v2.1 | 0/0 | Planning | — |
 
 ### Phase 51: Richer Trip Memory
@@ -522,12 +522,12 @@ Plans:
   6. Archived trips are skipped; future trips (today < start_date − 1d) are skipped
   7. vitest covers timezone math (Israel DST, destination-tz arithmetic, window boundaries)
 
-**Plans:** 2/4 plans executed
+**Plans:** 4/4 plans complete
 Plans:
 - [x] 54-01-PLAN.md — OpenWeather client + cron skeleton + timezone helper + unit tests
 - [x] 54-02-PLAN.md — Gemini grounded search wrapper (transitAlerts) + unit tests
-- [ ] 54-03-PLAN.md — dayOfBriefing orchestrator: enrichment pipeline + Gemini composition + fallback template
-- [ ] 54-04-PLAN.md — Wire initBriefingCron into main() + integration test (dedup, window gates)
+- [x] 54-03-PLAN.md — dayOfBriefing orchestrator: enrichment pipeline + Gemini composition + fallback template _(shipped 2026-04-24 — commit `90ef3c2`)_
+- [x] 54-04-PLAN.md — Wire initBriefingCron into main() + integration test (dedup, window gates) _(shipped 2026-04-24 — commits `e0777b5` + `475aefe`)_
 
 ### Phase 55: Trip Dashboard View
 **Goal:** New dashboard route `/trips/:groupJid` renders a full trip view: header with destination/dates/countdown/budget, timeline of confirmed calendar events, Leaflet/OpenStreetMap marker map of decisions, decisions board grouped by category with origin filter, open-questions list, conflict alerts. Minimal-edit (delete decision, resolve question, edit budget) is JWT-gated and SSE-live. Export-to-Google-Doc produces an owner-private shareable doc.
