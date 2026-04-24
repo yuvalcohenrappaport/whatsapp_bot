@@ -50,7 +50,8 @@ async function geminiMapsSearch(
     `Find exactly ${resultCount} results for: ${searchQuery}\n` +
     `For each result provide: name, rating (number or null), reviewCount (number or null), address (string or null), and a direct URL.\n` +
     `Respond as a JSON array of objects with fields: title (string), url (string), rating (number or null), reviewCount (number or null), address (string or null).\n` +
-    `Respond in ${langLabel}. Output ONLY the JSON array, no markdown fences.`;
+    `CRITICAL: JSON object keys MUST be in English exactly as listed (title, url, rating, reviewCount, address) — DO NOT translate the keys. Only the string VALUES should be in ${langLabel}.\n` +
+    `Output ONLY the JSON array, no markdown fences.`;
 
   const restaurantPrompt =
     `Find exactly ${resultCount} restaurants for: ${searchQuery}\n` +
@@ -61,7 +62,8 @@ async function geminiMapsSearch(
     `cuisine (free-text cuisine tag e.g. "Italian", "Sushi", or null), ` +
     `reservation_url (OpenTable / TheFork / venue booking page, or null).\n` +
     `Respond as a JSON array of objects with fields: title (string), url (string), rating (number or null), reviewCount (number or null), address (string or null), photo_url (string or null), open_now (boolean or null), price_level (string or null), cuisine (string or null), reservation_url (string or null).\n` +
-    `Respond in ${langLabel}. Output ONLY the JSON array, no markdown fences.`;
+    `CRITICAL: JSON object keys MUST be in English exactly as listed (title, url, rating, reviewCount, address, photo_url, open_now, price_level, cuisine, reservation_url) — DO NOT translate the keys. Only the string VALUES (such as name, address, cuisine tag) should be in ${langLabel}.\n` +
+    `Output ONLY the JSON array, no markdown fences.`;
 
   const promptText = isRestaurantQuery ? restaurantPrompt : existingPrompt;
 
