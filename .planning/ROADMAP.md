@@ -449,7 +449,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 51. Richer Trip Memory | 5/5 | Complete    | 2026-04-24 | — |
 | 52. Multimodal Intake | 3/3 | Complete    | 2026-04-24 | — |
 | 53. Smarter Search (Restaurants) | 2/2 | Complete    | 2026-04-24 | — |
-| 54. Proactive Day-Of Intelligence | 4/4 | Complete   | 2026-04-24 | — |
+| 54. Proactive Day-Of Intelligence | 5/5 | Complete   | 2026-04-24 | — |
 | 55. Trip Dashboard View | v2.1 | 0/0 | Planning | — |
 
 ### Phase 51: Richer Trip Memory
@@ -522,7 +522,7 @@ Plans:
   6. Archived trips are skipped; future trips (today < start_date − 1d) are skipped
   7. vitest covers timezone math (Israel DST, destination-tz arithmetic, window boundaries)
 
-**Plans:** 4/4 plans complete
+**Plans:** 5/5 plans complete
 Plans:
 - [x] 54-01-PLAN.md — OpenWeather client + cron skeleton + timezone helper + unit tests
 - [x] 54-02-PLAN.md — Gemini grounded search wrapper (transitAlerts) + unit tests
