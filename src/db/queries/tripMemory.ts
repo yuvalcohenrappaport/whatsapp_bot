@@ -52,6 +52,11 @@ export function upsertTripContext(
     calendarId?: string | null;
     status?: 'active' | 'archived';
     briefingTime?: string | null;
+    // Phase 54 v2.1 — free-form JSON blob for per-trip soft state used by the
+    // briefing cron (last_briefing_date, cached tz, resolved coords, etc.).
+    // Callers pre-serialize the JSON string themselves so this helper stays
+    // schema-agnostic about what goes inside.
+    metadata?: string | null;
   },
 ) {
   // Normalize budgetByCategory → JSON string for storage. Callers may pass
@@ -65,6 +70,7 @@ export function upsertTripContext(
     calendarId,
     status,
     briefingTime,
+    metadata,
   } = data;
   const budgetJson =
     data.budgetByCategory === undefined
@@ -90,6 +96,7 @@ export function upsertTripContext(
   if (calendarId !== undefined) patch.calendarId = calendarId;
   if (status !== undefined) patch.status = status;
   if (briefingTime !== undefined) patch.briefingTime = briefingTime;
+  if (metadata !== undefined) patch.metadata = metadata;
 
   return db
     .insert(tripContexts)

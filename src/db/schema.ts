@@ -156,6 +156,10 @@ export const tripContexts = sqliteTable('trip_contexts', {
   calendarId: text('calendar_id'), // null = primary Google Calendar
   status: text('status').notNull().default('active'), // 'active' | 'archived'
   briefingTime: text('briefing_time'), // 'HH:MM' in destination-tz
+  // Phase 54 v2.1 — free-form JSON blob for per-trip soft state used by the
+  // briefing cron: `last_briefing_date`, cached `tz`, resolved `coords`, etc.
+  // Added by drizzle/0023_add_metadata_to_trip_contexts.sql.
+  metadata: text('metadata'),
 });
 
 export const tripDecisions = sqliteTable(
