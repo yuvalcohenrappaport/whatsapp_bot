@@ -522,6 +522,13 @@ Plans:
   6. Archived trips are skipped; future trips (today < start_date − 1d) are skipped
   7. vitest covers timezone math (Israel DST, destination-tz arithmetic, window boundaries)
 
+**Plans:** 4 plans
+Plans:
+- [ ] 54-01-PLAN.md — OpenWeather client + cron skeleton + timezone helper + unit tests
+- [ ] 54-02-PLAN.md — Gemini grounded search wrapper (transitAlerts) + unit tests
+- [ ] 54-03-PLAN.md — dayOfBriefing orchestrator: enrichment pipeline + Gemini composition + fallback template
+- [ ] 54-04-PLAN.md — Wire initBriefingCron into main() + integration test (dedup, window gates)
+
 ### Phase 55: Trip Dashboard View
 **Goal:** New dashboard route `/trips/:groupJid` renders a full trip view: header with destination/dates/countdown/budget, timeline of confirmed calendar events, Leaflet/OpenStreetMap marker map of decisions, decisions board grouped by category with origin filter, open-questions list, conflict alerts. Minimal-edit (delete decision, resolve question, edit budget) is JWT-gated and SSE-live. Export-to-Google-Doc produces an owner-private shareable doc.
 **Depends on:** Phases 51, 52, 53, 54 (reads from all memory + search + briefing data)
