@@ -132,7 +132,7 @@
 **Validation group:** "איטליה עכשיו" (120363423910508974@g.us)
 
 - [x] **Phase 51: Richer Trip Memory** — Schema extension (per-person attribution, category, cost, conflicts_with, origin, budget_by_category, start/end dates, calendar_id, status), classifier upgrade, conflict detector, `!pref`/`!budget` self-report, auto-archive cron (completed 2026-04-24)
-- [ ] **Phase 52: Multimodal Intake** — Gemini 2.5 Flash vision extracts bookings/tickets/reservations from group image/PDF drops, high-confidence extractions auto-file + trigger calendar suggest, discreet 📌 ack
+- [x] **Phase 52: Multimodal Intake** — Gemini 2.5 Flash vision extracts bookings/tickets/reservations from group image/PDF drops, high-confidence extractions auto-file + trigger calendar suggest, discreet 📌 ack (completed 2026-04-24)
 - [ ] **Phase 53: Smarter Search (Restaurants)** — New `queryType='restaurants'` branch, Gemini Maps enriched fields (photo, open_now, price, cuisine, reservation_url), compact formatter
 - [ ] **Phase 54: Proactive Day-Of Intelligence** — 15-min cron, 08:00 destination-tz briefing (day-before-travel through end_date), OpenWeather + Gemini grounded transit alerts + calendar + open questions + conflicts + budget burn, minimal fallback on failure
 - [ ] **Phase 55: Trip Dashboard View** — `/trips/:groupJid` with header/timeline/Leaflet map/decisions board/budget bar/open questions/conflicts, minimal-edit (delete decision, resolve question, edit budget), Google Doc export
@@ -447,7 +447,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 49. Deploy + Verify + Close v1.9 | v1.9 | 1/1 | Complete | 2026-04-23 |
 | 50. Dashboard Mobile UI Polish | v2.0 | Complete    | 2026-04-20 | 2026-04-20 |
 | 51. Richer Trip Memory | 5/5 | Complete    | 2026-04-24 | — |
-| 52. Multimodal Intake | 2/3 | In Progress|  | — |
+| 52. Multimodal Intake | 3/3 | Complete   | 2026-04-24 | — |
 | 53. Smarter Search (Restaurants) | v2.1 | 0/0 | Planning | — |
 | 54. Proactive Day-Of Intelligence | v2.1 | 0/0 | Planning | — |
 | 55. Trip Dashboard View | v2.1 | 0/0 | Planning | — |
@@ -486,11 +486,11 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
   6. Stickers and <50KB images are pre-filtered and skipped before a vision call
   7. vitest fixtures cover flight confirmation, hotel booking, restaurant reservation, museum ticket, and a menu-only image (negative case)
 
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 Plans:
-- [ ] 52-01-PLAN.md — Gemini vision wrapper: `geminiVision.extractTripFact` + TripFactExtraction Zod schema + unit tests (schema / null on API error / null on schema violation)
-- [ ] 52-02-PLAN.md — `multimodalIntake.ts` orchestrator (pre-filter + download + vision + insert `origin='multimodal'` + conditional `createSuggestion` + 1-line 📌 ack) wired into `messageHandler.ts` as a media branch before text dispatch; mocked-dependency integration tests
-- [ ] 52-03-PLAN.md — Five real-media fixtures (flight / hotel / restaurant reservation / museum ticket / menu-only negative) + real-API accuracy harness + end-to-end pipeline assertion gated on GEMINI_API_KEY
+- [x] 52-01-PLAN.md — Gemini vision wrapper: `geminiVision.extractTripFact` + TripFactExtraction Zod schema + unit tests (schema / null on API error / null on schema violation)
+- [x] 52-02-PLAN.md — `multimodalIntake.ts` orchestrator (pre-filter + download + vision + insert `origin='multimodal'` + conditional `createSuggestion` + 1-line 📌 ack) wired into `messageHandler.ts` as a media branch before text dispatch; mocked-dependency integration tests
+- [x] 52-03-PLAN.md — Five real-media fixtures (flight / hotel / restaurant reservation / museum ticket / menu-only negative) + real-API accuracy harness + end-to-end pipeline assertion gated on GEMINI_API_KEY
 
 ### Phase 53: Smarter Search (Restaurants)
 **Goal:** `@mention` restaurant queries return enriched compact one-liner results including photo, open-now, price tier, cuisine, rating, reservation URL. Hotels/activities/generic search paths from v1.4 are unchanged. Transit, attractions, shopping search expansion is explicitly deferred.
