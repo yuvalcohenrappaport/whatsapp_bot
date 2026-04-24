@@ -33,6 +33,7 @@ import { routeDetection } from '../actionables/detectionRouter.js';
 import { handleTaskCancel } from '../todo/todoPipeline.js';
 import { handleScheduledMessageCancel } from '../scheduler/scheduledMessageService.js';
 import { tryHandleApprovalReply } from '../approval/approvalHandler.js';
+import { handleMultimodalIntake } from '../groups/multimodalIntake.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
 
@@ -278,6 +279,45 @@ async function processMessage(sock: WASocket, msg: WAMessage): Promise<void> {
     if (remoteJid && !remoteJid.endsWith('@g.us')) {
       await handleVoiceMessage(sock, msg, remoteJid);
       return;
+    }
+  }
+
+  // ── Multimodal intake (Phase 52) ──
+  // Image / PDF / sticker branch — runs BEFORE the text-null guard (mirrors
+  // audioMsg above). Bare media messages have no `conversation` or
+  // `extendedTextMessage.text`, so getMessageText() returns null and the
+  // guard below would short-circuit before the @g.us block. We do the
+  // @g.us + getGroup + travelBotActive gating inline here.
+  //
+  // Unlike audioMsg, this branch is NOT fromMe-gated — multimodal is
+  // explicitly owner-friendly (the owner is the primary tester, and image
+  // drops often come from the user themselves).
+  const mediaKind =
+    msg.message?.imageMessage
+      ? 'image'
+      : msg.message?.stickerMessage
+        ? 'sticker'
+        : msg.message?.documentMessage?.mimetype === 'application/pdf'
+          ? 'pdf'
+          : null;
+  if (mediaKind) {
+    const mediaRemoteJid = getRemoteJid(msg);
+    if (mediaRemoteJid && mediaRemoteJid.endsWith('@g.us')) {
+      const mediaGroup = getGroup(mediaRemoteJid);
+      if (mediaGroup?.travelBotActive) {
+        // Fire-and-forget — handleMultimodalIntake never throws, but wrap
+        // for belt-and-suspenders.
+        handleMultimodalIntake(mediaRemoteJid, msg).catch((err) => {
+          logger.error(
+            { err, groupJid: mediaRemoteJid, msgId: msg.key.id },
+            'multimodalIntake: unexpected error (should have been caught internally)',
+          );
+        });
+        // Return unconditionally — Phase 52 does not route media captions
+        // through the text pipeline (getMessageText doesn't read
+        // imageMessage.caption). Keeps the text branch below clean of media.
+        return;
+      }
     }
   }
 
