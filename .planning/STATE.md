@@ -18,10 +18,10 @@ PM2 restart for 42-02 deploy: pid 2471902, restarted at 2026-04-20 01:44, clean 
 ## Current Position
 
 Active milestone: **v2.2 Travel Agent Polish** (started 2026-04-25). Marquee work: Google Places API geocoding for trip decisions, drop-a-pin dashboard editing, group↔trip linking, welcome message refresh.
-Phase: **56 — Google Places Geocoding** — In Progress (1/4 plans shipped).
-Plan: 56-01 shipped (2026-04-25). Schema + helper foundation for Google Places geocoding.
-Status: 56-01 complete. Next: 56-02 Places API client.
-Last activity: 2026-04-25 — 56-01 shipped: migration 0025 (place_id/canonical_address/lookup_status/place_metadata on trip_decisions), Drizzle schema extended, updateDecisionGeocode + GEOCODEABLE_TYPES + LookupStatus + PlaceMetadata exported from tripMemory.ts, GOOGLE_PLACES_API_KEY optional in config.ts. MAPS-01 + MAPS-02 marked Complete.
+Phase: **56 — Google Places Geocoding** — In Progress (2/4 plans shipped).
+Plan: 56-02 shipped (2026-04-25). Places API client + runAfterInsert wiring — every classification path auto-geocodes for free.
+Status: 56-02 complete. Next: 56-03 backfill cron.
+Last activity: 2026-04-25 — 56-02 shipped: placesGeocode.ts (geocodeDecision/detectLanguageCode/runGeocodeAfterInsert), 16 Vitest tests green, runGeocodeAfterInsert wired into conflictDetector.runAfterInsert fire-and-forget. Commits: 1db3702 feat, 42e4121 test, 7b885d4 feat.
 
 ### Decisions (56-01)
 - [Phase 56-google-places-geocoding]: drizzle-kit migrate doesn't apply hand-written ALTERs in this env — applied via better-sqlite3 node script (same as 51-01 precedent)
@@ -399,6 +399,7 @@ Legacy decisions from v1.6 (see phase 27-32 archive):
 - [Phase 56-google-places-geocoding]: drizzle-kit migrate doesn't apply hand-written ALTERs in this env — applied via better-sqlite3 node script (same as 51-01 precedent)
 - [Phase 56-google-places-geocoding]: GOOGLE_PLACES_API_KEY is optional in config — server logs-and-skips when absent, no crash
 - [Phase 56-google-places-geocoding]: GEOCODEABLE_TYPES includes hotel+lodging+accommodation to cover all schema enum variants for restaurant/hotel type decisions
+- [Phase 56-google-places-geocoding]: geocodeDecision throws PlacesGeocodeError for HTTP non-2xx; warnedNoKey flag leaves lookup_status=pending for backfill (not skipped)
 
 ### Pending Todos
 
