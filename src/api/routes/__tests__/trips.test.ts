@@ -97,10 +97,28 @@ vi.mock('drizzle-orm', () => ({
   eq: (col: unknown, val: unknown) => ({ col, val }),
 }));
 
+// Mock googleDocsExport so route tests don't call the real Google API
+const mockExportTripToGoogleDoc = vi.fn<
+  () => Promise<{ url: string; documentId: string }>
+>(async () => ({ url: 'https://docs.google.com/d/doc-x/edit', documentId: 'doc-x' }));
+
+vi.mock('../../../integrations/googleDocsExport.js', () => ({
+  exportTripToGoogleDoc: (...args: unknown[]) => mockExportTripToGoogleDoc(...args),
+  MissingDocsScopeError: class MissingDocsScopeError extends Error {
+    constructor() {
+      super('Google OAuth client missing documents scope — owner must re-authorize');
+      this.name = 'MissingDocsScopeError';
+    }
+  },
+}));
+
 // Import routes AFTER mocks
 const { default: tripsRoutes, hashTripBundle } = await import(
   '../trips.js'
 );
+
+// Import MissingDocsScopeError AFTER the mock so we get the mocked class
+const { MissingDocsScopeError } = await import('../../../integrations/googleDocsExport.js');
 
 // ─── Fixtures ───────────────────────────────────────────────────────────────
 
@@ -778,6 +796,93 @@ describe('10. POST /api/trips/:groupJid/decisions/:id/restore', () => {
     });
     expect(res.statusCode).toBe(404);
     expect(mockRestoreDecision).not.toHaveBeenCalled();
+  });
+});
+
+// ─── 11. POST /api/trips/:groupJid/export ────────────────────────────────────
+
+describe('11. POST /api/trips/:groupJid/export', () => {
+  let server: FastifyInstance;
+
+  beforeEach(async () => {
+    server = await buildServer(true, true);
+    mockGetTripBundle.mockReset();
+    mockExportTripToGoogleDoc.mockReset();
+    mockExportTripToGoogleDoc.mockResolvedValue({
+      url: 'https://docs.google.com/d/doc-x/edit',
+      documentId: 'doc-x',
+    });
+  });
+
+  afterEach(async () => {
+    await server.close();
+  });
+
+  it('401 without Authorization header', async () => {
+    const noAuthServer = await buildServer(false, false);
+    const res = await noAuthServer.inject({
+      method: 'POST',
+      url: '/api/trips/grp-1@g.us/export',
+    });
+    expect(res.statusCode).toBe(401);
+    await noAuthServer.close();
+  });
+
+  it('404 for unknown groupJid', async () => {
+    mockGetTripBundle.mockReturnValueOnce(null);
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/trips/unknown@g.us/export',
+    });
+    expect(res.statusCode).toBe(404);
+    expect(mockExportTripToGoogleDoc).not.toHaveBeenCalled();
+  });
+
+  it('200 with { url } on success', async () => {
+    mockGetTripBundle.mockReturnValueOnce(fixtureBundle());
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/trips/grp-1@g.us/export',
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json<{ url: string }>();
+    expect(body.url).toBe('https://docs.google.com/d/doc-x/edit');
+  });
+
+  it('412 when MissingDocsScopeError is thrown', async () => {
+    mockGetTripBundle.mockReturnValueOnce(fixtureBundle());
+    mockExportTripToGoogleDoc.mockRejectedValueOnce(new MissingDocsScopeError());
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/trips/grp-1@g.us/export',
+    });
+    expect(res.statusCode).toBe(412);
+    const body = res.json<{ error: string; action: string }>();
+    expect(body.action).toContain('/integrations');
+  });
+
+  it('500 on unexpected error', async () => {
+    mockGetTripBundle.mockReturnValueOnce(fixtureBundle());
+    mockExportTripToGoogleDoc.mockRejectedValueOnce(new Error('boom'));
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/trips/grp-1@g.us/export',
+    });
+    expect(res.statusCode).toBe(500);
+    const body = res.json<{ error: string }>();
+    expect(body.error).toBe('Export failed');
+  });
+
+  it('200 on archived trip — exports are read-only, not blocked by readOnly flag', async () => {
+    // Archived trips CAN export (spec: archived trips can still export, read-only doesn't block exports)
+    mockGetTripBundle.mockReturnValueOnce(fixtureBundle({ readOnly: true }));
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/trips/archived-grp@g.us/export',
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json<{ url: string }>();
+    expect(body.url).toBe('https://docs.google.com/d/doc-x/edit');
   });
 });
 
