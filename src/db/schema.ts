@@ -185,6 +185,10 @@ export const tripDecisions = sqliteTable(
     origin: text('origin').notNull().default('inferred'), // 'inferred' | 'self_reported' | 'multimodal' | 'dashboard'
     metadata: text('metadata'), // JSON blob for edge-case fields
     archived: integer('archived', { mode: 'boolean' }).notNull().default(false), // flipped by auto-archive cron
+    // Phase 55 v2.1 — dashboard schema delta (drizzle/0024_trip_decisions_dashboard.sql)
+    status: text('status').notNull().default('active'), // 'active' | 'deleted' (soft-delete from dashboard)
+    lat: real('lat'), // nullable; populated by Phase 52/55 when decision has a location
+    lng: real('lng'), // nullable
   },
   (table) => [
     index('idx_trip_decisions_group').on(table.groupJid),

@@ -169,6 +169,13 @@
       "when": 1777665600000,
       "tag": "0023_add_metadata_to_trip_contexts",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1777106157696,
+      "tag": "0024_trip_decisions_dashboard",
+      "breakpoints": true
     }
   ]
 }
