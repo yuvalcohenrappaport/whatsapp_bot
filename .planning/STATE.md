@@ -2,10 +2,10 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-19)
+See: .planning/PROJECT.md (updated 2026-04-25)
 
 **Core value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
-**Current focus:** **No active milestone.** v1.9 Dashboard Expansion closed 2026-04-23. v2.0 Dashboard UX Polish already shipped (Phase 50, 2026-04-20) as a one-off mobile polish phase. Next milestone direction unpicked — awaiting user.
+**Current focus:** **v2.2 Travel Agent Polish — defining requirements** (started 2026-04-25). Marquee work: deeper Google Maps / Places integration on the trip dashboard. Closes out v2.1 follow-ups (group↔trip auto-linking, welcome message refresh).
 
 ## 42-02 Baseline Snapshot (2026-04-20 — before Task 2 verification)
 
@@ -17,7 +17,18 @@ PM2 restart for 42-02 deploy: pid 2471902, restarted at 2026-04-20 01:44, clean 
 
 ## Current Position
 
-Active milestone: **v2.1 Travel Agent Upgrade — COMPLETE (2026-04-25)** — Phase 51 Richer Trip Memory **COMPLETE** (all 5 plans shipped 2026-04-23). Phase 52 Multimodal Intake **COMPLETE** (all 3 plans shipped 2026-04-24). Phase 53 Smarter Search (Restaurants) **COMPLETE** (2/2 plans shipped 2026-04-24). Phase 54 Proactive Day-Of Intelligence **COMPLETE** (all 5 plans shipped 2026-04-24). Phase 55 Trip Dashboard View **COMPLETE** (all 5 plans shipped 2026-04-25). **Next milestone direction: unpicked — awaiting user.**
+Active milestone: **v2.2 Travel Agent Polish — defining requirements** (started 2026-04-25). Marquee phase: deeper Google Places integration replacing v2.1's static Maps links. Closes v2.1 follow-ups (group↔trip auto-linking, welcome message refresh, manual "drop a pin" editing).
+Phase: Not started (requirements + roadmap pass next).
+Plan: —
+Status: Defining requirements
+Last activity: 2026-04-25 — Milestone v2.2 started after v2.1 squash-merged to main and pushed.
+
+### v2.1 Travel Agent Upgrade — COMPLETE (closed 2026-04-25, squash-merged to origin/main as `baa8908`)
+
+Phase 51 Richer Trip Memory (5 plans, shipped 2026-04-23). Phase 52 Multimodal Intake (3 plans, shipped 2026-04-24). Phase 53 Smarter Search Restaurants (2 plans, shipped 2026-04-24). Phase 54 Proactive Day-Of Intelligence (5 plans, shipped 2026-04-24). Phase 55 Trip Dashboard View (5 plans, shipped 2026-04-25 + scope adds: restoreDecision + Google Maps static links).
+
+### v2.1 phase 55 detail (preserved for context)
+
 Phase: 55 Trip Dashboard View — **COMPLETE** (5/5 plans shipped 2026-04-25). 55-01 DB foundation + helpers done. 55-02 API routes done. 55-03 dashboard data layer + nav done. 55-04 full trip dashboard UI + UAT + scope adds (restore decision + Google Maps links) done. 55-05 Google Doc export done — owner re-authorized 2026-04-25 17:04 IST, export verified end-to-end, `par-14` Café de Flore absent from DECISIONS confirming soft-delete exclusion. v2.1 milestone fully closed.
 
 Plan: 55-05 shipped (2026-04-25). Google Doc export — `src/integrations/googleDocsExport.ts` (exportTripToGoogleDoc via google.docs v1 + google.drive v3: create → batchUpdate insertText → drive.files.get webViewLink), `auth/documents` + `auth/drive.file` scopes added to personalCalendarService.getAuthUrl, `POST /api/trips/:groupJid/export` (JWT-gated, 412 pre-scope + 200+url post-re-auth), ExportButton in TripView (spinner, 412 toast → /integrations, opens Doc in new tab). 12 new vitest cases green (6 module + 6 route). UAT: owner re-authorized 2026-04-25 17:04 IST via SSH tunnel callback — `scope=...auth/drive.file auth/documents auth/tasks auth/calendar` confirmed, refresh_token persisted, export triggered from UI, Doc opened correctly, soft-deleted `par-14` Café de Flore absent from DECISIONS section. Commits: `49c7617` feat(55-05) module+scope+route+ExportButton, `c7033f1` test(55-05) vitest. Decisions: plain-text body (no Docs styling) for v2.1; drive.file (narrow) not drive (full); archived trips can export (read-only doesn't block); 412 + action for missing scope → ExportButton 5s re-auth toast with /integrations link. Duration ~45m. **v2.1 Travel Agent Upgrade milestone fully closed here.** Future work: `.planning/todos/pending/2026-04-25-google-maps-integration-trip-dashboard.md` (commit `e2759bb`). GCP one-time: enable Google Docs API + Google Drive API for project 81921508668.

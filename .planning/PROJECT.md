@@ -8,11 +8,19 @@ An AI-powered WhatsApp bot that impersonates the user in private conversations a
 
 The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
 
-## Current Milestone: Planning v1.9
+## Current Milestone: v2.2 Travel Agent Polish
 
-**Previous (shipped 2026-04-20):** v1.8 Task Approval & Context Enrichment + the Phase 44 unified editable calendar delivered as a v1.9 seed. Self-chat approval UX with Gemini context enrichment, dashboard pending-tasks view, and a unified calendar (tasks + events + LinkedIn posts) with drag-reschedule, inline edit, create-from-slot, delete, SSE live sync. See `milestones/v1.8-ROADMAP.md`.
+**Goal:** Deepen the Google Maps integration shipped as static links in v2.1 (real Places API + geocoding), and close out v2.1 follow-up surface gaps (group↔trip linking, refreshed onboarding copy).
 
-**v1.9 scope (draft, pending `/gsd:new-milestone`):** extend the calendar + dashboard surface — Google Tasks sync for all lists with per-list color + sidebar filter; approve/reject buttons on pending-tasks dashboard; accumulated backlog in `.planning/todos/pending/`.
+**Target features:**
+- Google Places geocoding for trip_decisions — auto-resolve `place_id` + canonical address + lat/lng on every new decision; one-time backfill job for the v2.1 backlog
+- Manual "drop a pin" / "edit coordinates" workflow on the trip dashboard for the no-coord rows (the "N decisions not on map" badge becomes an action)
+- Group → trip auto-linking — first-class flow for tying a real WhatsApp group to its trip context (today this is a manual sqlite UPDATE)
+- Welcome / help message refresh covering the full v2.1 surface (multimodal drops, `!pref`/`!budget`/`!dates`, day-of briefing, dashboard link, conflict alerts) — bilingual
+
+**Previous (shipped 2026-04-25):** v2.1 Travel Agent Upgrade (Phases 51-55). Trip context now captured from chat/voice/images, surfaced in `/trips/:groupJid` dashboard, editable live (delete/resolve/edit-budget/restore), exportable to owner-private Google Doc. Marquee in-product surface; v2.2 polishes the remaining sharp edges before pivoting away from the travel track.
+
+**Versions in between (already shipped, not previously captured here):** v1.9 Dashboard Expansion (Phases 45-49), v2.0 Dashboard UX Polish (Phase 50, mobile), v2.1 Travel Agent Upgrade (Phases 51-55). See `MILESTONES.md` for the full ledger.
 
 ### Previous Milestone Goal: v1.8 Task Approval & Context Enrichment
 
@@ -171,4 +179,4 @@ Turned commitment/task detection into a *draft → approve → sync* workflow. D
 | Hand-written migrations after 0010 | FTS5 virtual tables incompatible with drizzle-kit | ✓ Good — never run db:generate after 0010 |
 
 ---
-*Last updated: 2026-04-19 — milestone v1.8 Task Approval & Context Enrichment started*
+*Last updated: 2026-04-25 — milestone v2.2 Travel Agent Polish started*
