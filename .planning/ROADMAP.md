@@ -462,7 +462,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 53. Smarter Search (Restaurants) | 2/2 | Complete    | 2026-04-24 | — |
 | 54. Proactive Day-Of Intelligence | 5/5 | Complete    | 2026-04-24 | — |
 | 55. Trip Dashboard View | 5/5 | Complete    | 2026-04-25 | — |
-| 56. Google Places Geocoding | v2.2 | 0/TBD | Not started | — |
+| 56. Google Places Geocoding | 1/4 | In Progress|  | — |
 | 57. Drop-a-Pin Dashboard Editing | v2.2 | 0/TBD | Not started | — |
 | 58. Group↔Trip Linking | v2.2 | 0/TBD | Not started | — |
 | 59. Welcome Message Refresh | v2.2 | 0/TBD | Not started | — |
@@ -477,7 +477,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
   3. Dashboard decision rows that have Places metadata (rating, types, opening_now) show it inline; rows without metadata display unchanged — no styling regression
   4. The `GOOGLE_PLACES_API_KEY` env var is read server-side only and never reaches the dashboard bundle; the existing GCP project 81921508668 is used
   5. The migration follows the hand-written ALTER TABLE pattern (no trailing `--> statement-breakpoint`)
-**Plans:** TBD
+**Plans:** 1/4 plans executed
 
 ### Phase 57: Drop-a-Pin Dashboard Editing
 **Goal:** From the trip dashboard, the owner can pin (or re-pin) any decision's location using a Places autocomplete picker — resolving the "N decisions not on map" badge into a first-class editing action.

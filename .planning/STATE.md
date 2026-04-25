@@ -18,10 +18,15 @@ PM2 restart for 42-02 deploy: pid 2471902, restarted at 2026-04-20 01:44, clean 
 ## Current Position
 
 Active milestone: **v2.2 Travel Agent Polish** (started 2026-04-25). Marquee work: Google Places API geocoding for trip decisions, drop-a-pin dashboard editing, group↔trip linking, welcome message refresh.
-Phase: **56 — Google Places Geocoding** — Not started.
-Plan: —
-Status: Roadmap defined. Ready to plan Phase 56.
-Last activity: 2026-04-25 — v2.2 roadmap created (Phases 56-59); ready to begin Phase 56 planning.
+Phase: **56 — Google Places Geocoding** — In Progress (1/4 plans shipped).
+Plan: 56-01 shipped (2026-04-25). Schema + helper foundation for Google Places geocoding.
+Status: 56-01 complete. Next: 56-02 Places API client.
+Last activity: 2026-04-25 — 56-01 shipped: migration 0025 (place_id/canonical_address/lookup_status/place_metadata on trip_decisions), Drizzle schema extended, updateDecisionGeocode + GEOCODEABLE_TYPES + LookupStatus + PlaceMetadata exported from tripMemory.ts, GOOGLE_PLACES_API_KEY optional in config.ts. MAPS-01 + MAPS-02 marked Complete.
+
+### Decisions (56-01)
+- [Phase 56-google-places-geocoding]: drizzle-kit migrate doesn't apply hand-written ALTERs in this env — applied via better-sqlite3 node script (same as 51-01 precedent)
+- [Phase 56-google-places-geocoding]: GOOGLE_PLACES_API_KEY is optional in config — server logs-and-skips when absent, no crash
+- [Phase 56-google-places-geocoding]: GEOCODEABLE_TYPES includes hotel+lodging+accommodation to cover all schema enum variants for restaurant/hotel type decisions
 
 ### v2.1 Travel Agent Upgrade — COMPLETE (closed 2026-04-25, squash-merged to origin/main as `baa8908`)
 
@@ -391,6 +396,9 @@ Legacy decisions from v1.6 (see phase 27-32 archive):
 - [Phase 54]: Use import type { BriefingInput } (not regular import) to avoid circular runtime dep with dynamic import; delete Wave-1 ERR_MODULE_NOT_FOUND swallow post-Plan-03; move todayInDestTz before orchestrator call to thread into BriefingInput and avoid duplicate dateInTz() compute
 - [Phase 55-trip-dashboard-view]: status enum enforced at app layer only — no CHECK constraint, matches existing type column convention
 - [Phase 55-trip-dashboard-view]: getTripBundle falls through to trip_archive on trip_contexts miss, sets readOnly:true
+- [Phase 56-google-places-geocoding]: drizzle-kit migrate doesn't apply hand-written ALTERs in this env — applied via better-sqlite3 node script (same as 51-01 precedent)
+- [Phase 56-google-places-geocoding]: GOOGLE_PLACES_API_KEY is optional in config — server logs-and-skips when absent, no crash
+- [Phase 56-google-places-geocoding]: GEOCODEABLE_TYPES includes hotel+lodging+accommodation to cover all schema enum variants for restaurant/hotel type decisions
 
 ### Pending Todos
 

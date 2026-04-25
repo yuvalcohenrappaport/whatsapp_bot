@@ -9,8 +9,8 @@ Requirements for the **Travel Agent Polish** milestone. Deepens the Google Maps 
 
 ### MAPS — Google Places geocoding
 
-- [ ] **MAPS-01**: New trip decisions are auto-geocoded server-side via Google Places API at classification time; `place_id`, canonical address, lat/lng, and lookup-status are cached on the `trip_decisions` row. Idempotent — never re-fetches a row that already has `place_id`.
-- [ ] **MAPS-02**: A one-time backfill job geocodes every existing `trip_decisions` row that lacks coordinates, idempotent and rate-limited; surfaces a per-row outcome (`geocoded` / `no_match` / `error`).
+- [x] **MAPS-01**: New trip decisions are auto-geocoded server-side via Google Places API at classification time; `place_id`, canonical address, lat/lng, and lookup-status are cached on the `trip_decisions` row. Idempotent — never re-fetches a row that already has `place_id`.
+- [x] **MAPS-02**: A one-time backfill job geocodes every existing `trip_decisions` row that lacks coordinates, idempotent and rate-limited; surfaces a per-row outcome (`geocoded` / `no_match` / `error`).
 - [ ] **MAPS-03**: Place metadata (rating, types, opening_now where available) is shown inline on the decision row in the dashboard when present; absent if the Places lookup didn't return it. No styling regression to existing rows that lack metadata.
 
 ### DASH-TRIP — Trip dashboard editing (continues v2.1 DASH-TRIP-01..03)
@@ -352,8 +352,8 @@ Requirements for the **Task Approval & Context Enrichment** milestone. Turn comm
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| MAPS-01 | Phase 56 | Pending |
-| MAPS-02 | Phase 56 | Pending |
+| MAPS-01 | Phase 56 | Complete |
+| MAPS-02 | Phase 56 | Complete |
 | MAPS-03 | Phase 56 | Pending |
 | DASH-TRIP-04 | Phase 57 | Pending |
 | TRIP-LINK-01 | Phase 58 | Pending |
