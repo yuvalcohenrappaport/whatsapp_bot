@@ -48,6 +48,7 @@ import {
   updateBudgetByCategory,
   updateDecisionGeocode,
   getDecisionsForBackfill,
+  pinDecision,
   TRIP_CATEGORIES,
   type TripBundle,
 } from '../../db/queries/tripMemory.js';
@@ -60,6 +61,11 @@ import {
   type TripExportInput,
 } from '../../integrations/googleDocsExport.js';
 import { geocodeDecision } from '../../integrations/placesGeocode.js';
+import {
+  autocompletePlaces,
+  fetchPlaceDetails,
+  PlacesAutocompleteError,
+} from '../../integrations/placesAutocomplete.js';
 import { config } from '../../config.js';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -78,6 +84,14 @@ const PatchBudgetSchema = z
     (obj) => Object.keys(obj).every((k) => (TRIP_CATEGORIES as readonly string[]).includes(k)),
     { message: 'Invalid category key — must be one of: ' + TRIP_CATEGORIES.join(', ') },
   );
+
+// ─── Zod schema for PATCH /pin (Phase 57 D14) ────────────────────────────────
+
+const PinDecisionBodySchema = z.object({
+  placeId: z.string().min(1),
+  sessionToken: z.string().min(1),
+  languageCode: z.enum(['iw', 'en']).optional(),
+});
 
 // ─── Hash helper (exported so vitest can assert stability) ────────────────────
 
@@ -475,6 +489,191 @@ export default async function tripsRoutes(
       }
 
       return summary;
+    },
+  );
+
+  // ─── GET /api/trips/:groupJid/autocomplete-places (Phase 57 Plan 02) ──────
+  // JWT-gated proxy to Places API (New) Autocomplete. Read-only — archived
+  // trips CAN search; only the pin write itself is gated (CONTEXT D14).
+  fastify.get<{
+    Params: { groupJid: string };
+    Querystring: { q?: string; sessionToken?: string; languageCode?: string };
+  }>(
+    '/api/trips/:groupJid/autocomplete-places',
+    { onRequest: [fastify.authenticate] },
+    async (request, reply) => {
+      const { groupJid } = request.params;
+      const { q, sessionToken, languageCode } = request.query;
+
+      // 404 if trip doesn't exist (anti-leak: don't reveal arbitrary group state)
+      const bundle = getTripBundle(groupJid);
+      if (!bundle) return reply.status(404).send({ error: 'Trip not found' });
+
+      // NOTE: archived trips CAN search — the picker only suppresses Save, not
+      // the search-while-typing UX. The pin write itself is gated below.
+
+      if (!q || q.trim().length === 0) {
+        return reply.status(400).send({ error: 'Missing required query param `q`' });
+      }
+      if (!sessionToken || sessionToken.trim().length === 0) {
+        return reply.status(400).send({ error: 'Missing required query param `sessionToken`' });
+      }
+      const lang = languageCode === 'iw' || languageCode === 'en' ? languageCode : undefined;
+
+      try {
+        const suggestions = await autocompletePlaces(q, sessionToken, lang);
+        return { suggestions };
+      } catch (err) {
+        if (err instanceof PlacesAutocompleteError) {
+          if (err.status === 412) {
+            return reply.status(412).send({ error: 'GOOGLE_PLACES_API_KEY not configured' });
+          }
+          fastify.log.warn({ err, groupJid, q }, 'autocomplete-places upstream error');
+          return reply.status(502).send({ error: 'Places API error', upstream: err.status });
+        }
+        fastify.log.error({ err, groupJid, q }, 'autocomplete-places unexpected error');
+        return reply.status(500).send({ error: 'Internal error' });
+      }
+    },
+  );
+
+  // ─── GET /api/trips/:groupJid/place/:placeId (Phase 57 D9 preview) ───────
+  // Read-only proxy to Places Details. The picker calls this on Pick (before
+  // Save) so the optimistic state at Save time carries real lat/lng — letting
+  // the off-map badge decrement in the same React tick (CONTEXT D9 lock).
+  fastify.get<{
+    Params: { groupJid: string; placeId: string };
+    Querystring: { sessionToken?: string; languageCode?: string };
+  }>(
+    '/api/trips/:groupJid/place/:placeId',
+    { onRequest: [fastify.authenticate] },
+    async (request, reply) => {
+      const { groupJid, placeId } = request.params;
+      const { sessionToken, languageCode } = request.query;
+
+      // 404 if trip doesn't exist (group-membership gate via JWT + bundle lookup)
+      const bundle = getTripBundle(groupJid);
+      if (!bundle) return reply.status(404).send({ error: 'Trip not found' });
+
+      // NOTE: archived trips CAN preview — same as autocomplete-places. No write here.
+
+      if (!placeId || placeId.trim().length === 0) {
+        return reply.status(400).send({ error: 'Missing placeId path param' });
+      }
+      if (!sessionToken || sessionToken.trim().length === 0) {
+        return reply.status(400).send({ error: 'Missing required query param `sessionToken`' });
+      }
+      const lang = languageCode === 'iw' || languageCode === 'en' ? languageCode : undefined;
+
+      try {
+        const result = await fetchPlaceDetails(placeId, sessionToken, lang);
+        // Return the same shape PATCH /pin would write — Plan 03's
+        // fetchPlacePreview parses this directly into a PlacePreview object.
+        return {
+          placeId: result.placeId,
+          lat: result.lat,
+          lng: result.lng,
+          canonicalAddress: result.canonicalAddress,
+          metadata: result.metadata,
+        };
+      } catch (err) {
+        if (err instanceof PlacesAutocompleteError) {
+          if (err.status === 412) {
+            return reply.status(412).send({ error: 'GOOGLE_PLACES_API_KEY not configured' });
+          }
+          fastify.log.warn({ err, groupJid, placeId }, 'place preview upstream error');
+          return reply.status(502).send({ error: 'Places API error', upstream: err.status });
+        }
+        fastify.log.error({ err, groupJid, placeId }, 'place preview unexpected error');
+        return reply.status(500).send({ error: 'Internal error' });
+      }
+    },
+  );
+
+  // ─── PATCH /api/trips/:groupJid/decisions/:id/pin (Phase 57 D14) ─────────
+  // Maps PinDecisionResult discriminated union → distinct HTTP status codes:
+  //   200 ok / 400 invalid body / 401 unauth / 403 archived (trip OR row)
+  //   404 missing OR cross-group decision (anti-leak; same message)
+  //   412 missing API key / 500 internal / 502 upstream Places failure
+  fastify.patch<{
+    Params: { groupJid: string; id: string };
+    Body: unknown;
+  }>(
+    '/api/trips/:groupJid/decisions/:id/pin',
+    { onRequest: [fastify.authenticate] },
+    async (request, reply) => {
+      const { groupJid, id } = request.params;
+
+      // 404 if trip doesn't exist
+      const bundle = getTripBundle(groupJid);
+      if (!bundle) return reply.status(404).send({ error: 'Trip not found' });
+
+      // 403 — archived trips are read-only at the trip level (CONTEXT D14)
+      if (bundle.readOnly) {
+        return reply.status(403).send({ error: 'Trip is archived' });
+      }
+
+      // Validate body
+      const parsed = PinDecisionBodySchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({
+          error: 'Invalid pin body',
+          details: parsed.error.issues,
+        });
+      }
+
+      // Fetch place details from Google
+      let result;
+      try {
+        result = await fetchPlaceDetails(
+          parsed.data.placeId,
+          parsed.data.sessionToken,
+          parsed.data.languageCode,
+        );
+      } catch (err) {
+        if (err instanceof PlacesAutocompleteError) {
+          if (err.status === 412) {
+            return reply.status(412).send({ error: 'GOOGLE_PLACES_API_KEY not configured' });
+          }
+          fastify.log.warn({ err, groupJid, id }, 'pin: fetchPlaceDetails failed');
+          return reply.status(502).send({ error: 'Places API error', upstream: err.status });
+        }
+        fastify.log.error({ err, groupJid, id }, 'pin: unexpected error');
+        return reply.status(500).send({ error: 'Internal error' });
+      }
+
+      // Persist with archived/group guards in pinDecision.
+      // pinDecision returns a discriminated union — map each case to the
+      // correct HTTP status per CONTEXT D14:
+      //   - missing → 404 ("Decision not found")
+      //   - wrong-group → 404 ("Decision not found") — anti-leak; never reveal
+      //     that the id exists in a different group
+      //   - archived → 403 ("Decision is archived") — D14 mandates 403 for
+      //     ANY archived case, including a row archived by Phase 51's daily
+      //     auto-archive cron INSIDE an active trip (the bundle.readOnly
+      //     check above only catches whole-trip archive)
+      const persistResult = pinDecision(id, groupJid, result);
+      if (!persistResult.ok) {
+        if (persistResult.reason === 'archived') {
+          return reply.status(403).send({ error: 'Decision is archived' });
+        }
+        // missing OR wrong-group → 404 with the SAME message (anti-leak)
+        return reply.status(404).send({ error: 'Decision not found' });
+      }
+
+      // Re-read canonical state and return ONLY the freshly-pinned decision row.
+      // (The full bundle is overkill — useTrip's optimistic mutation already
+      // has a snapshot; it just needs to drop in the canonical row to confirm
+      // the write succeeded. The SSE 3s tick will broadcast the same row to
+      // all OTHER sessions.)
+      const fresh = getTripBundle(groupJid);
+      const decision = fresh?.decisions.find((d) => d.id === id);
+      if (!decision) {
+        // Should be unreachable — we just wrote this row.
+        fastify.log.error({ groupJid, id }, 'pin: post-write bundle re-read missed the row');
+        return reply.status(500).send({ error: 'Post-write read missed' });
+      }
+      return { decision };
     },
   );
 }
