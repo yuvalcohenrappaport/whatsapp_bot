@@ -135,7 +135,7 @@
 - [x] **Phase 52: Multimodal Intake** — Gemini 2.5 Flash vision extracts bookings/tickets/reservations from group image/PDF drops, high-confidence extractions auto-file + trigger calendar suggest, discreet 📌 ack (completed 2026-04-24)
 - [x] **Phase 53: Smarter Search (Restaurants)** — New `queryType='restaurants'` branch, Gemini Maps enriched fields (photo, open_now, price, cuisine, reservation_url), compact formatter (completed 2026-04-24)
 - [x] **Phase 54: Proactive Day-Of Intelligence** — 15-min cron, 08:00 destination-tz briefing (day-before-travel through end_date), OpenWeather + Gemini grounded transit alerts + calendar + open questions + conflicts + budget burn, minimal fallback on failure (completed 2026-04-24)
-- [ ] **Phase 55: Trip Dashboard View** — `/trips/:groupJid` with header/timeline/Leaflet map/decisions board/budget bar/open questions/conflicts, minimal-edit (delete decision, resolve question, edit budget), Google Doc export
+- [x] **Phase 55: Trip Dashboard View** — `/trips/:groupJid` with header/timeline/Leaflet map/decisions board/budget bar/open questions/conflicts, minimal-edit (delete decision, resolve question, edit budget), Google Doc export (completed 2026-04-25)
 
 ## Phase Details
 
@@ -450,7 +450,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 52. Multimodal Intake | 3/3 | Complete    | 2026-04-24 | — |
 | 53. Smarter Search (Restaurants) | 2/2 | Complete    | 2026-04-24 | — |
 | 54. Proactive Day-Of Intelligence | 5/5 | Complete    | 2026-04-24 | — |
-| 55. Trip Dashboard View | 4/5 | In Progress|  | — |
+| 55. Trip Dashboard View | 5/5 | Complete   | 2026-04-25 | — |
 
 ### Phase 51: Richer Trip Memory
 **Goal:** `trip_decisions` carries per-person attribution, category, cost, conflicts_with, origin, metadata; `trip_contexts` carries dates, per-category budget, calendar_id, status, briefing_time; classifier extracts the new fields; conflict detector runs after every decision insert; daily 02:00 cron auto-archives trips where `now > end_date + 3d`.
@@ -544,7 +544,7 @@ Plans:
   7. Deploy gotcha: `pm2 restart whatsapp-bot` after `vite build` per project memory; fresh-hash assets confirmed served
   8. Live walkthrough on desktop + mobile dashboard: open Italy trip view, delete a test decision, resolve a test question, edit budget, trigger export, verify Google Doc round-trip
 
-**Plans:** 4/5 plans executed
+**Plans:** 5/5 plans complete
 - [ ] 55-01-PLAN.md — Schema delta (status/lat/lng) + tripMemory query helpers (softDelete, updateBudget, listTrips, getTripBundle)
 - [ ] 55-02-PLAN.md — Backend `/api/trips/*` routes + SSE stream (JWT-gated, idempotent, archived-trip 403)
 - [ ] 55-03-PLAN.md — Dashboard foundation: Leaflet deps + Zod schemas + useTrip hook + TripsList page + sidebar/router
