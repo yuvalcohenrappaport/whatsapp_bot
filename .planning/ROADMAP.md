@@ -450,7 +450,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 52. Multimodal Intake | 3/3 | Complete    | 2026-04-24 | — |
 | 53. Smarter Search (Restaurants) | 2/2 | Complete    | 2026-04-24 | — |
 | 54. Proactive Day-Of Intelligence | 5/5 | Complete    | 2026-04-24 | — |
-| 55. Trip Dashboard View | 5/5 | Complete   | 2026-04-25 | — |
+| 55. Trip Dashboard View | 5/5 | Complete    | 2026-04-25 | — |
 
 ### Phase 51: Richer Trip Memory
 **Goal:** `trip_decisions` carries per-person attribution, category, cost, conflicts_with, origin, metadata; `trip_contexts` carries dates, per-category budget, calendar_id, status, briefing_time; classifier extracts the new fields; conflict detector runs after every decision insert; daily 02:00 cron auto-archives trips where `now > end_date + 3d`.
