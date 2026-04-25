@@ -490,9 +490,9 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
   4. The optimistic update reverts on server error; archived trip decisions are read-only and the pin action is suppressed
 **Plans:** 3/5 plans executed
 Plans:
-- [ ] 57-01-PLAN.md — Backend: placesAutocomplete client module + pinDecision DB helper
-- [ ] 57-02-PLAN.md — Backend: GET /autocomplete-places + PATCH /decisions/:id/pin routes
-- [ ] 57-03-PLAN.md — Dashboard: Zod schemas + API client + useTrip optimistic pinDecision mutation
+- [x] 57-01-PLAN.md — Backend: placesAutocomplete client module + pinDecision DB helper
+- [x] 57-02-PLAN.md — Backend: GET /autocomplete-places + GET /place/:placeId + PATCH /decisions/:id/pin routes
+- [x] 57-03-PLAN.md — Dashboard: Zod schemas + API client + useTrip optimistic pinDecision mutation
 - [ ] 57-04-PLAN.md — Dashboard: standalone PinDecisionPicker component (inline, debounced, two-step Pick→Save)
 - [ ] 57-05-PLAN.md — Wire-up: DecisionsBoard pin button + TripMap clickable badge + TripHeader archived banner + TripView state + live UAT
 
