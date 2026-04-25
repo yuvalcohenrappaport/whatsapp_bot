@@ -59,10 +59,15 @@ const HEARTBEAT_INTERVAL_MS = 15_000;
 
 // ─── Zod schema for PATCH /budget ────────────────────────────────────────────
 
-const PatchBudgetSchema = z.record(
-  z.enum(TRIP_CATEGORIES as unknown as readonly [string, ...string[]]),
-  z.number().finite().nonnegative(),
-);
+// z.record(z.enum(...), ...) in Zod v3 requires ALL enum keys to be present —
+// use z.record(z.string(), ...) + a custom refinement instead so callers can
+// send a partial update (just the categories they want to change).
+const PatchBudgetSchema = z
+  .record(z.string(), z.number().finite().nonnegative())
+  .refine(
+    (obj) => Object.keys(obj).every((k) => (TRIP_CATEGORIES as readonly string[]).includes(k)),
+    { message: 'Invalid category key — must be one of: ' + TRIP_CATEGORIES.join(', ') },
+  );
 
 // ─── Hash helper (exported so vitest can assert stability) ────────────────────
 
