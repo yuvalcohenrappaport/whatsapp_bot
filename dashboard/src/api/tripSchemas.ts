@@ -56,10 +56,16 @@ export const TripDecisionSchema = z.object({
   metadata: z.string().nullable(), // JSON-stringified blob
   archived: z.boolean(),
   status: DecisionStatusSchema,
+  // Phase 55 v2.1 geo block
   lat: z.number().nullable(),
   lng: z.number().nullable(),
   resolved: z.boolean(),
   createdAt: z.number(),
+  // Phase 56 Places API block
+  placeId: z.string().nullable(),
+  canonicalAddress: z.string().nullable(),
+  lookupStatus: z.enum(['pending', 'geocoded', 'no_match', 'skipped', 'error']),
+  placeMetadata: z.string().nullable(), // JSON-stringified blob; parse lazily on the FE
 });
 
 // ─── TripContext ──────────────────────────────────────────────────────────────
@@ -139,6 +145,28 @@ export const BackfillSummarySchema = z.object({
   total: z.number().int().nonnegative(),
 });
 export type BackfillSummary = z.infer<typeof BackfillSummarySchema>;
+
+// ─── PlaceMetadata (Phase 56 — inner JSON blob of placeMetadata column) ──────
+
+export const PlaceMetadataSchema = z.object({
+  rating: z.number().nullable().optional(),
+  userRatingCount: z.number().nullable().optional(),
+  openNow: z.boolean().nullable().optional(),
+  types: z.array(z.string()).default([]),
+  primaryType: z.string().nullable().optional(),
+  displayName: z.string().nullable().optional(),
+});
+export type PlaceMetadata = z.infer<typeof PlaceMetadataSchema>;
+
+export function parsePlaceMetadata(raw: string | null): PlaceMetadata | null {
+  if (!raw) return null;
+  try {
+    const parsed = PlaceMetadataSchema.safeParse(JSON.parse(raw));
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
 
 // ─── TypeScript types ─────────────────────────────────────────────────────────
 
