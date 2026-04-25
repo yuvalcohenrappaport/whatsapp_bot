@@ -189,6 +189,12 @@ export const tripDecisions = sqliteTable(
     status: text('status').notNull().default('active'), // 'active' | 'deleted' (soft-delete from dashboard)
     lat: real('lat'), // nullable; populated by Phase 52/55 when decision has a location
     lng: real('lng'), // nullable
+    // Phase 56 v2.2 — Google Places geocoding (drizzle/0025_places_geocoding.sql).
+    // lat/lng already exist from 0024 above — do NOT re-add them here.
+    placeId: text('place_id'), // nullable Google Maps Place ID (ChIJ...)
+    canonicalAddress: text('canonical_address'), // nullable human-readable address from Places API
+    lookupStatus: text('lookup_status').notNull().default('pending'), // 'pending' | 'geocoded' | 'no_match' | 'skipped' | 'error'
+    placeMetadata: text('place_metadata'), // nullable JSON string (PlaceMetadata shape — see tripMemory.ts)
   },
   (table) => [
     index('idx_trip_decisions_group').on(table.groupJid),
