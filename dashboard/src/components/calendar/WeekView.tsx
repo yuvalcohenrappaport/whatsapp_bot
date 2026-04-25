@@ -101,7 +101,6 @@ function computeDropTargetMs(
   dayMs: number,
   offsetY: number,
   gridHeight: number,
-  itemStartMs: number,
 ): number {
   const clampedY = Math.max(0, Math.min(offsetY, gridHeight));
   const totalMinutes = (clampedY / ROW_H) * 60;
@@ -190,9 +189,7 @@ export function WeekView({
     // Compute target for caption
     const offsetY = e.clientY - colRect.top + (gridRef.current?.scrollTop ?? 0);
     // Find the dragged item to preserve time-of-day if needed
-    const payload = parseDragPayload(e);
-    const originMs = payload?.originStartMs ?? Date.now();
-    const targetMs = computeDropTargetMs(dayMs, offsetY, 24 * ROW_H, originMs);
+    const targetMs = computeDropTargetMs(dayMs, offsetY, 24 * ROW_H);
     ghost.setTarget(targetMs);
   }
 
@@ -205,7 +202,7 @@ export function WeekView({
     if (!item) return;
 
     const offsetY = e.clientY - colRect.top + (gridRef.current?.scrollTop ?? 0);
-    const targetMs = computeDropTargetMs(dayMs, offsetY, 24 * ROW_H, item.start);
+    const targetMs = computeDropTargetMs(dayMs, offsetY, 24 * ROW_H);
 
     ghost.hide();
     void reschedule.mutate({ item, toMs: targetMs });

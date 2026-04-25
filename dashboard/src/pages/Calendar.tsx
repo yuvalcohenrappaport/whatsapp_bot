@@ -47,7 +47,6 @@ import { DayView } from '@/components/calendar/DayView';
 import { MonthDotsView } from '@/components/calendar/MonthDotsView';
 import { CreateItemPopover, type CreateItemAnchor } from '@/components/calendar/CreateItemPopover';
 import { CalendarDragGhost, useCalendarDragGhost } from '@/components/calendar/CalendarDragGhost';
-import { InlineTitleEdit } from '@/components/calendar/InlineTitleEdit';
 import { EditPostDialog } from '@/components/linkedin/EditPostDialog';
 import { addIstDays } from '@/lib/ist';
 import type { CalendarItem } from '@/api/calendarSchemas';
@@ -427,7 +426,7 @@ export default function CalendarPage() {
     onRollback: rollbackOptimistic,
   });
 
-  function handleDragStart(e: React.DragEvent, item: CalendarItem) {
+  function handleDragStart(_e: React.DragEvent, item: CalendarItem) {
     setDraggingId(item.id);
     ghost.show(item);
   }
