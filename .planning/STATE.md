@@ -18,16 +18,18 @@ PM2 restart for 42-02 deploy: pid 2471902, restarted at 2026-04-20 01:44, clean 
 ## Current Position
 
 Active milestone: **v2.2 Travel Agent Polish** (started 2026-04-25). Marquee work: Google Places API geocoding for trip decisions, drop-a-pin dashboard editing, group↔trip linking, welcome message refresh.
-Phase: **56 — Google Places Geocoding** — In Progress (3/4 plans shipped).
-Plan: 56-03 shipped (2026-04-25). Backfill route + dashboard button — on-demand geocoding for existing un-geocoded decisions.
-Status: 56-03 complete. Next: 56-04 UI checkpoint.
-Last activity: 2026-04-25 — 56-03 shipped: getDecisionsForBackfill query helper, POST /api/trips/:groupJid/backfill-geocode (JWT-gated, 200ms-paced, returns summary), BackfillGeocodeButton (spinner+toast, hidden on archived), BackfillSummarySchema in tripSchemas.ts, backfillGeocode() in dashboard/src/api/trips.ts, TripView wired. Commits: 6ab8864 feat(backend), 7b3f44e feat(dashboard).
+Phase: **56 — Google Places Geocoding** — **COMPLETE** (4/4 plans shipped 2026-04-25).
+Plan: 56-04 shipped (2026-04-25). Dashboard UI — TripDecisionSchema extended with 4 geocoding fields, PlaceMetadataSchema + parsePlaceMetadata safe parser, inline rating/open_now/primaryType badge cluster on geocoded rows, muted no-match hint, place_id-based Maps URL (UAT 10/10 PASS). Commits: 6beadb2 feat(schema), bc4461f feat(DecisionsBoard), d4aaef3 fix(place_id Maps URL).
+Status: Phase 56 COMPLETE. Next: Phase 57 Drop a Pin (autocomplete picker for no_match rows).
+Last activity: 2026-04-25 — 56-04 shipped and UAT-approved by owner. Phase 56 Google Places Geocoding fully closed.
 
-### Decisions (56-01 through 56-03)
+### Decisions (56-01 through 56-04)
 - [Phase 56-google-places-geocoding]: drizzle-kit migrate doesn't apply hand-written ALTERs in this env — applied via better-sqlite3 node script (same as 51-01 precedent)
 - [Phase 56-google-places-geocoding]: GOOGLE_PLACES_API_KEY is optional in config — server logs-and-skips when absent, no crash
 - [Phase 56-google-places-geocoding]: GEOCODEABLE_TYPES includes hotel+lodging+accommodation to cover all schema enum variants for restaurant/hotel type decisions
 - [Phase 56]: apiFetch used in dashboard trips.ts client — JWT auto-injected from localStorage, matching ExportButton pattern
+- [Phase 56-04]: parsePlaceMetadata returns null on any failure (JSON parse or Zod mismatch) — FE never crashes on server-side schema drift
+- [Phase 56-04]: place_id URL preferred in MapPin link (opens matched place card vs bare-coords pin view) — UAT-driven fix mid-checkpoint
 
 ### v2.1 Travel Agent Upgrade — COMPLETE (closed 2026-04-25, squash-merged to origin/main as `baa8908`)
 
