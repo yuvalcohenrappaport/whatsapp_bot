@@ -387,6 +387,80 @@ export function updateDecisionGeocode(
     .run();
 }
 
+// ─── Phase 57 v2.2 — drop-a-pin dashboard editing ──────────────────────────
+
+/**
+ * Discriminated union returned by `pinDecision`. The route in Plan 02 maps
+ * each `reason` to a distinct HTTP status:
+ *   - missing      → 404 (anti-leak: don't tell the caller the row exists in
+ *                    another group)
+ *   - wrong-group  → 404 (same anti-leak rule, different cause)
+ *   - archived     → 403 (per CONTEXT lock D14, "trip is archived")
+ *
+ * A flat boolean would force the route to either over-403 (leak existence
+ * info across groups) or over-404 (violate D14). The discriminated union
+ * resolves this cleanly.
+ */
+export type PinDecisionResult =
+  | { ok: true }
+  | { ok: false; reason: 'missing' | 'wrong-group' | 'archived' };
+
+/**
+ * Phase 57 — User-driven pin write from the dashboard drop-a-pin picker.
+ *
+ * Differs from updateDecisionGeocode in three ways:
+ *   1. Pre-reads the row to enforce groupJid + archived guards (route maps
+ *      the result to HTTP status: missing/wrong-group → 404 (anti-leak),
+ *      archived → 403 (per CONTEXT lock D14)).
+ *   2. Always writes lookup_status='geocoded' (the user explicitly picked
+ *      this place — there is no no_match/error path).
+ *   3. Skips the decision-type gate (the user can pin ANY decision row,
+ *      including types that the auto-geocoder skipped — e.g., they can pin
+ *      a 'shopping' or 'transit' decision manually).
+ *
+ * Idempotent — re-pinning the same place writes the same data; re-pinning a
+ * different place overwrites in place. Both are valid editor actions.
+ */
+export function pinDecision(
+  decisionId: string,
+  groupJid: string,
+  result: {
+    placeId: string;
+    canonicalAddress: string | null;
+    lat: number | null;
+    lng: number | null;
+    metadata: PlaceMetadata;
+  },
+): PinDecisionResult {
+  const row = db
+    .select({
+      id: tripDecisions.id,
+      groupJid: tripDecisions.groupJid,
+      archived: tripDecisions.archived,
+    })
+    .from(tripDecisions)
+    .where(eq(tripDecisions.id, decisionId))
+    .get();
+
+  if (!row) return { ok: false, reason: 'missing' };
+  if (row.groupJid !== groupJid) return { ok: false, reason: 'wrong-group' };
+  if (row.archived) return { ok: false, reason: 'archived' };
+
+  db.update(tripDecisions)
+    .set({
+      lookupStatus: 'geocoded',
+      placeId: result.placeId,
+      canonicalAddress: result.canonicalAddress,
+      lat: result.lat,
+      lng: result.lng,
+      placeMetadata: JSON.stringify(result.metadata),
+    })
+    .where(eq(tripDecisions.id, decisionId))
+    .run();
+
+  return { ok: true };
+}
+
 /**
  * Phase 56 Plan 03 — return rows eligible for the on-demand backfill geocoder.
  * Eligible = (a) decision type is in GEOCODEABLE_TYPES, (b) row not archived,

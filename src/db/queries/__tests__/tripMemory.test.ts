@@ -45,6 +45,7 @@ const {
   updateBudgetByCategory,
   listTripsForDashboard,
   getTripBundle,
+  pinDecision,
 } = await import('../tripMemory.js');
 
 const GROUP = '120363999999@g.us';
@@ -694,6 +695,163 @@ describe('tripMemory v2.1 queries', () => {
       const open = getUnresolvedOpenItems(GROUP);
       expect(open).toHaveLength(1);
       expect(open[0].value).toBe('new question');
+    });
+  });
+
+  describe('pinDecision (Phase 57)', () => {
+    const PIN_RESULT_A = {
+      placeId: 'ChIJ_A',
+      canonicalAddress: '1 Rue A, Paris',
+      lat: 48.85,
+      lng: 2.35,
+      metadata: {
+        rating: 4.5,
+        userRatingCount: 120,
+        openNow: true,
+        types: ['restaurant', 'food'],
+        primaryType: 'restaurant',
+        displayName: 'Café A',
+      },
+    };
+    const PIN_RESULT_B = {
+      placeId: 'ChIJ_B',
+      canonicalAddress: '2 Rue B, Paris',
+      lat: 48.86,
+      lng: 2.36,
+      metadata: {
+        rating: 3.2,
+        userRatingCount: 9,
+        openNow: false,
+        types: ['cafe'],
+        primaryType: 'cafe',
+        displayName: 'Café B',
+      },
+    };
+
+    it('1. happy round-trip: writes geocoding columns + lookup_status on a non-archived row of any type', () => {
+      const id = randomUUID();
+      // Use 'transit' to prove the type-gate-skip — runGeocodeAfterInsert
+      // would have written 'skipped' here, but the user can still pin it.
+      insertTripDecision({
+        id,
+        groupJid: GROUP,
+        type: 'transit',
+        value: 'CDG → 7 Rue A',
+        confidence: 'high',
+        sourceMessageId: null,
+      });
+
+      const out = pinDecision(id, GROUP, PIN_RESULT_A);
+      expect(out).toEqual({ ok: true });
+
+      const row = sqlite
+        .prepare(
+          'SELECT place_id, canonical_address, lat, lng, lookup_status, place_metadata FROM trip_decisions WHERE id = ?',
+        )
+        .get(id) as Record<string, unknown>;
+      expect(row.place_id).toBe('ChIJ_A');
+      expect(row.canonical_address).toBe('1 Rue A, Paris');
+      expect(row.lat).toBeCloseTo(48.85);
+      expect(row.lng).toBeCloseTo(2.35);
+      expect(row.lookup_status).toBe('geocoded');
+      expect(JSON.parse(row.place_metadata as string)).toEqual(
+        PIN_RESULT_A.metadata,
+      );
+    });
+
+    it('2. re-pin overwrite: second pin replaces placeId + metadata in place', () => {
+      const id = randomUUID();
+      insertTripDecision({
+        id,
+        groupJid: GROUP,
+        type: 'restaurant',
+        value: 'Some place',
+        confidence: 'high',
+        sourceMessageId: null,
+      });
+
+      const r1 = pinDecision(id, GROUP, PIN_RESULT_A);
+      expect(r1).toEqual({ ok: true });
+
+      const r2 = pinDecision(id, GROUP, PIN_RESULT_B);
+      expect(r2).toEqual({ ok: true });
+
+      const row = sqlite
+        .prepare(
+          'SELECT place_id, canonical_address, lat, lng, place_metadata FROM trip_decisions WHERE id = ?',
+        )
+        .get(id) as Record<string, unknown>;
+      expect(row.place_id).toBe('ChIJ_B');
+      expect(row.canonical_address).toBe('2 Rue B, Paris');
+      expect(row.lat).toBeCloseTo(48.86);
+      expect(row.lng).toBeCloseTo(2.36);
+      expect(JSON.parse(row.place_metadata as string)).toEqual(
+        PIN_RESULT_B.metadata,
+      );
+    });
+
+    it('3. missing row: returns { ok: false, reason: "missing" } and writes nothing', () => {
+      const out = pinDecision('does-not-exist', GROUP, PIN_RESULT_A);
+      expect(out).toEqual({ ok: false, reason: 'missing' });
+
+      // Sanity: no row materialized.
+      const count = sqlite
+        .prepare('SELECT COUNT(*) AS n FROM trip_decisions')
+        .get() as { n: number };
+      expect(count.n).toBe(0);
+    });
+
+    it('4. wrong group refuses: row exists in group A, call with group B → "wrong-group", no mutation', () => {
+      const OTHER_GROUP = '120363111111@g.us';
+      const id = randomUUID();
+      insertTripDecision({
+        id,
+        groupJid: GROUP,
+        type: 'activity',
+        value: 'Louvre',
+        confidence: 'high',
+        sourceMessageId: null,
+      });
+
+      const out = pinDecision(id, OTHER_GROUP, PIN_RESULT_A);
+      expect(out).toEqual({ ok: false, reason: 'wrong-group' });
+
+      const row = sqlite
+        .prepare('SELECT place_id, lookup_status FROM trip_decisions WHERE id = ?')
+        .get(id) as Record<string, unknown>;
+      expect(row.place_id).toBeNull();
+      expect(row.lookup_status).toBe('pending'); // baseline default from migration
+    });
+
+    it('5. archived row refuses: returns "archived" and does not mutate', () => {
+      const id = randomUUID();
+      insertTripDecision({
+        id,
+        groupJid: GROUP,
+        type: 'restaurant',
+        value: 'Closed bistro',
+        confidence: 'high',
+        sourceMessageId: null,
+      });
+      // Mark row archived directly (mirrors what markDecisionsArchivedForGroup
+      // would do during the auto-archive cron).
+      sqlite
+        .prepare('UPDATE trip_decisions SET archived = 1 WHERE id = ?')
+        .run(id);
+
+      const out = pinDecision(id, GROUP, PIN_RESULT_A);
+      expect(out).toEqual({ ok: false, reason: 'archived' });
+
+      const row = sqlite
+        .prepare(
+          'SELECT place_id, canonical_address, lat, lng, lookup_status FROM trip_decisions WHERE id = ?',
+        )
+        .get(id) as Record<string, unknown>;
+      expect(row.place_id).toBeNull();
+      expect(row.canonical_address).toBeNull();
+      expect(row.lat).toBeNull();
+      expect(row.lng).toBeNull();
+      expect(row.lookup_status).toBe('pending');
     });
   });
 });
