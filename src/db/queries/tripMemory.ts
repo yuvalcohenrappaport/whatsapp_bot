@@ -305,6 +305,88 @@ export function updateDecisionConflicts(
     .run();
 }
 
+// Phase 56 v2.2 — Google Places geocoding helpers
+// (drizzle/0025_places_geocoding.sql)
+
+/**
+ * Values for the `lookup_status` column on trip_decisions.
+ * - pending:  not yet attempted (default on insert / migration backfill)
+ * - geocoded: Places API returned a match; place_id + lat/lng populated
+ * - no_match: Places API returned zero results for this decision's value
+ * - skipped:  decision type is not geocodeable (see GEOCODEABLE_TYPES) or
+ *             GOOGLE_PLACES_API_KEY is absent
+ * - error:    transient API or network error; eligible for retry
+ */
+export type LookupStatus = 'pending' | 'geocoded' | 'no_match' | 'skipped' | 'error';
+
+/**
+ * Decision `type` values that are eligible for Google Places geocoding.
+ *
+ * Mapping notes:
+ *   - 'hotel' and 'lodging' both map to the CONTEXT.md name "hotel"; the
+ *     existing schema enum uses 'accommodation' which is also included.
+ *   - 'activity' is included (CONTEXT.md calls it "activity").
+ *   - 'restaurant' is included for food geocoding.
+ *
+ * Types NOT included (destination, transport, budget, open_question, dates,
+ * flights, shopping, etc.) receive lookup_status='skipped' on first encounter.
+ */
+export const GEOCODEABLE_TYPES = new Set([
+  'restaurant',
+  'hotel',
+  'lodging',
+  'activity',
+  'accommodation',
+]);
+
+/**
+ * Shape of the JSON blob stored in `trip_decisions.place_metadata`.
+ * All fields nullable so a partial Places API response can be persisted.
+ */
+export interface PlaceMetadata {
+  rating: number | null;
+  userRatingCount: number | null;
+  openNow: boolean | null;
+  types: string[];
+  primaryType: string | null;
+  displayName: string | null;
+}
+
+/**
+ * Update the geocoding columns of a single trip_decisions row.
+ *
+ * Placed next to `updateDecisionConflicts` so conflictDetector-style
+ * consumers find both update helpers in the same vicinity.
+ *
+ * @param decisionId  UUID of the trip_decisions row to update
+ * @param status      New LookupStatus value
+ * @param result      Geocoding result payload, or null when status is
+ *                    no_match / skipped / error (all geocoding columns cleared)
+ */
+export function updateDecisionGeocode(
+  decisionId: string,
+  status: LookupStatus,
+  result: {
+    placeId: string | null;
+    canonicalAddress: string | null;
+    lat: number | null;
+    lng: number | null;
+    metadata: PlaceMetadata | null;
+  } | null,
+): void {
+  db.update(tripDecisions)
+    .set({
+      lookupStatus: status,
+      placeId: result?.placeId ?? null,
+      canonicalAddress: result?.canonicalAddress ?? null,
+      lat: result?.lat ?? null,
+      lng: result?.lng ?? null,
+      placeMetadata: result?.metadata == null ? null : JSON.stringify(result.metadata),
+    })
+    .where(eq(tripDecisions.id, decisionId))
+    .run();
+}
+
 /**
  * Atomically move a trip_contexts row into trip_archive under a fresh UUID,
  * then delete it from trip_contexts. Returns the new archive id, or null if

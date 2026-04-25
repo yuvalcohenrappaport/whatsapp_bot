@@ -35,6 +35,11 @@ const envSchema = z.object({
   // Phase 54 v2.1 — OpenWeather forecast/geo API. Optional because the day-of
   // briefing gracefully falls back to calendar-only output when missing.
   OPENWEATHER_API_KEY: z.string().optional(),
+  // Phase 56 v2.2 — Google Places API (New) for geocoding trip_decisions.
+  // Optional: when missing, the runAfterInsert hook + backfill route both
+  // log-and-skip rather than crashing. Server-side only — never exported
+  // to the dashboard bundle.
+  GOOGLE_PLACES_API_KEY: z.string().optional(),
 });
 
 export type Config = z.infer<typeof envSchema>;
