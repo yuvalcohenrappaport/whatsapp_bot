@@ -129,6 +129,17 @@ export const TripsListResponseSchema = z.object({
   trips: z.array(TripListEntrySchema),
 });
 
+// ─── BackfillSummary (POST /api/trips/:groupJid/backfill-geocode response) ────
+
+export const BackfillSummarySchema = z.object({
+  geocoded: z.number().int().nonnegative(),
+  no_match: z.number().int().nonnegative(),
+  error: z.number().int().nonnegative(),
+  skipped: z.number().int().nonnegative(),
+  total: z.number().int().nonnegative(),
+});
+export type BackfillSummary = z.infer<typeof BackfillSummarySchema>;
+
 // ─── TypeScript types ─────────────────────────────────────────────────────────
 
 export type TripBundle = z.infer<typeof TripBundleSchema>;

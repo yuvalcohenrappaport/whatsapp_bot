@@ -23,6 +23,7 @@ import { DecisionsBoard } from '@/components/trip/DecisionsBoard';
 import { OpenQuestions } from '@/components/trip/OpenQuestions';
 import { BudgetBar } from '@/components/trip/BudgetBar';
 import { ExportButton } from '@/components/trip/ExportButton';
+import { BackfillGeocodeButton } from '@/components/trip/BackfillGeocodeButton';
 
 const ALL_ORIGINS: DecisionOrigin[] = ['multimodal', 'inferred', 'self_reported', 'dashboard'];
 
@@ -74,7 +75,8 @@ export default function TripView() {
         readOnly={bundle.readOnly}
       />
 
-      <div className="container mx-auto px-6 pt-4 flex justify-end">
+      <div className="container mx-auto px-6 pt-4 flex justify-end gap-2">
+        <BackfillGeocodeButton groupJid={groupJid!} readOnly={bundle.readOnly} />
         <ExportButton groupJid={groupJid!} />
       </div>
 
