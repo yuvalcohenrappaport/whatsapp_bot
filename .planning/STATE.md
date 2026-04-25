@@ -18,10 +18,17 @@ PM2 restart for 42-02 deploy: pid 2471902, restarted at 2026-04-20 01:44, clean 
 ## Current Position
 
 Active milestone: **v2.2 Travel Agent Polish** (started 2026-04-25). Marquee work: Google Places API geocoding for trip decisions, drop-a-pin dashboard editing, group↔trip linking, welcome message refresh.
-Phase: **56 — Google Places Geocoding** — **COMPLETE** (4/4 plans shipped 2026-04-25).
-Plan: 56-04 shipped (2026-04-25). Dashboard UI — TripDecisionSchema extended with 4 geocoding fields, PlaceMetadataSchema + parsePlaceMetadata safe parser, inline rating/open_now/primaryType badge cluster on geocoded rows, muted no-match hint, place_id-based Maps URL (UAT 10/10 PASS). Commits: 6beadb2 feat(schema), bc4461f feat(DecisionsBoard), d4aaef3 fix(place_id Maps URL).
-Status: Phase 56 COMPLETE. Next: Phase 57 Drop a Pin (autocomplete picker for no_match rows).
-Last activity: 2026-04-25 — 56-04 shipped and UAT-approved by owner. Phase 56 Google Places Geocoding fully closed.
+Phase: **57 — Drop-a-Pin Dashboard Editing** — Plan 01 of 5 shipped (2026-04-25). Wave 1 of 4.
+Plan: 57-01 shipped (2026-04-25). Server-side foundation — `src/integrations/placesAutocomplete.ts` (autocompletePlaces + fetchPlaceDetails + PlacesAutocompleteError + AutocompleteSuggestionSchema + PlaceDetailsResultSchema; raw fetch + X-Goog-Api-Key + narrow X-Goog-FieldMask + Hebrew detection; 412 on missing API key, status 0 on schema drift); `pinDecision(decisionId, groupJid, result)` helper in tripMemory.ts returning discriminated union `PinDecisionResult = { ok: true } | { ok: false, reason: 'missing'|'wrong-group'|'archived' }` so Plan 02's PATCH route can map missing/wrong-group → 404 (anti-leak) and archived → 403 (per CONTEXT lock D14). 27 new vitest cases (22 placesAutocomplete + 5 pinDecision); 54/54 green when both files run together. Commits: `480bf7c` feat(placesAutocomplete), `014d364` feat(pinDecision). Duration ~4min.
+Status: Phase 57 Plan 01 COMPLETE. Plans 02 (HTTP routes) + 03 (dashboard schemas/client) can run in parallel next — both depend only on the shapes locked in this plan.
+Last activity: 2026-04-25 — 57-01 shipped, both tasks committed atomically, all tests green.
+
+### Decisions (57-01)
+- [Phase 57-drop-a-pin]: pinDecision returns a discriminated union (not a boolean) — flat boolean would force the route to either over-403 (existence leak across groups) or over-404 (D14 violation). The reason field cleanly maps each guard failure to its correct HTTP status.
+- [Phase 57-drop-a-pin]: pinDecision skips the GEOCODEABLE_TYPES gate — auto-geocoder skipped types like transit/shopping/flights, but the user can still want to pin those rows manually from the dashboard. User-driven helper is intentionally less restrictive than the cron helper.
+- [Phase 57-drop-a-pin]: placesAutocomplete redefines HEBREW_REGEX + detectLanguageCode locally (vs importing from placesGeocode.ts) — keeps the two integration modules independent so future phases can use one without dragging in the other.
+- [Phase 57-drop-a-pin]: autocompletePlaces caps at 5 in the module layer (not just at the UI layer) regardless of API response length — picker contract is fixed; callers can't accidentally render a longer list.
+- [Phase 57-drop-a-pin]: PlacesAutocompleteError throws on missing API key (vs Phase 56's fire-and-forget no-op) — picker is user-driven, swallowing the failure would hide the configuration bug from the user.
 
 ### Decisions (56-01 through 56-04)
 - [Phase 56-google-places-geocoding]: drizzle-kit migrate doesn't apply hand-written ALTERs in this env — applied via better-sqlite3 node script (same as 51-01 precedent)

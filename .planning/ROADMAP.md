@@ -463,7 +463,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 54. Proactive Day-Of Intelligence | 5/5 | Complete    | 2026-04-24 | — |
 | 55. Trip Dashboard View | 5/5 | Complete    | 2026-04-25 | — |
 | 56. Google Places Geocoding | 4/4 | Complete    | 2026-04-25 | — |
-| 57. Drop-a-Pin Dashboard Editing | v2.2 | 0/5 | Not started | — |
+| 57. Drop-a-Pin Dashboard Editing | 1/5 | In Progress|  | — |
 | 58. Group↔Trip Linking | v2.2 | 0/TBD | Not started | — |
 | 59. Welcome Message Refresh | v2.2 | 0/TBD | Not started | — |
 
@@ -488,7 +488,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
   2. Selecting a place writes lat/lng + place_id + canonical address to the decision row via a JWT-gated route
   3. The Leaflet map pin and the "N decisions not on map" badge update live across all SSE-connected sessions within ~3s of the write
   4. The optimistic update reverts on server error; archived trip decisions are read-only and the pin action is suppressed
-**Plans:** 5 plans
+**Plans:** 1/5 plans executed
 Plans:
 - [ ] 57-01-PLAN.md — Backend: placesAutocomplete client module + pinDecision DB helper
 - [ ] 57-02-PLAN.md — Backend: GET /autocomplete-places + PATCH /decisions/:id/pin routes

@@ -15,7 +15,7 @@ Requirements for the **Travel Agent Polish** milestone. Deepens the Google Maps 
 
 ### DASH-TRIP — Trip dashboard editing (continues v2.1 DASH-TRIP-01..03)
 
-- [ ] **DASH-TRIP-04**: User can pin (set lat/lng + place_id + address) or re-pin an existing decision from the dashboard via a Places autocomplete picker; persists optimistically via a JWT-gated route; the map pin and the "N decisions not on map" badge update live across SSE-connected sessions within ~3 s.
+- [x] **DASH-TRIP-04**: User can pin (set lat/lng + place_id + address) or re-pin an existing decision from the dashboard via a Places autocomplete picker; persists optimistically via a JWT-gated route; the map pin and the "N decisions not on map" badge update live across SSE-connected sessions within ~3 s.
 
 ### TRIP-LINK — Group↔trip linking
 
@@ -355,7 +355,7 @@ Requirements for the **Task Approval & Context Enrichment** milestone. Turn comm
 | MAPS-01 | Phase 56 | Complete |
 | MAPS-02 | Phase 56 | Complete |
 | MAPS-03 | Phase 56 | Complete |
-| DASH-TRIP-04 | Phase 57 | Pending |
+| DASH-TRIP-04 | Phase 57 | Complete |
 | TRIP-LINK-01 | Phase 58 | Pending |
 | ONBOARD-01 | Phase 59 | Pending |
 
