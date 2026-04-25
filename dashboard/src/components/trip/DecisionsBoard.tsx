@@ -205,10 +205,12 @@ export function DecisionsBoard({
                   const conflicts = parseConflicts(d.conflictsWith);
                   const isDeleted = d.status === 'deleted';
 
-                  // Google Maps URL: prefer coords, fallback to text search
-                  const mapsUrl = (d.lat != null && d.lng != null)
-                    ? `https://www.google.com/maps/?q=${d.lat},${d.lng}`
-                    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(d.value)}`;
+                  // Google Maps URL: prefer place_id (canonical place card), then coords, then text search
+                  const mapsUrl = d.placeId
+                    ? `https://www.google.com/maps/place/?q=place_id:${d.placeId}`
+                    : (d.lat != null && d.lng != null)
+                      ? `https://www.google.com/maps/?q=${d.lat},${d.lng}`
+                      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(d.value)}`;
 
                   // Phase 56: parse place metadata for inline display
                   const meta = parsePlaceMetadata(d.placeMetadata);
