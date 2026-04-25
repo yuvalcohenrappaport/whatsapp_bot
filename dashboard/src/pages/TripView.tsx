@@ -88,6 +88,7 @@ export default function TripView() {
           decisions={bundle.decisions.filter((d) => d.status === 'active')}
           filteredOrigins={filteredOrigins}
           onMarkerClick={handleMarkerClick}
+          onBadgeClick={null}
         />
 
         <DecisionsBoard

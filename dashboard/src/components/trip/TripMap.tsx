@@ -22,6 +22,8 @@ interface TripMapProps {
   decisions: TripDecision[];
   filteredOrigins: Set<DecisionOrigin>;
   onMarkerClick: (decisionId: string) => void;
+  /** Phase 57: scroll-to-first-un-geocoded + open picker. Null = read-only / no-op (D13 lock). */
+  onBadgeClick: (() => void) | null;
 }
 
 // ─── Custom divIcon helper ────────────────────────────────────────────────────
@@ -106,7 +108,7 @@ function extractNote(metadata: string | null): string | null {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function TripMap({ decisions, filteredOrigins, onMarkerClick }: TripMapProps) {
+export function TripMap({ decisions, filteredOrigins, onMarkerClick, onBadgeClick }: TripMapProps) {
   // Apply origin filter (map only shows visible + has coordinates)
   const visibleDecisions = decisions.filter(
     (d) => d.lat != null && d.lng != null && filteredOrigins.has(d.origin),
@@ -175,13 +177,24 @@ export function TripMap({ decisions, filteredOrigins, onMarkerClick }: TripMapPr
           })}
         </MapContainer>
 
-        {/* Off-map badge */}
+        {/* Off-map badge — clickable when onBadgeClick non-null AND offMapCount>0;
+            archived dashboards (TripView passes null) get the unchanged informational variant per D13 */}
         {offMapCount > 0 && (
-          <div
-            className="absolute bottom-3 left-3 z-[1000] bg-background/90 border rounded-md px-2 py-1 text-xs text-muted-foreground pointer-events-none"
-          >
-            {offMapCount} decision{offMapCount !== 1 ? 's' : ''} not on map
-          </div>
+          onBadgeClick ? (
+            <button
+              onClick={onBadgeClick}
+              className="absolute bottom-3 left-3 z-[1000] bg-background/95 border rounded-md px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors cursor-pointer"
+              title="Pin a decision"
+            >
+              {offMapCount} decision{offMapCount !== 1 ? 's' : ''} not on map
+            </button>
+          ) : (
+            <div
+              className="absolute bottom-3 left-3 z-[1000] bg-background/90 border rounded-md px-2 py-1 text-xs text-muted-foreground pointer-events-none"
+            >
+              {offMapCount} decision{offMapCount !== 1 ? 's' : ''} not on map
+            </div>
+          )
         )}
       </div>
     </section>

@@ -74,13 +74,19 @@ export function TripHeader({ context, budget, sseStatus, readOnly }: TripHeaderP
   }[sseStatus] ?? 'bg-muted-foreground/40';
 
   return (
-    <header
-      ref={headerRef}
-      className={cn(
-        'sticky top-0 z-30 bg-background/95 backdrop-blur border-b transition-all duration-200',
-        compact ? 'py-2' : 'py-5',
+    <>
+      {readOnly && (
+        <div className="bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-900 px-6 py-2 text-sm text-amber-900 dark:text-amber-200 text-center">
+          Trip archived — read-only
+        </div>
       )}
-    >
+      <header
+        ref={headerRef}
+        className={cn(
+          'sticky top-0 z-30 bg-background/95 backdrop-blur border-b transition-all duration-200',
+          compact ? 'py-2' : 'py-5',
+        )}
+      >
       <div className="container mx-auto px-6">
         {/* Main row */}
         <div className="flex items-center justify-between gap-4">
@@ -138,7 +144,8 @@ export function TripHeader({ context, budget, sseStatus, readOnly }: TripHeaderP
             </span>
           </div>
         )}
-      </div>
-    </header>
+        </div>
+      </header>
+    </>
   );
 }
