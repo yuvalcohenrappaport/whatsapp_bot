@@ -348,6 +348,22 @@ Requirements for the **Task Approval & Context Enrichment** milestone. Turn comm
 | DASH-04 | Phase 30 | Complete |
 | DASH-05 | Phase 30 | Complete |
 
+### v2.2 Traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| MAPS-01 | Phase 56 | Pending |
+| MAPS-02 | Phase 56 | Pending |
+| MAPS-03 | Phase 56 | Pending |
+| DASH-TRIP-04 | Phase 57 | Pending |
+| TRIP-LINK-01 | Phase 58 | Pending |
+| ONBOARD-01 | Phase 59 | Pending |
+
+**v2.2 Coverage:**
+- v2.2 requirements: 6 total
+- Mapped to phases: 6 (Phases 56-59)
+- Unmapped: 0 ✓
+
 ---
 *Requirements defined: 2026-03-30 (v1.6)*
-*Last updated: 2026-04-20 — v2.0 Dashboard UX Polish requirements seeded (6 items: MOBILE-01..06 covering global mobile primitives, calendar mobile strategy, daily-driver page polish, live phone walkthrough)*
+*Last updated: 2026-04-25 — v2.2 Travel Agent Polish roadmap created (Phases 56-59; MAPS-01..03, DASH-TRIP-04, TRIP-LINK-01, ONBOARD-01)*

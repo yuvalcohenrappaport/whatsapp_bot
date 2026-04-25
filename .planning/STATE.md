@@ -17,11 +17,11 @@ PM2 restart for 42-02 deploy: pid 2471902, restarted at 2026-04-20 01:44, clean 
 
 ## Current Position
 
-Active milestone: **v2.2 Travel Agent Polish — defining requirements** (started 2026-04-25). Marquee phase: deeper Google Places integration replacing v2.1's static Maps links. Closes v2.1 follow-ups (group↔trip auto-linking, welcome message refresh, manual "drop a pin" editing).
-Phase: Not started (requirements + roadmap pass next).
+Active milestone: **v2.2 Travel Agent Polish** (started 2026-04-25). Marquee work: Google Places API geocoding for trip decisions, drop-a-pin dashboard editing, group↔trip linking, welcome message refresh.
+Phase: **56 — Google Places Geocoding** — Not started.
 Plan: —
-Status: Defining requirements
-Last activity: 2026-04-25 — Milestone v2.2 started after v2.1 squash-merged to main and pushed.
+Status: Roadmap defined. Ready to plan Phase 56.
+Last activity: 2026-04-25 — v2.2 roadmap created (Phases 56-59); ready to begin Phase 56 planning.
 
 ### v2.1 Travel Agent Upgrade — COMPLETE (closed 2026-04-25, squash-merged to origin/main as `baa8908`)
 

@@ -13,7 +13,8 @@
 - [x] **v1.8 Task Approval & Context Enrichment** — Phases 39-43 (shipped 2026-04-20) — [archive](milestones/v1.8-ROADMAP.md)
 - [x] **v1.9 Dashboard Expansion** — Phases 44-49 (shipped 2026-04-23) — [archive](milestones/v1.9-ROADMAP.md)
 - [x] **v2.0 Dashboard UX Polish** — Phase 50+ (Phase 50 seeded 2026-04-20 as mobile UI polish) (completed 2026-04-20)
-- [ ] **v2.1 Travel Agent Upgrade** — Phases 51-55 (Phase 51 shipped 2026-04-24; Phases 52-55 pending) — design: `docs/superpowers/specs/2026-04-23-travel-agent-v2.1-design.md`
+- [x] **v2.1 Travel Agent Upgrade** — Phases 51-55 (shipped 2026-04-25) — design: `docs/superpowers/specs/2026-04-23-travel-agent-v2.1-design.md`
+- [ ] **v2.2 Travel Agent Polish** — Phases 56-59 (started 2026-04-25)
 
 ## Phases
 
@@ -136,6 +137,16 @@
 - [x] **Phase 53: Smarter Search (Restaurants)** — New `queryType='restaurants'` branch, Gemini Maps enriched fields (photo, open_now, price, cuisine, reservation_url), compact formatter (completed 2026-04-24)
 - [x] **Phase 54: Proactive Day-Of Intelligence** — 15-min cron, 08:00 destination-tz briefing (day-before-travel through end_date), OpenWeather + Gemini grounded transit alerts + calendar + open questions + conflicts + budget burn, minimal fallback on failure (completed 2026-04-24)
 - [x] **Phase 55: Trip Dashboard View** — `/trips/:groupJid` with header/timeline/Leaflet map/decisions board/budget bar/open questions/conflicts, minimal-edit (delete decision, resolve question, edit budget), Google Doc export (completed 2026-04-25)
+
+### v2.2 Travel Agent Polish (PLANNING 2026-04-25)
+
+**Milestone Goal:** Deepen the Google Maps integration shipped as static links in v2.1 (real Places API + geocoding), close v2.1 follow-up surface gaps (manual "drop a pin" editing, group↔trip linking), and refresh the welcome/help message to cover the full v2.1 user-facing surface.
+
+- [ ] **Phase 56: Google Places Geocoding** — Server-side Places API integration: auto-geocode new decisions at classification time, one-time backfill job for existing rows, place metadata shown inline on the dashboard
+- [ ] **Phase 57: Drop-a-Pin Dashboard Editing** — Places autocomplete picker to pin/re-pin a decision's lat/lng + place_id + address from the dashboard; live SSE update of map pin and badge
+- [ ] **Phase 58: Group↔Trip Linking** — First-class dashboard flow to link/unlink a WhatsApp group to a trip context; atomic relinking of groupJid + decisions + calendar_events
+- [ ] **Phase 59: Welcome Message Refresh** — Bilingual welcome/help message covering all v2.1 user-facing triggers; idiomatic Hebrew per project bilingual-style memory
+
 
 ## Phase Details
 
@@ -451,6 +462,55 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 53. Smarter Search (Restaurants) | 2/2 | Complete    | 2026-04-24 | — |
 | 54. Proactive Day-Of Intelligence | 5/5 | Complete    | 2026-04-24 | — |
 | 55. Trip Dashboard View | 5/5 | Complete    | 2026-04-25 | — |
+| 56. Google Places Geocoding | v2.2 | 0/TBD | Not started | — |
+| 57. Drop-a-Pin Dashboard Editing | v2.2 | 0/TBD | Not started | — |
+| 58. Group↔Trip Linking | v2.2 | 0/TBD | Not started | — |
+| 59. Welcome Message Refresh | v2.2 | 0/TBD | Not started | — |
+
+### Phase 56: Google Places Geocoding
+**Goal:** Every new trip decision is automatically geocoded server-side via Google Places API at classification time; existing un-geocoded decisions are backfilled on demand; the dashboard shows place metadata inline when available.
+**Depends on:** Phase 55 (trip dashboard + trip_decisions schema)
+**Requirements:** MAPS-01, MAPS-02, MAPS-03
+**Success Criteria:**
+  1. A new trip decision classified from chat/voice/image has `place_id`, canonical address, lat, and lng populated on the `trip_decisions` row within seconds, without re-fetching rows that already carry a `place_id`
+  2. The backfill job processes every existing un-geocoded decision row, emitting a per-row outcome (`geocoded` / `no_match` / `error`), and is idempotent and rate-limited so it can be re-run safely
+  3. Dashboard decision rows that have Places metadata (rating, types, opening_now) show it inline; rows without metadata display unchanged — no styling regression
+  4. The `GOOGLE_PLACES_API_KEY` env var is read server-side only and never reaches the dashboard bundle; the existing GCP project 81921508668 is used
+  5. The migration follows the hand-written ALTER TABLE pattern (no trailing `--> statement-breakpoint`)
+**Plans:** TBD
+
+### Phase 57: Drop-a-Pin Dashboard Editing
+**Goal:** From the trip dashboard, the owner can pin (or re-pin) any decision's location using a Places autocomplete picker — resolving the "N decisions not on map" badge into a first-class editing action.
+**Depends on:** Phase 56 (Places API wired server-side)
+**Requirements:** DASH-TRIP-04
+**Success Criteria:**
+  1. Clicking the "pin" action on an un-geocoded decision (or the "N decisions not on map" badge) opens a Places autocomplete picker
+  2. Selecting a place writes lat/lng + place_id + canonical address to the decision row via a JWT-gated route
+  3. The Leaflet map pin and the "N decisions not on map" badge update live across all SSE-connected sessions within ~3s of the write
+  4. The optimistic update reverts on server error; archived trip decisions are read-only and the pin action is suppressed
+**Plans:** TBD
+
+### Phase 58: Group↔Trip Linking
+**Goal:** The owner can link or unlink a WhatsApp group to a trip context from the dashboard in a single action, making the today-a-manual-sqlite-UPDATE workflow first-class. Relinking moves all associated data atomically.
+**Depends on:** Phase 55 (trip dashboard + /api/trips/* routes)
+**Requirements:** TRIP-LINK-01
+**Success Criteria:**
+  1. The trip detail page shows the currently linked group (JID + display name if known) and exposes a Link/Unlink control
+  2. Linking a group writes `trip_contexts.groupJid`; relinking atomically moves the context row, all `trip_decisions` rows, and all `calendar_events` for that trip to the new groupJid in a single DB transaction
+  3. The operation is idempotent — linking a group already linked to this trip is a no-op
+  4. Archived trips are read-only: the link/unlink control is suppressed and the route returns 403
+**Plans:** TBD
+
+### Phase 59: Welcome Message Refresh
+**Goal:** The bot's welcome/help message — posted on first add to a `travelBotActive` group and as the non-travel @mention fallback — covers every v2.1 user-facing trigger in bilingual idiomatic Hebrew/English.
+**Depends on:** Phase 56, Phase 57, Phase 58 (all v2.2 surfaces complete)
+**Requirements:** ONBOARD-01
+**Success Criteria:**
+  1. When the bot is added to a `travelBotActive` group, it posts a bilingual welcome message in that group covering: `!pref` / `!budget` / `!dates` self-report verbs, multimodal drops (images/PDFs), day-of briefing, dashboard `/trips/:groupJid` link, conflict-alert behavior
+  2. The same message is sent as the fallback response to a non-travel @mention in a group
+  3. The Hebrew side uses idiomatic everyday register per the project's bilingual-style memory (not transliterated English, no literary register)
+  4. Existing `travelBotActive` groups that are already active do not receive a re-onboarding flood — the message fires once per group lifecycle event
+**Plans:** TBD
 
 ### Phase 51: Richer Trip Memory
 **Goal:** `trip_decisions` carries per-person attribution, category, cost, conflicts_with, origin, metadata; `trip_contexts` carries dates, per-category budget, calendar_id, status, briefing_time; classifier extracts the new fields; conflict detector runs after every decision insert; daily 02:00 cron auto-archives trips where `now > end_date + 3d`.
