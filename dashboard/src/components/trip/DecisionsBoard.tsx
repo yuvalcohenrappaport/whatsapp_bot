@@ -14,7 +14,7 @@
  * Scroll-to-row: rows have id="decision-{id}" — TripView handles the actual scroll.
  */
 import { useState } from 'react';
-import { Trash2, AlertTriangle, Undo2, MapPin, Star, Circle } from 'lucide-react';
+import { Trash2, AlertTriangle, Undo2, MapPin, MapPlus, Star, Circle } from 'lucide-react';
 import type { TripDecision, DecisionOrigin } from '@/api/tripSchemas';
 import { parsePlaceMetadata } from '@/api/tripSchemas';
 import { cn } from '@/lib/utils';
@@ -28,6 +28,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { PinDecisionPicker, type PinSaveInput } from './PinDecisionPicker';
 
 // ─── Origin chip config ───────────────────────────────────────────────────────
 
@@ -43,6 +44,8 @@ const ORIGIN_LABELS: Record<DecisionOrigin, string> = {
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface DecisionsBoardProps {
+  /** Group JID — needed by PinDecisionPicker for autocomplete + preview + save calls */
+  groupJid: string;
   /** Full decision list including deleted rows */
   decisions: TripDecision[];
   filteredOrigins: Set<DecisionOrigin>;
@@ -50,6 +53,14 @@ interface DecisionsBoardProps {
   onDeleteDecision: (id: string) => void;
   onRestoreDecision: (id: string) => void;
   readOnly: boolean;
+  /** Currently-open pin picker (null when none open). Lifted to TripView. */
+  activePinPickerId: string | null;
+  /** Open the picker for this decision id. */
+  onOpenPicker: (decisionId: string) => void;
+  /** Close any open picker. */
+  onCancelPicker: () => void;
+  /** Save callback wired to useTrip.mutations.pinDecision via TripView. Promise<boolean>. */
+  onSavePin: (decisionId: string, input: PinSaveInput) => Promise<boolean>;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -66,12 +77,17 @@ function parseConflicts(raw: string): string[] {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function DecisionsBoard({
+  groupJid,
   decisions,
   filteredOrigins,
   onFilteredOriginsChange,
   onDeleteDecision,
   onRestoreDecision,
   readOnly,
+  activePinPickerId,
+  onOpenPicker,
+  onCancelPicker,
+  onSavePin,
 }: DecisionsBoardProps) {
   const [showDeleted, setShowDeleted] = useState(false);
   const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -218,8 +234,8 @@ export function DecisionsBoard({
                   const isNoMatch = d.lookupStatus === 'no_match';
 
                   return (
+                    <div key={d.id} className="relative">
                     <div
-                      key={d.id}
                       id={`decision-${d.id}`}
                       className={cn(
                         'flex items-start gap-3 px-4 py-3 transition-colors',
@@ -326,6 +342,22 @@ export function DecisionsBoard({
                           </Button>
                         )}
 
+                        {/* Pin button — hidden on archived (readOnly) trips per CONTEXT lock */}
+                        {!readOnly && !isDeleted && (
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            onClick={() => onOpenPicker(d.id)}
+                            className={cn(
+                              'text-muted-foreground hover:text-emerald-600',
+                              activePinPickerId === d.id && 'text-emerald-600',
+                            )}
+                            title={d.placeId ? 'Re-pin location' : 'Pin location'}
+                          >
+                            <MapPlus size={14} />
+                          </Button>
+                        )}
+
                         {/* Delete button */}
                         {!readOnly && (
                           <Button
@@ -340,6 +372,18 @@ export function DecisionsBoard({
                           </Button>
                         )}
                       </div>
+                    </div>
+                    {activePinPickerId === d.id && !readOnly && (
+                      <div className="px-4 pb-3">
+                        <PinDecisionPicker
+                          groupJid={groupJid}
+                          decisionId={d.id}
+                          decisionTitle={d.value}
+                          onSave={(input) => onSavePin(d.id, input)}
+                          onCancel={onCancelPicker}
+                        />
+                      </div>
+                    )}
                     </div>
                   );
                 })}

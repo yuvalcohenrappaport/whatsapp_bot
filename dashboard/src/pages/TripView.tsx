@@ -91,6 +91,7 @@ export default function TripView() {
         />
 
         <DecisionsBoard
+          groupJid={groupJid!}
           // Full list — board has its own Show-deleted toggle
           decisions={bundle.decisions}
           filteredOrigins={filteredOrigins}
@@ -98,6 +99,10 @@ export default function TripView() {
           onDeleteDecision={mutations.deleteDecision}
           onRestoreDecision={mutations.restoreDecision}
           readOnly={bundle.readOnly}
+          activePinPickerId={null}
+          onOpenPicker={() => {}}
+          onCancelPicker={() => {}}
+          onSavePin={async () => false}
         />
 
         <OpenQuestions
