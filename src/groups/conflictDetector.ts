@@ -5,6 +5,7 @@ import {
   getDecisionsByGroup,
   updateDecisionConflicts,
 } from '../db/queries/tripMemory.js';
+import { runGeocodeAfterInsert } from '../integrations/placesGeocode.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
 
@@ -220,6 +221,13 @@ export async function runAfterInsert(
         );
       }
     }
+
+    // Phase 56 — Google Places geocoding hook. Fire-and-forget so a slow
+    // Places API call never holds the conflict-detection path open. The
+    // helper itself never throws.
+    runGeocodeAfterInsert(groupJid, newDecisionId).catch((err) => {
+      logger.error({ err, groupJid, newDecisionId }, 'runGeocodeAfterInsert escaped (should never happen)');
+    });
   } catch (err) {
     logger.error(
       { err, groupJid, newDecisionId },

@@ -33,6 +33,12 @@ vi.mock('../../api/state.js', () => ({
   getState: () => ({ sock: { sendMessage } }),
 }));
 
+// Phase 56 — stub geocoding hook so conflict tests stay self-contained and
+// don't require a real Places API key or network access.
+vi.mock('../../integrations/placesGeocode.js', () => ({
+  runGeocodeAfterInsert: vi.fn().mockResolvedValue(undefined),
+}));
+
 const { insertTripDecision } = await import('../../db/queries/tripMemory.js');
 const { runAfterInsert, analyzeConflict, classifyConflict, parseDecision } =
   await import('../conflictDetector.js');
