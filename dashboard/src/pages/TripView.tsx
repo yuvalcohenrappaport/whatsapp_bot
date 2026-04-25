@@ -11,10 +11,11 @@
  * Scroll-to-row: handleMarkerClick(id) scrolls #decision-{id} into view and
  * briefly applies a ring-2 ring-emerald-500 highlight for ~1500ms via DOM class toggle.
  */
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTrip } from '@/hooks/useTrip';
 import type { DecisionOrigin } from '@/api/tripSchemas';
+import type { PinSaveInput } from '@/components/trip/PinDecisionPicker';
 
 import { TripHeader } from '@/components/trip/TripHeader';
 import { Timeline } from '@/components/trip/Timeline';
@@ -36,6 +37,10 @@ export default function TripView() {
     new Set(ALL_ORIGINS),
   );
 
+  // Active pin picker state — single-row-edit invariant. Lifted to TripView so
+  // TripMap's badge click can also open a picker (badge → first un-geocoded row).
+  const [activePinPickerId, setActivePinPickerId] = useState<string | null>(null);
+
   // ─── Scroll-to-decision-row ────────────────────────────────────────────────
   const handleMarkerClick = (decisionId: string) => {
     const el = document.getElementById(`decision-${decisionId}`);
@@ -47,6 +52,40 @@ export default function TripView() {
       el.classList.remove('ring-2', 'ring-emerald-500', 'rounded-md');
     }, 1500);
   };
+
+  // ─── Save handler — wraps useTrip.mutations.pinDecision ────────────────────
+  // Plan 03 contract: mutations.pinDecision returns Promise<boolean>.
+  //   true  → success (toast + canonical row replaced optimistic in the hook)
+  //   false → failure (toast already fired in hook; picker shows inline error per D11)
+  // Pass the boolean back unchanged so PinDecisionPicker can drive its own
+  // inline 'Pin failed — try again' UI when ok===false.
+  const handleSavePin = useCallback(
+    async (decisionId: string, input: PinSaveInput): Promise<boolean> => {
+      return mutations.pinDecision(decisionId, input.optimistic, {
+        placeId: input.placeId,
+        sessionToken: input.sessionToken,
+        languageCode: input.languageCode,
+      });
+    },
+    [mutations],
+  );
+
+  // ─── Badge click handler — scroll to first un-geocoded row + open picker ───
+  const handleBadgeClick = useCallback(() => {
+    if (!bundle) return;
+    // First un-geocoded ACTIVE decision (CONTEXT-locked: badge click lands the
+    // user on a specific row, never a decision-less picker).
+    const target = bundle.decisions.find(
+      (d) => d.status === 'active' && (d.lat == null || d.lng == null),
+    );
+    if (!target) return;
+    setActivePinPickerId(target.id);
+    // Defer scroll until the picker has mounted (1 tick).
+    setTimeout(() => {
+      const el = document.getElementById(`decision-${target.id}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 50);
+  }, [bundle]);
 
   // ─── Loading / error states ────────────────────────────────────────────────
 
@@ -88,7 +127,8 @@ export default function TripView() {
           decisions={bundle.decisions.filter((d) => d.status === 'active')}
           filteredOrigins={filteredOrigins}
           onMarkerClick={handleMarkerClick}
-          onBadgeClick={null}
+          // D13 lock — archived dashboards get the unchanged informational variant
+          onBadgeClick={bundle.readOnly ? null : handleBadgeClick}
         />
 
         <DecisionsBoard
@@ -100,10 +140,10 @@ export default function TripView() {
           onDeleteDecision={mutations.deleteDecision}
           onRestoreDecision={mutations.restoreDecision}
           readOnly={bundle.readOnly}
-          activePinPickerId={null}
-          onOpenPicker={() => {}}
-          onCancelPicker={() => {}}
-          onSavePin={async () => false}
+          activePinPickerId={activePinPickerId}
+          onOpenPicker={(id) => setActivePinPickerId(id)}
+          onCancelPicker={() => setActivePinPickerId(null)}
+          onSavePin={handleSavePin}
         />
 
         <OpenQuestions
