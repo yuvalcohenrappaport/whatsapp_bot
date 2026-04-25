@@ -8,4 +8,3 @@
 -- block per repo convention (hand-written ALTER TABLE ADD COLUMN).
 
 ALTER TABLE `trip_contexts` ADD `metadata` text;
---> statement-breakpoint

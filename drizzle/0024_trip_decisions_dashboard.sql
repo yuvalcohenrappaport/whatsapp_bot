@@ -12,4 +12,3 @@ ALTER TABLE trip_decisions ADD COLUMN status text NOT NULL DEFAULT 'active';
 ALTER TABLE trip_decisions ADD COLUMN lat real;
 --> statement-breakpoint
 ALTER TABLE trip_decisions ADD COLUMN lng real;
---> statement-breakpoint
