@@ -52,6 +52,11 @@ import {
 import { db } from '../../db/client.js';
 import { tripDecisions } from '../../db/schema.js';
 import { and, eq } from 'drizzle-orm';
+import {
+  exportTripToGoogleDoc,
+  MissingDocsScopeError,
+  type TripExportInput,
+} from '../../integrations/googleDocsExport.js';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -371,6 +376,59 @@ export default async function tripsRoutes(
         clearInterval(pollInterval);
         clearInterval(heartbeatInterval);
       });
+    },
+  );
+
+  // ─── POST /api/trips/:groupJid/export ─────────────────────────────────
+  fastify.post<{ Params: { groupJid: string } }>(
+    '/api/trips/:groupJid/export',
+    { onRequest: [fastify.authenticate] },
+    async (request, reply) => {
+      const { groupJid } = request.params;
+      const bundle = getTripBundle(groupJid);
+      if (!bundle) return reply.status(404).send({ error: 'Trip not found' });
+
+      const input: TripExportInput = {
+        destination: bundle.context?.destination ?? null,
+        startDate: bundle.context?.startDate ?? null,
+        endDate: bundle.context?.endDate ?? null,
+        decisions: bundle.decisions.map((d) => ({
+          id: d.id,
+          type: d.type,
+          value: d.value,
+          category: d.category,
+          costAmount: d.costAmount,
+          costCurrency: d.costCurrency,
+          origin: d.origin,
+          status: d.status,
+          metadata: d.metadata,
+        })),
+        openQuestions: bundle.openQuestions.map((q) => ({
+          id: q.id,
+          value: q.value,
+          resolved: q.resolved,
+        })),
+        calendarEvents: bundle.calendarEvents.map((e) => ({
+          id: e.id,
+          title: e.title,
+          eventDate: e.eventDate,
+        })),
+        budget: bundle.budget,
+      };
+
+      try {
+        const { url } = await exportTripToGoogleDoc(input);
+        return { url };
+      } catch (err) {
+        if (err instanceof MissingDocsScopeError) {
+          return reply.status(412).send({
+            error: 'Google Docs scope missing',
+            action: 'Visit /integrations and re-authorize Google to grant the documents scope',
+          });
+        }
+        fastify.log.error({ err, groupJid }, '[trips/export] failed');
+        return reply.status(500).send({ error: 'Export failed', detail: String(err) });
+      }
     },
   );
 }

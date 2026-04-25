@@ -22,6 +22,7 @@ import { TripMap } from '@/components/trip/TripMap';
 import { DecisionsBoard } from '@/components/trip/DecisionsBoard';
 import { OpenQuestions } from '@/components/trip/OpenQuestions';
 import { BudgetBar } from '@/components/trip/BudgetBar';
+import { ExportButton } from '@/components/trip/ExportButton';
 
 const ALL_ORIGINS: DecisionOrigin[] = ['multimodal', 'inferred', 'self_reported', 'dashboard'];
 
@@ -72,6 +73,10 @@ export default function TripView() {
         sseStatus={sseStatus}
         readOnly={bundle.readOnly}
       />
+
+      <div className="container mx-auto px-6 pt-4 flex justify-end">
+        <ExportButton groupJid={groupJid!} />
+      </div>
 
       <main className="container mx-auto px-6 py-6 space-y-10">
         <Timeline events={bundle.calendarEvents} />
