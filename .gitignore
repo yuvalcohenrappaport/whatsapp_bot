@@ -15,3 +15,6 @@ test-stats.ts
 VISUALIZATION.html
 WhatsApp Chat with *.txt
 .planning/
+tsconfig.tsbuildinfo
+nohup.out
+**/nohup.out
