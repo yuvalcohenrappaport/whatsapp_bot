@@ -53,6 +53,14 @@ const mockUpdateBudgetByCategory = vi.fn<
   transit: 0, shopping: 0, other: 0,
 }));
 
+// Phase 57 Plan 02 — drop-a-pin mocks
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockAutocompletePlaces = vi.fn<(...args: any[]) => Promise<unknown[]>>();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockFetchPlaceDetails = vi.fn<(...args: any[]) => Promise<unknown>>();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockPinDecision = vi.fn<(...args: any[]) => unknown>();
+
 // NOTE: Mock paths are relative to THIS test file (src/api/routes/__tests__/).
 // The route at src/api/routes/trips.ts imports from ../../db/... which resolves
 // to src/db/... — so the mock paths here must also resolve to src/db/...
@@ -68,9 +76,40 @@ vi.mock('../../../db/queries/tripMemory.js', () => ({
     jid: string,
     patch: Record<string, number>,
   ) => mockUpdateBudgetByCategory(jid, patch),
+  // Phase 56 — backfill route helpers (route uses them; tests don't assert)
+  updateDecisionGeocode: () => undefined,
+  getDecisionsForBackfill: () => [],
+  // Phase 57 Plan 02 — drop-a-pin pin write helper
+  pinDecision: (...args: unknown[]) => mockPinDecision(...args),
   TRIP_CATEGORIES: [
     'flights', 'lodging', 'food', 'activities', 'transit', 'shopping', 'other',
   ],
+}));
+
+// Phase 57 Plan 02 — Places Autocomplete + Place Details client mock.
+// Re-export a real PlacesAutocompleteError class so the route's `instanceof`
+// checks still match thrown errors from the mocked functions.
+vi.mock('../../../integrations/placesAutocomplete.js', () => {
+  class PlacesAutocompleteError extends Error {
+    status: number;
+    constructor(status: number, message: string) {
+      super(message);
+      this.name = 'PlacesAutocompleteError';
+      this.status = status;
+    }
+  }
+  return {
+    PlacesAutocompleteError,
+    autocompletePlaces: (...args: unknown[]) => mockAutocompletePlaces(...args),
+    fetchPlaceDetails: (...args: unknown[]) => mockFetchPlaceDetails(...args),
+  };
+});
+
+// Phase 56 — placesGeocode is imported by the backfill route. We don't assert
+// against it in this file, so a no-op mock is enough to prevent the real
+// module from initializing on import.
+vi.mock('../../../integrations/placesGeocode.js', () => ({
+  geocodeDecision: vi.fn(async () => null),
 }));
 
 // Mock db + schema so the route's inline SELECT (existence check) is intercepted
@@ -119,6 +158,13 @@ const { default: tripsRoutes, hashTripBundle } = await import(
 
 // Import MissingDocsScopeError AFTER the mock so we get the mocked class
 const { MissingDocsScopeError } = await import('../../../integrations/googleDocsExport.js');
+
+// Import PlacesAutocompleteError AFTER the mock so we get the mocked class —
+// the route checks `instanceof PlacesAutocompleteError` against the same
+// constructor the mock module exports.
+const { PlacesAutocompleteError } = await import(
+  '../../../integrations/placesAutocomplete.js'
+);
 
 // ─── Fixtures ───────────────────────────────────────────────────────────────
 
@@ -943,5 +989,489 @@ describe('9. hashTripBundle', () => {
     const b1 = fixtureBundle({ readOnly: false });
     const b2 = fixtureBundle({ readOnly: true });
     expect(hashTripBundle(b1)).not.toBe(hashTripBundle(b2));
+  });
+});
+
+// ─── 12. GET /api/trips/:groupJid/autocomplete-places (Phase 57 Plan 02) ─────
+
+describe('12. GET /api/trips/:groupJid/autocomplete-places', () => {
+  let server: FastifyInstance;
+
+  beforeEach(async () => {
+    server = await buildServer(true, true);
+    mockGetTripBundle.mockReset();
+    mockAutocompletePlaces.mockReset();
+  });
+
+  afterEach(async () => {
+    await server.close();
+  });
+
+  it('401 without Authorization header', async () => {
+    const noAuthServer = await buildServer(false, false);
+    const res = await noAuthServer.inject({
+      method: 'GET',
+      url: '/api/trips/grp-1@g.us/autocomplete-places?q=flore&sessionToken=tok-uuid',
+    });
+    expect(res.statusCode).toBe(401);
+    expect(mockAutocompletePlaces).not.toHaveBeenCalled();
+    await noAuthServer.close();
+  });
+
+  it('404 for unknown trip (anti-leak)', async () => {
+    mockGetTripBundle.mockReturnValueOnce(null);
+    const res = await server.inject({
+      method: 'GET',
+      url: '/api/trips/unknown@g.us/autocomplete-places?q=flore&sessionToken=tok-uuid',
+    });
+    expect(res.statusCode).toBe(404);
+    expect(mockAutocompletePlaces).not.toHaveBeenCalled();
+  });
+
+  it('400 when q is missing', async () => {
+    mockGetTripBundle.mockReturnValueOnce(fixtureBundle());
+    const res = await server.inject({
+      method: 'GET',
+      url: '/api/trips/grp-1@g.us/autocomplete-places?sessionToken=tok-uuid',
+    });
+    expect(res.statusCode).toBe(400);
+    expect(mockAutocompletePlaces).not.toHaveBeenCalled();
+  });
+
+  it('400 when q is whitespace-only', async () => {
+    mockGetTripBundle.mockReturnValueOnce(fixtureBundle());
+    const res = await server.inject({
+      method: 'GET',
+      url: '/api/trips/grp-1@g.us/autocomplete-places?q=%20%20&sessionToken=tok-uuid',
+    });
+    expect(res.statusCode).toBe(400);
+    expect(mockAutocompletePlaces).not.toHaveBeenCalled();
+  });
+
+  it('400 when sessionToken is missing', async () => {
+    mockGetTripBundle.mockReturnValueOnce(fixtureBundle());
+    const res = await server.inject({
+      method: 'GET',
+      url: '/api/trips/grp-1@g.us/autocomplete-places?q=flore',
+    });
+    expect(res.statusCode).toBe(400);
+    expect(mockAutocompletePlaces).not.toHaveBeenCalled();
+  });
+
+  it('200 with { suggestions } on happy path (no languageCode)', async () => {
+    mockGetTripBundle.mockReturnValueOnce(fixtureBundle());
+    mockAutocompletePlaces.mockResolvedValueOnce([
+      { placeId: 'p1', primaryText: 'Café Flore', secondaryText: 'Paris' },
+    ]);
+
+    const res = await server.inject({
+      method: 'GET',
+      url: '/api/trips/grp-1@g.us/autocomplete-places?q=flore&sessionToken=tok-uuid',
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json<{ suggestions: Array<{ placeId: string; primaryText: string }> }>();
+    expect(body.suggestions).toHaveLength(1);
+    expect(body.suggestions[0].placeId).toBe('p1');
+    expect(mockAutocompletePlaces).toHaveBeenCalledWith('flore', 'tok-uuid', undefined);
+  });
+
+  it('200 forwards languageCode=iw when query string supplies it', async () => {
+    mockGetTripBundle.mockReturnValueOnce(fixtureBundle());
+    mockAutocompletePlaces.mockResolvedValueOnce([
+      { placeId: 'p9', primaryText: 'בית קפה', secondaryText: 'תל אביב' },
+    ]);
+
+    const res = await server.inject({
+      method: 'GET',
+      url: '/api/trips/grp-1@g.us/autocomplete-places?q=%D7%91%D7%99%D7%AA&sessionToken=tok-uuid&languageCode=iw',
+    });
+    expect(res.statusCode).toBe(200);
+    expect(mockAutocompletePlaces).toHaveBeenCalledWith('בית', 'tok-uuid', 'iw');
+  });
+
+  it('412 when upstream throws PlacesAutocompleteError(412)', async () => {
+    mockGetTripBundle.mockReturnValueOnce(fixtureBundle());
+    mockAutocompletePlaces.mockRejectedValueOnce(
+      new PlacesAutocompleteError(412, 'GOOGLE_PLACES_API_KEY not configured'),
+    );
+
+    const res = await server.inject({
+      method: 'GET',
+      url: '/api/trips/grp-1@g.us/autocomplete-places?q=flore&sessionToken=tok-uuid',
+    });
+    expect(res.statusCode).toBe(412);
+    const body = res.json<{ error: string }>();
+    expect(body.error).toMatch(/GOOGLE_PLACES_API_KEY/);
+  });
+
+  it('502 when upstream throws PlacesAutocompleteError with non-412 status', async () => {
+    mockGetTripBundle.mockReturnValueOnce(fixtureBundle());
+    mockAutocompletePlaces.mockRejectedValueOnce(
+      new PlacesAutocompleteError(429, 'rate limit'),
+    );
+
+    const res = await server.inject({
+      method: 'GET',
+      url: '/api/trips/grp-1@g.us/autocomplete-places?q=flore&sessionToken=tok-uuid',
+    });
+    expect(res.statusCode).toBe(502);
+    const body = res.json<{ error: string; upstream: number }>();
+    expect(body.error).toBe('Places API error');
+    expect(body.upstream).toBe(429);
+  });
+});
+
+// ─── 13. GET /api/trips/:groupJid/place/:placeId (Phase 57 Plan 02 — D9) ─────
+
+describe('13. GET /api/trips/:groupJid/place/:placeId', () => {
+  let server: FastifyInstance;
+
+  beforeEach(async () => {
+    server = await buildServer(true, true);
+    mockGetTripBundle.mockReset();
+    mockFetchPlaceDetails.mockReset();
+  });
+
+  afterEach(async () => {
+    await server.close();
+  });
+
+  it('401 without Authorization header', async () => {
+    const noAuthServer = await buildServer(false, false);
+    const res = await noAuthServer.inject({
+      method: 'GET',
+      url: '/api/trips/grp-1@g.us/place/p1?sessionToken=tok-uuid',
+    });
+    expect(res.statusCode).toBe(401);
+    expect(mockFetchPlaceDetails).not.toHaveBeenCalled();
+    await noAuthServer.close();
+  });
+
+  it('404 for unknown trip', async () => {
+    mockGetTripBundle.mockReturnValueOnce(null);
+    const res = await server.inject({
+      method: 'GET',
+      url: '/api/trips/unknown@g.us/place/p1?sessionToken=tok-uuid',
+    });
+    expect(res.statusCode).toBe(404);
+    expect(mockFetchPlaceDetails).not.toHaveBeenCalled();
+  });
+
+  it('400 when sessionToken is missing', async () => {
+    mockGetTripBundle.mockReturnValueOnce(fixtureBundle());
+    const res = await server.inject({
+      method: 'GET',
+      url: '/api/trips/grp-1@g.us/place/p1',
+    });
+    expect(res.statusCode).toBe(400);
+    expect(mockFetchPlaceDetails).not.toHaveBeenCalled();
+  });
+
+  it('200 with placeId/lat/lng/canonicalAddress/metadata on happy path', async () => {
+    mockGetTripBundle.mockReturnValueOnce(fixtureBundle());
+    mockFetchPlaceDetails.mockResolvedValueOnce({
+      placeId: 'p1',
+      lat: 48.85,
+      lng: 2.34,
+      canonicalAddress: '6 Pl. St-Germain, Paris',
+      metadata: {
+        rating: 4.5,
+        userRatingCount: 1234,
+        openNow: true,
+        types: ['cafe'],
+        primaryType: 'cafe',
+        displayName: 'Café Flore',
+      },
+    });
+
+    const res = await server.inject({
+      method: 'GET',
+      url: '/api/trips/grp-1@g.us/place/p1?sessionToken=tok-uuid',
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json<{
+      placeId: string;
+      lat: number;
+      lng: number;
+      canonicalAddress: string;
+      metadata: { rating: number; displayName: string };
+    }>();
+    expect(body.placeId).toBe('p1');
+    expect(body.lat).toBe(48.85);
+    expect(body.lng).toBe(2.34);
+    expect(body.canonicalAddress).toBe('6 Pl. St-Germain, Paris');
+    expect(body.metadata.rating).toBe(4.5);
+    expect(body.metadata.displayName).toBe('Café Flore');
+    expect(mockFetchPlaceDetails).toHaveBeenCalledWith('p1', 'tok-uuid', undefined);
+  });
+
+  it('200 forwards languageCode=iw when query string supplies it', async () => {
+    mockGetTripBundle.mockReturnValueOnce(fixtureBundle());
+    mockFetchPlaceDetails.mockResolvedValueOnce({
+      placeId: 'p2',
+      lat: 32.07,
+      lng: 34.78,
+      canonicalAddress: 'דיזנגוף 99, תל אביב',
+      metadata: {
+        rating: null,
+        userRatingCount: null,
+        openNow: null,
+        types: ['restaurant'],
+        primaryType: 'restaurant',
+        displayName: 'מסעדה',
+      },
+    });
+
+    const res = await server.inject({
+      method: 'GET',
+      url: '/api/trips/grp-1@g.us/place/p2?sessionToken=tok-uuid&languageCode=iw',
+    });
+    expect(res.statusCode).toBe(200);
+    expect(mockFetchPlaceDetails).toHaveBeenCalledWith('p2', 'tok-uuid', 'iw');
+  });
+
+  it('502 when upstream throws PlacesAutocompleteError(429)', async () => {
+    mockGetTripBundle.mockReturnValueOnce(fixtureBundle());
+    mockFetchPlaceDetails.mockRejectedValueOnce(
+      new PlacesAutocompleteError(429, 'rate limit'),
+    );
+
+    const res = await server.inject({
+      method: 'GET',
+      url: '/api/trips/grp-1@g.us/place/p1?sessionToken=tok-uuid',
+    });
+    expect(res.statusCode).toBe(502);
+    const body = res.json<{ error: string; upstream: number }>();
+    expect(body.error).toBe('Places API error');
+    expect(body.upstream).toBe(429);
+  });
+});
+
+// ─── 14. PATCH /api/trips/:groupJid/decisions/:id/pin (Phase 57 D14) ─────────
+
+describe('14. PATCH /api/trips/:groupJid/decisions/:id/pin', () => {
+  let server: FastifyInstance;
+
+  // Sample valid PlaceDetailsResult — mockFetchPlaceDetails resolves with this
+  // on the happy paths; pinDecision then writes the same shape to the row.
+  const samplePlaceDetails = {
+    placeId: 'p2',
+    lat: 41.89,
+    lng: 12.49,
+    canonicalAddress: 'Piazza di Spagna, Roma',
+    metadata: {
+      rating: 4.8,
+      userRatingCount: 50_000,
+      openNow: true,
+      types: ['tourist_attraction'],
+      primaryType: 'tourist_attraction',
+      displayName: 'Piazza di Spagna',
+    },
+  };
+
+  function pinnedDecisionFixture(id = 'dec-1', placeId = 'p2') {
+    return {
+      id,
+      groupJid: 'grp-1@g.us',
+      type: 'accommodation' as const,
+      value: 'Hotel Roma',
+      confidence: 'high' as const,
+      sourceMessageId: null,
+      resolved: false,
+      createdAt: Date.now(),
+      proposedBy: null,
+      category: 'lodging' as const,
+      costAmount: 820,
+      costCurrency: 'EUR',
+      conflictsWith: '[]',
+      origin: 'self_reported' as const,
+      metadata: null,
+      archived: false,
+      status: 'active' as const,
+      lat: 41.89,
+      lng: 12.49,
+      placeId,
+    };
+  }
+
+  beforeEach(async () => {
+    server = await buildServer(true, true);
+    mockGetTripBundle.mockReset();
+    mockFetchPlaceDetails.mockReset();
+    mockPinDecision.mockReset();
+  });
+
+  afterEach(async () => {
+    await server.close();
+  });
+
+  it('401 without Authorization header', async () => {
+    const noAuthServer = await buildServer(false, false);
+    const res = await noAuthServer.inject({
+      method: 'PATCH',
+      url: '/api/trips/grp-1@g.us/decisions/dec-1/pin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ placeId: 'p1', sessionToken: 'tok-uuid' }),
+    });
+    expect(res.statusCode).toBe(401);
+    expect(mockFetchPlaceDetails).not.toHaveBeenCalled();
+    expect(mockPinDecision).not.toHaveBeenCalled();
+    await noAuthServer.close();
+  });
+
+  it('404 for unknown trip', async () => {
+    mockGetTripBundle.mockReturnValueOnce(null);
+    const res = await server.inject({
+      method: 'PATCH',
+      url: '/api/trips/unknown@g.us/decisions/dec-1/pin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ placeId: 'p1', sessionToken: 'tok-uuid' }),
+    });
+    expect(res.statusCode).toBe(404);
+    expect(mockPinDecision).not.toHaveBeenCalled();
+  });
+
+  it('403 on archived TRIP — distinct from archived-row 403', async () => {
+    mockGetTripBundle.mockReturnValueOnce(fixtureBundle({ readOnly: true }));
+    const res = await server.inject({
+      method: 'PATCH',
+      url: '/api/trips/archived-grp@g.us/decisions/dec-1/pin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ placeId: 'p1', sessionToken: 'tok-uuid' }),
+    });
+    expect(res.statusCode).toBe(403);
+    const body = res.json<{ error: string }>();
+    expect(body.error).toBe('Trip is archived');
+    expect(mockFetchPlaceDetails).not.toHaveBeenCalled();
+    expect(mockPinDecision).not.toHaveBeenCalled();
+  });
+
+  it('400 on invalid body (missing placeId + sessionToken)', async () => {
+    mockGetTripBundle.mockReturnValueOnce(fixtureBundle({ readOnly: false }));
+    const res = await server.inject({
+      method: 'PATCH',
+      url: '/api/trips/grp-1@g.us/decisions/dec-1/pin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    expect(res.statusCode).toBe(400);
+    expect(mockFetchPlaceDetails).not.toHaveBeenCalled();
+    expect(mockPinDecision).not.toHaveBeenCalled();
+  });
+
+  it("404 when pinDecision returns { ok: false, reason: 'missing' }", async () => {
+    mockGetTripBundle.mockReturnValueOnce(fixtureBundle({ readOnly: false }));
+    mockFetchPlaceDetails.mockResolvedValueOnce(samplePlaceDetails);
+    mockPinDecision.mockReturnValueOnce({ ok: false, reason: 'missing' });
+
+    const res = await server.inject({
+      method: 'PATCH',
+      url: '/api/trips/grp-1@g.us/decisions/ghost/pin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ placeId: 'p2', sessionToken: 'tok-uuid' }),
+    });
+    expect(res.statusCode).toBe(404);
+    const body = res.json<{ error: string }>();
+    expect(body.error).toBe('Decision not found');
+  });
+
+  it("404 when pinDecision returns { ok: false, reason: 'wrong-group' } (anti-leak — same message as missing)", async () => {
+    mockGetTripBundle.mockReturnValueOnce(fixtureBundle({ readOnly: false }));
+    mockFetchPlaceDetails.mockResolvedValueOnce(samplePlaceDetails);
+    mockPinDecision.mockReturnValueOnce({ ok: false, reason: 'wrong-group' });
+
+    const res = await server.inject({
+      method: 'PATCH',
+      url: '/api/trips/grp-1@g.us/decisions/dec-other-group/pin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ placeId: 'p2', sessionToken: 'tok-uuid' }),
+    });
+    expect(res.statusCode).toBe(404);
+    const body = res.json<{ error: string }>();
+    // Anti-leak: same message as 'missing' so callers can't distinguish
+    // "doesn't exist anywhere" from "exists in another group".
+    expect(body.error).toBe('Decision not found');
+  });
+
+  it("403 when pinDecision returns { ok: false, reason: 'archived' } (D14 — distinct from trip-level 403)", async () => {
+    mockGetTripBundle.mockReturnValueOnce(fixtureBundle({ readOnly: false }));
+    mockFetchPlaceDetails.mockResolvedValueOnce(samplePlaceDetails);
+    mockPinDecision.mockReturnValueOnce({ ok: false, reason: 'archived' });
+
+    const res = await server.inject({
+      method: 'PATCH',
+      url: '/api/trips/grp-1@g.us/decisions/dec-archived/pin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ placeId: 'p2', sessionToken: 'tok-uuid' }),
+    });
+    expect(res.statusCode).toBe(403);
+    const body = res.json<{ error: string }>();
+    expect(body.error).toBe('Decision is archived');
+  });
+
+  it('200 + { decision } on happy path — re-reads bundle for canonical row', async () => {
+    const pinnedRow = pinnedDecisionFixture('dec-1', 'p2');
+    mockGetTripBundle
+      .mockReturnValueOnce(fixtureBundle({ readOnly: false }))      // initial readOnly check
+      .mockReturnValueOnce(fixtureBundle({ decisions: [pinnedRow] })); // post-write re-read
+    mockFetchPlaceDetails.mockResolvedValueOnce(samplePlaceDetails);
+    mockPinDecision.mockReturnValueOnce({ ok: true });
+
+    const res = await server.inject({
+      method: 'PATCH',
+      url: '/api/trips/grp-1@g.us/decisions/dec-1/pin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        placeId: 'p2',
+        sessionToken: 'tok-uuid',
+        languageCode: 'en',
+      }),
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json<{ decision: typeof pinnedRow }>();
+    expect(body.decision).toBeDefined();
+    expect(body.decision.id).toBe('dec-1');
+    expect(body.decision.placeId).toBe('p2');
+    expect(body.decision.lat).toBe(41.89);
+    expect(body.decision.lng).toBe(12.49);
+    expect(mockFetchPlaceDetails).toHaveBeenCalledWith('p2', 'tok-uuid', 'en');
+    expect(mockPinDecision).toHaveBeenCalledWith('dec-1', 'grp-1@g.us', samplePlaceDetails);
+  });
+
+  it('502 when fetchPlaceDetails throws PlacesAutocompleteError(429) — pinDecision NOT called', async () => {
+    mockGetTripBundle.mockReturnValueOnce(fixtureBundle({ readOnly: false }));
+    mockFetchPlaceDetails.mockRejectedValueOnce(
+      new PlacesAutocompleteError(429, 'rate limit'),
+    );
+
+    const res = await server.inject({
+      method: 'PATCH',
+      url: '/api/trips/grp-1@g.us/decisions/dec-1/pin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ placeId: 'p2', sessionToken: 'tok-uuid' }),
+    });
+    expect(res.statusCode).toBe(502);
+    const body = res.json<{ error: string; upstream: number }>();
+    expect(body.error).toBe('Places API error');
+    expect(body.upstream).toBe(429);
+    expect(mockPinDecision).not.toHaveBeenCalled();
+  });
+
+  it('412 when fetchPlaceDetails throws PlacesAutocompleteError(412)', async () => {
+    mockGetTripBundle.mockReturnValueOnce(fixtureBundle({ readOnly: false }));
+    mockFetchPlaceDetails.mockRejectedValueOnce(
+      new PlacesAutocompleteError(412, 'no key'),
+    );
+
+    const res = await server.inject({
+      method: 'PATCH',
+      url: '/api/trips/grp-1@g.us/decisions/dec-1/pin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ placeId: 'p2', sessionToken: 'tok-uuid' }),
+    });
+    expect(res.statusCode).toBe(412);
+    const body = res.json<{ error: string }>();
+    expect(body.error).toMatch(/GOOGLE_PLACES_API_KEY/);
+    expect(mockPinDecision).not.toHaveBeenCalled();
   });
 });
