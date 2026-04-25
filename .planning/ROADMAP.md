@@ -142,7 +142,7 @@
 
 **Milestone Goal:** Deepen the Google Maps integration shipped as static links in v2.1 (real Places API + geocoding), close v2.1 follow-up surface gaps (manual "drop a pin" editing, group↔trip linking), and refresh the welcome/help message to cover the full v2.1 user-facing surface.
 
-- [ ] **Phase 56: Google Places Geocoding** — Server-side Places API integration: auto-geocode new decisions at classification time, one-time backfill job for existing rows, place metadata shown inline on the dashboard
+- [x] **Phase 56: Google Places Geocoding** — Server-side Places API integration: auto-geocode new decisions at classification time, one-time backfill job for existing rows, place metadata shown inline on the dashboard (completed 2026-04-25)
 - [ ] **Phase 57: Drop-a-Pin Dashboard Editing** — Places autocomplete picker to pin/re-pin a decision's lat/lng + place_id + address from the dashboard; live SSE update of map pin and badge
 - [ ] **Phase 58: Group↔Trip Linking** — First-class dashboard flow to link/unlink a WhatsApp group to a trip context; atomic relinking of groupJid + decisions + calendar_events
 - [ ] **Phase 59: Welcome Message Refresh** — Bilingual welcome/help message covering all v2.1 user-facing triggers; idiomatic Hebrew per project bilingual-style memory
@@ -477,7 +477,7 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
   3. Dashboard decision rows that have Places metadata (rating, types, opening_now) show it inline; rows without metadata display unchanged — no styling regression
   4. The `GOOGLE_PLACES_API_KEY` env var is read server-side only and never reaches the dashboard bundle; the existing GCP project 81921508668 is used
   5. The migration follows the hand-written ALTER TABLE pattern (no trailing `--> statement-breakpoint`)
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 ### Phase 57: Drop-a-Pin Dashboard Editing
 **Goal:** From the trip dashboard, the owner can pin (or re-pin) any decision's location using a Places autocomplete picker — resolving the "N decisions not on map" badge into a first-class editing action.
