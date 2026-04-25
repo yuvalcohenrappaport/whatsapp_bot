@@ -1,7 +1,39 @@
 # Requirements: WhatsApp Bot
 
-**Defined:** 2026-03-30 (v1.6) · updated 2026-04-20 (v1.9 + v2.0 seed)
+**Defined:** 2026-03-30 (v1.6) · updated 2026-04-25 (v2.1 backfill + v2.2)
 **Core Value:** The bot replies to WhatsApp messages in the user's authentic voice, so contacts can't tell the difference.
+
+## v2.2 Requirements
+
+Requirements for the **Travel Agent Polish** milestone. Deepens the Google Maps integration shipped as static links in v2.1 (real Places API + automatic geocoding), pulls the deferred "drop a pin" editing forward, makes group↔trip linking a first-class flow, and refreshes the bot's welcome / help text to cover the full v2.1 user-facing surface.
+
+### MAPS — Google Places geocoding
+
+- [ ] **MAPS-01**: New trip decisions are auto-geocoded server-side via Google Places API at classification time; `place_id`, canonical address, lat/lng, and lookup-status are cached on the `trip_decisions` row. Idempotent — never re-fetches a row that already has `place_id`.
+- [ ] **MAPS-02**: A one-time backfill job geocodes every existing `trip_decisions` row that lacks coordinates, idempotent and rate-limited; surfaces a per-row outcome (`geocoded` / `no_match` / `error`).
+- [ ] **MAPS-03**: Place metadata (rating, types, opening_now where available) is shown inline on the decision row in the dashboard when present; absent if the Places lookup didn't return it. No styling regression to existing rows that lack metadata.
+
+### DASH-TRIP — Trip dashboard editing (continues v2.1 DASH-TRIP-01..03)
+
+- [ ] **DASH-TRIP-04**: User can pin (set lat/lng + place_id + address) or re-pin an existing decision from the dashboard via a Places autocomplete picker; persists optimistically via a JWT-gated route; the map pin and the "N decisions not on map" badge update live across SSE-connected sessions within ~3 s.
+
+### TRIP-LINK — Group↔trip linking
+
+- [ ] **TRIP-LINK-01**: User can link or unlink a real WhatsApp group to a trip context from the dashboard via a single action; relinking moves `trip_contexts.groupJid`, all `trip_decisions` rows, and all `calendar_events` for that trip atomically. Idempotent; archived trips are read-only.
+
+### ONBOARD — Welcome / help refresh
+
+- [ ] **ONBOARD-01**: The bot's welcome / help message (posted on first add to a `travelBotActive` group, and as the fallback for non-travel @mentions) covers every v2.1 user-facing trigger — `!pref` / `!budget` / `!dates` self-report verbs, multimodal drops, day-of briefing, dashboard `/trips/:groupJid` link, conflict-alert behavior. Bilingual he/en; idiomatic Hebrew per the project's bilingual-style memory.
+
+## v2.1 Requirements
+
+Requirements for the **Travel Agent Upgrade** milestone, retroactively captured (Phase 55 verifier flagged the missing entry — see `.planning/phases/55-trip-dashboard-view/55-VERIFICATION.md`). All requirements shipped 2026-04-25.
+
+### Dashboard Trip View
+
+- [x] **DASH-TRIP-01**: Dashboard renders a `/trips` list page (sidebar-navigable) and a `/trips/:groupJid` detail page combining trip context, timeline, Leaflet map of decisions, decisions board grouped by category, open-questions list, and budget bar. Archived trips render read-only.
+- [x] **DASH-TRIP-02**: Backend exposes `/api/trips/*` JWT-gated routes for list, full bundle, soft-delete decision, resolve open-question, edit budget, and restore deleted decision; SSE stream broadcasts `trip.updated` to every open session within ~3 s of any write.
+- [x] **DASH-TRIP-03**: One-click Export creates an owner-private Google Doc summarizing the trip via `googleDocsExport` module + `documents` + `drive.file` OAuth scopes; soft-deleted decisions excluded from the doc body.
 
 ## v2.0 Requirements
 
