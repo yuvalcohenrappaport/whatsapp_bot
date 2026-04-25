@@ -1,7 +1,7 @@
-import { and, eq, desc, sql } from 'drizzle-orm';
+import { and, eq, desc, ne, sql, gte, lte, asc } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { db } from '../client.js';
-import { tripArchive, tripContexts, tripDecisions } from '../schema.js';
+import { calendarEvents, tripArchive, tripContexts, tripDecisions } from '../schema.js';
 
 // Phase 51 v2.1 — category enum shared across the classifier, budget rollup,
 // and self-report commands. Enforced in the app layer (no CHECK constraint in
@@ -110,13 +110,21 @@ export function upsertTripContext(
 
 export function getDecisionsByGroup(
   groupJid: string,
-  typeOrOpts?: string | { type?: string; includeArchived?: boolean },
+  typeOrOpts?: string | { type?: string; includeArchived?: boolean; includeDeleted?: boolean },
 ) {
   // Backwards compat: old callers pass `type` as second positional arg.
   const opts =
     typeof typeOrOpts === 'string'
-      ? { type: typeOrOpts, includeArchived: false }
-      : { type: typeOrOpts?.type, includeArchived: typeOrOpts?.includeArchived ?? false };
+      ? { type: typeOrOpts, includeArchived: false, includeDeleted: false }
+      : {
+          type: typeOrOpts?.type,
+          includeArchived: typeOrOpts?.includeArchived ?? false,
+          // Phase 55: soft-deleted rows are hidden by default everywhere —
+          // getDecisionsByGroup, the map, and Google Docs export all use this
+          // default. Pass includeDeleted: true only for the dashboard's "Show
+          // deleted" toggle.
+          includeDeleted: typeOrOpts?.includeDeleted ?? false,
+        };
 
   const conditions = [eq(tripDecisions.groupJid, groupJid)];
   if (opts.type !== undefined) {
@@ -124,6 +132,9 @@ export function getDecisionsByGroup(
   }
   if (!opts.includeArchived) {
     conditions.push(eq(tripDecisions.archived, false));
+  }
+  if (!opts.includeDeleted) {
+    conditions.push(ne(tripDecisions.status, 'deleted'));
   }
 
   return db
@@ -257,6 +268,9 @@ export function getBudgetRollup(groupJid: string): BudgetRollup {
       and(
         eq(tripDecisions.groupJid, groupJid),
         eq(tripDecisions.archived, false),
+        // Phase 55: soft-deleted decisions are excluded from budget rollup —
+        // a deleted item should not count toward the trip's spending.
+        ne(tripDecisions.status, 'deleted'),
       ),
     )
     .groupBy(tripDecisions.category)
@@ -425,6 +439,290 @@ export function getActiveContextsForBriefing(): Array<{
     .from(tripContexts)
     .where(eq(tripContexts.status, 'active'))
     .all();
+}
+
+// ─── Phase 55 v2.1 dashboard helpers ────────────────────────────────────────
+
+/**
+ * Soft-delete a decision by setting status = 'deleted'.
+ * Does NOT remove the row — deleted rows are hidden from the default board view,
+ * the Leaflet map, and Google Docs export, but remain recoverable via the
+ * "Show deleted" dashboard toggle.
+ *
+ * Returns better-sqlite3's RunResult. Callers check `.changes` to detect
+ * a 404 case (changes === 0 means no row matched the id).
+ */
+export function softDeleteDecision(decisionId: string) {
+  return db
+    .update(tripDecisions)
+    .set({ status: 'deleted' })
+    .where(eq(tripDecisions.id, decisionId))
+    .run();
+}
+
+/**
+ * Shallow-merge a category→amount patch into the trip_context's
+ * budget_by_category JSON column. Non-finite numbers in patch are stripped.
+ *
+ * Returns the new merged budget object.
+ * Throws if no trip_context row exists for the group (route layer returns 404).
+ */
+export function updateBudgetByCategory(
+  groupJid: string,
+  patch: Partial<Record<TripCategory, number>>,
+): Record<TripCategory, number> {
+  const ctx = getTripContext(groupJid);
+  if (!ctx) {
+    throw new Error(`No trip_context found for group ${groupJid}`);
+  }
+
+  let existing: Partial<Record<TripCategory, number>> = {};
+  if (ctx.budgetByCategory) {
+    try {
+      existing = JSON.parse(ctx.budgetByCategory) as Partial<Record<TripCategory, number>>;
+    } catch {
+      // Malformed JSON → treat as empty
+    }
+  }
+
+  // Shallow-merge: caller-supplied keys win; non-finite values are stripped.
+  const merged: Record<string, number> = { ...existing };
+  for (const [key, val] of Object.entries(patch)) {
+    if (typeof val === 'number' && Number.isFinite(val)) {
+      merged[key] = val;
+    }
+  }
+
+  upsertTripContext(groupJid, { budgetByCategory: JSON.stringify(merged) });
+  return merged as Record<TripCategory, number>;
+}
+
+/** Shape returned by listTripsForDashboard. */
+export interface TripListEntry {
+  groupJid: string;
+  destination: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  /** 'active' | 'archived' from trip_contexts.status, or 'archived' for trip_archive rows */
+  status: string;
+  archivedAt: number | null;
+}
+
+/**
+ * Return all trips (active + archived) sorted upcoming-first then past then
+ * archive: rows with endDate >= today ASC by startDate, rows with
+ * endDate < today DESC by endDate, trip_archive rows DESC by archivedAt.
+ *
+ * Today is computed as YYYY-MM-DD in UTC (no luxon dependency).
+ */
+export function listTripsForDashboard(): TripListEntry[] {
+  const today = new Date().toISOString().slice(0, 10);
+
+  const activeRows: TripListEntry[] = db
+    .select({
+      groupJid: tripContexts.groupJid,
+      destination: tripContexts.destination,
+      startDate: tripContexts.startDate,
+      endDate: tripContexts.endDate,
+      status: tripContexts.status,
+    })
+    .from(tripContexts)
+    .all()
+    .map((r) => ({ ...r, archivedAt: null }));
+
+  const archiveRows: TripListEntry[] = db
+    .select({
+      groupJid: tripArchive.groupJid,
+      destination: tripArchive.destination,
+      startDate: tripArchive.startDate,
+      endDate: tripArchive.endDate,
+      archivedAt: tripArchive.archivedAt,
+    })
+    .from(tripArchive)
+    .all()
+    .map((r) => ({ ...r, status: 'archived' as const }));
+
+  // Split active rows into upcoming (endDate >= today or no endDate) and past
+  const upcoming: TripListEntry[] = [];
+  const past: TripListEntry[] = [];
+  for (const row of activeRows) {
+    if (!row.endDate || row.endDate >= today) {
+      upcoming.push(row);
+    } else {
+      past.push(row);
+    }
+  }
+
+  // Sort: upcoming ASC by startDate, past DESC by endDate, archive DESC by archivedAt
+  upcoming.sort((a, b) => {
+    const sa = a.startDate ?? '';
+    const sb = b.startDate ?? '';
+    return sa < sb ? -1 : sa > sb ? 1 : 0;
+  });
+  past.sort((a, b) => {
+    const ea = a.endDate ?? '';
+    const eb = b.endDate ?? '';
+    return ea > eb ? -1 : ea < eb ? 1 : 0;
+  });
+  archiveRows.sort((a, b) => {
+    const aa = a.archivedAt ?? 0;
+    const ab = b.archivedAt ?? 0;
+    return ab - aa;
+  });
+
+  return [...upcoming, ...past, ...archiveRows];
+}
+
+/** Row type returned from calendarEvents table queries. */
+type CalendarEventRow = typeof calendarEvents.$inferSelect;
+
+/** Full payload returned by getTripBundle for the dashboard GET /api/trips/:groupJid. */
+export interface TripBundle {
+  /** Trip context row (from trip_contexts or mapped from trip_archive). Null only when group not found anywhere. */
+  context: (typeof tripContexts.$inferSelect) | {
+    groupJid: string;
+    destination: string | null;
+    startDate: string | null;
+    endDate: string | null;
+    budgetByCategory: string;
+    status: string;
+    // trip_archive doesn't have all trip_contexts columns — fill others as null
+    dates: null;
+    contextSummary: null;
+    lastClassifiedAt: null;
+    updatedAt: number;
+    calendarId: string | null;
+    briefingTime: string | null;
+    metadata: null;
+  } | null;
+  /** True when context came from trip_archive (the trip is archived, no longer editable). */
+  readOnly: boolean;
+  /** All decisions for the group including deleted ones (use status field to distinguish). */
+  decisions: (typeof tripDecisions.$inferSelect)[];
+  /** Unresolved open_question decisions (non-deleted, non-archived). */
+  openQuestions: (typeof tripDecisions.$inferSelect)[];
+  /** Calendar events bounded by trip dates (or all events for the group if no dates). */
+  calendarEvents: CalendarEventRow[];
+  /** Per-category budget rollup. */
+  budget: BudgetRollup;
+}
+
+/**
+ * Return the full dashboard payload for a single trip group.
+ *
+ * Lookup order:
+ *   1. trip_contexts (active or soft-archived trip)
+ *   2. trip_archive (cron-archived trips → readOnly: true)
+ *   3. Neither found → return null (route responds 404)
+ *
+ * decisions includes both active AND deleted rows so the dashboard can render
+ * the "Show deleted" toggle. Use the `status` field to distinguish them.
+ * openQuestions filters out deleted + resolved + archived items.
+ * calendarEvents is windowed by trip's startDate/endDate when both are present.
+ */
+export function getTripBundle(groupJid: string): TripBundle | null {
+  // 1. Try active trip_contexts row
+  let ctx: TripBundle['context'] = getTripContext(groupJid) ?? null;
+  let readOnly = false;
+
+  // 2. Fall through to trip_archive if not in trip_contexts
+  if (!ctx) {
+    const archiveRow = db
+      .select()
+      .from(tripArchive)
+      .where(eq(tripArchive.groupJid, groupJid))
+      .get();
+
+    if (!archiveRow) return null; // Unknown group — route returns 404
+
+    // Map archive row to context-like shape (only fields the FE needs)
+    ctx = {
+      groupJid: archiveRow.groupJid,
+      destination: archiveRow.destination,
+      startDate: archiveRow.startDate,
+      endDate: archiveRow.endDate,
+      budgetByCategory: archiveRow.budgetByCategory,
+      status: archiveRow.status, // 'archived'
+      dates: null,
+      contextSummary: null,
+      lastClassifiedAt: null,
+      updatedAt: archiveRow.updatedAt,
+      calendarId: archiveRow.calendarId,
+      briefingTime: archiveRow.briefingTime,
+      metadata: null,
+    };
+    readOnly = true;
+  }
+
+  // Decisions: include all rows (active + deleted + archived for archive view)
+  // The dashboard "Show deleted" toggle distinguishes by status field.
+  const isArchived = readOnly;
+  const decisions = db
+    .select()
+    .from(tripDecisions)
+    .where(
+      and(
+        eq(tripDecisions.groupJid, groupJid),
+        // For archived trips show all rows including archived:true ones
+        // (they were moved to archived by the cron, still belong to this trip)
+        isArchived ? undefined : eq(tripDecisions.archived, false),
+      ),
+    )
+    .orderBy(desc(tripDecisions.createdAt))
+    .all();
+
+  // Open questions: non-deleted, non-resolved, non-archived
+  const openQuestions = db
+    .select()
+    .from(tripDecisions)
+    .where(
+      and(
+        eq(tripDecisions.groupJid, groupJid),
+        eq(tripDecisions.type, 'open_question'),
+        eq(tripDecisions.resolved, false),
+        eq(tripDecisions.archived, false),
+        ne(tripDecisions.status, 'deleted'),
+      ),
+    )
+    .orderBy(desc(tripDecisions.createdAt))
+    .all();
+
+  // Calendar events: bounded by trip dates when both present, else all for group
+  let events: CalendarEventRow[];
+  const startDate = ctx?.startDate;
+  const endDate = ctx?.endDate;
+  if (startDate && endDate) {
+    const startMs = new Date(startDate).getTime();
+    const endMs = new Date(endDate).getTime() + 86400000; // inclusive end day
+    events = db
+      .select()
+      .from(calendarEvents)
+      .where(
+        and(
+          eq(calendarEvents.groupJid, groupJid),
+          gte(calendarEvents.eventDate, startMs),
+          lte(calendarEvents.eventDate, endMs),
+        ),
+      )
+      .orderBy(asc(calendarEvents.eventDate))
+      .all();
+  } else {
+    events = db
+      .select()
+      .from(calendarEvents)
+      .where(eq(calendarEvents.groupJid, groupJid))
+      .orderBy(asc(calendarEvents.eventDate))
+      .all();
+  }
+
+  return {
+    context: ctx,
+    readOnly,
+    decisions,
+    openQuestions,
+    calendarEvents: events,
+    budget: getBudgetRollup(groupJid),
+  };
 }
 
 export function searchGroupMessages(
