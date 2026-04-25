@@ -43,6 +43,7 @@ import {
   getTripBundle,
   listTripsForDashboard,
   softDeleteDecision,
+  restoreDecision,
   resolveOpenItem,
   updateBudgetByCategory,
   TRIP_CATEGORIES,
@@ -169,6 +170,49 @@ export default async function tripsRoutes(
 
       // Soft-delete is idempotent — already-deleted rows still get 204
       softDeleteDecision(id);
+      return reply.status(204).send();
+    },
+  );
+
+  // ─── POST /api/trips/:groupJid/decisions/:id/restore ─────────────────
+  fastify.post<{ Params: { groupJid: string; id: string } }>(
+    '/api/trips/:groupJid/decisions/:id/restore',
+    { onRequest: [fastify.authenticate] },
+    async (request, reply) => {
+      const { groupJid, id } = request.params;
+
+      // 403 guard — archived trips are read-only
+      const bundle = getTripBundle(groupJid);
+      if (bundle?.readOnly) {
+        return reply
+          .status(403)
+          .send({ error: 'Archived trip is read-only' });
+      }
+      // 404 if trip itself not found
+      if (!bundle) {
+        return reply.status(404).send({ error: 'Trip not found' });
+      }
+
+      // Existence check: must belong to this group (anti-leak: don't reveal
+      // whether a decision ID exists in a different group)
+      const row = db
+        .select()
+        .from(tripDecisions)
+        .where(
+          and(
+            eq(tripDecisions.id, id),
+            eq(tripDecisions.groupJid, groupJid),
+          ),
+        )
+        .get();
+
+      if (!row) {
+        return reply.status(404).send({ error: 'Decision not found' });
+      }
+
+      // Restore is idempotent — already-active rows return changes:0 but
+      // the route still returns 204 (caller can treat it as a no-op success).
+      restoreDecision(id, groupJid);
       return reply.status(204).send();
     },
   );

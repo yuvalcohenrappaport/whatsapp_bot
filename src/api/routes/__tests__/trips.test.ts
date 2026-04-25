@@ -44,6 +44,7 @@ import type { TripBundle, TripListEntry, BudgetRollup } from '../../../db/querie
 const mockListTrips = vi.fn<() => TripListEntry[]>(() => []);
 const mockGetTripBundle = vi.fn<(groupJid: string) => TripBundle | null>(() => null);
 const mockSoftDeleteDecision = vi.fn<(id: string) => void>(() => undefined);
+const mockRestoreDecision = vi.fn<(id: string, groupJid: string) => { changes: number }>(() => ({ changes: 1 }));
 const mockResolveOpenItem = vi.fn<(id: string) => void>(() => undefined);
 const mockUpdateBudgetByCategory = vi.fn<
   (groupJid: string, patch: Record<string, number>) => Record<string, number>
@@ -61,6 +62,7 @@ vi.mock('../../../db/queries/tripMemory.js', () => ({
   listTripsForDashboard: () => mockListTrips(),
   getTripBundle: (jid: string) => mockGetTripBundle(jid),
   softDeleteDecision: (id: string) => mockSoftDeleteDecision(id),
+  restoreDecision: (id: string, groupJid: string) => mockRestoreDecision(id, groupJid),
   resolveOpenItem: (id: string) => mockResolveOpenItem(id),
   updateBudgetByCategory: (
     jid: string,
@@ -682,6 +684,100 @@ describe('8. Soft-delete propagation round-trip', () => {
     // deleted decision is still in the array (for "Show deleted" toggle) but flagged
     expect(after.decisions.find((d) => d.id === 'dec-1')?.status).toBe('deleted');
     expect(after.decisions).toHaveLength(2);
+  });
+});
+
+// ─── 10. POST /api/trips/:groupJid/decisions/:id/restore ─────────────────────
+
+describe('10. POST /api/trips/:groupJid/decisions/:id/restore', () => {
+  let server: FastifyInstance;
+
+  beforeEach(async () => {
+    server = await buildServer(true, true);
+    mockGetTripBundle.mockReset();
+    mockDbGet.mockReset();
+    mockRestoreDecision.mockReset();
+    mockRestoreDecision.mockReturnValue({ changes: 1 });
+  });
+
+  afterEach(async () => {
+    await server.close();
+  });
+
+  it('401 without auth', async () => {
+    const noAuthServer = await buildServer(false, false);
+    const res = await noAuthServer.inject({
+      method: 'POST',
+      url: '/api/trips/grp-1@g.us/decisions/dec-1/restore',
+    });
+    expect(res.statusCode).toBe(401);
+    await noAuthServer.close();
+  });
+
+  it('204 on happy path — restoreDecision called', async () => {
+    mockGetTripBundle.mockReturnValue(fixtureBundle({ readOnly: false }));
+    mockDbGet.mockReturnValueOnce({
+      ...fixtureDecisionRow('dec-1', 'grp-1@g.us'),
+      status: 'deleted',
+    });
+
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/trips/grp-1@g.us/decisions/dec-1/restore',
+    });
+    expect(res.statusCode).toBe(204);
+    expect(mockRestoreDecision).toHaveBeenCalledWith('dec-1', 'grp-1@g.us');
+  });
+
+  it('204 idempotent on already-active row (row exists, restore returns changes:0)', async () => {
+    mockGetTripBundle.mockReturnValue(fixtureBundle({ readOnly: false }));
+    // Row is active — existence check still finds it, restore is idempotent
+    mockDbGet.mockReturnValueOnce(fixtureDecisionRow('dec-1', 'grp-1@g.us'));
+    mockRestoreDecision.mockReturnValueOnce({ changes: 0 });
+
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/trips/grp-1@g.us/decisions/dec-1/restore',
+    });
+    expect(res.statusCode).toBe(204);
+    // restoreDecision is called — it's a no-op at the DB layer but route is 204
+    expect(mockRestoreDecision).toHaveBeenCalledWith('dec-1', 'grp-1@g.us');
+  });
+
+  it('403 on archived trip', async () => {
+    mockGetTripBundle.mockReturnValue(fixtureBundle({ readOnly: true }));
+
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/trips/archived-grp@g.us/decisions/dec-1/restore',
+    });
+    expect(res.statusCode).toBe(403);
+    expect(mockRestoreDecision).not.toHaveBeenCalled();
+  });
+
+  it('404 on unknown decision id (db returns undefined)', async () => {
+    mockGetTripBundle.mockReturnValue(fixtureBundle({ readOnly: false }));
+    mockDbGet.mockReturnValueOnce(undefined);
+
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/trips/grp-1@g.us/decisions/ghost-id/restore',
+    });
+    expect(res.statusCode).toBe(404);
+    expect(mockRestoreDecision).not.toHaveBeenCalled();
+  });
+
+  it('404 on decision belonging to wrong group (anti-leak)', async () => {
+    // WHERE clause uses id AND groupJid — different group means db returns no row
+    mockGetTripBundle.mockReturnValue(fixtureBundle({ readOnly: false }));
+    mockDbGet.mockReturnValueOnce(undefined); // row not found for wrong group
+
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/trips/wrong-grp@g.us/decisions/dec-1/restore',
+    });
+    expect(res.statusCode).toBe(404);
+    expect(mockRestoreDecision).not.toHaveBeenCalled();
   });
 });
 

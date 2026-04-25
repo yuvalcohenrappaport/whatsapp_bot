@@ -461,6 +461,32 @@ export function softDeleteDecision(decisionId: string) {
 }
 
 /**
+ * Restore a soft-deleted decision back to status='active'.
+ *
+ * Idempotent: if the row is already active (or doesn't exist), returns
+ * { changes: 0 }. The WHERE clause guards: id=? AND group_jid=? AND
+ * status='deleted' — so a row belonging to a different group or one that
+ * isn't deleted are both no-ops, not errors.
+ */
+export function restoreDecision(
+  decisionId: string,
+  groupJid: string,
+): { changes: number } {
+  const result = db
+    .update(tripDecisions)
+    .set({ status: 'active' })
+    .where(
+      and(
+        eq(tripDecisions.id, decisionId),
+        eq(tripDecisions.groupJid, groupJid),
+        eq(tripDecisions.status, 'deleted'),
+      ),
+    )
+    .run();
+  return { changes: result.changes };
+}
+
+/**
  * Shallow-merge a category→amount patch into the trip_context's
  * budget_by_category JSON column. Non-finite numbers in patch are stripped.
  *
