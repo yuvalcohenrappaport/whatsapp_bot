@@ -168,6 +168,76 @@ export function parsePlaceMetadata(raw: string | null): PlaceMetadata | null {
   }
 }
 
+// ─── Phase 57 Autocomplete (GET /api/trips/:groupJid/autocomplete-places) ────
+
+export const AutocompleteSuggestionSchema = z.object({
+  placeId: z.string(),
+  primaryText: z.string(),
+  secondaryText: z.string(),
+});
+export type AutocompleteSuggestion = z.infer<typeof AutocompleteSuggestionSchema>;
+
+export const AutocompleteResponseSchema = z.object({
+  suggestions: z.array(AutocompleteSuggestionSchema),
+});
+export type AutocompleteResponse = z.infer<typeof AutocompleteResponseSchema>;
+
+// ─── Phase 57 Place Preview (GET /api/trips/:groupJid/place/:placeId) ───────
+//
+// Used by the picker between Pick and Save so the optimistic update at Save
+// time can carry real lat/lng/canonicalAddress/metadata. Without this
+// pre-fetch, the off-map badge can't decrement optimistically (TripMap's
+// offMapCount formula is `(d.lat == null || d.lng == null)`) — violating
+// CONTEXT D9 which requires the badge to be part of the optimistic update.
+
+export const PlacePreviewMetadataSchema = z.object({
+  rating: z.number().nullable(),
+  userRatingCount: z.number().nullable(),
+  openNow: z.boolean().nullable(),
+  types: z.array(z.string()),
+  primaryType: z.string().nullable(),
+  displayName: z.string().nullable(),
+});
+export type PlacePreviewMetadata = z.infer<typeof PlacePreviewMetadataSchema>;
+
+export const PlacePreviewSchema = z.object({
+  placeId: z.string(),
+  lat: z.number().nullable(),
+  lng: z.number().nullable(),
+  canonicalAddress: z.string().nullable(),
+  metadata: PlacePreviewMetadataSchema,
+});
+export type PlacePreview = z.infer<typeof PlacePreviewSchema>;
+
+// ─── Phase 57 PATCH /pin response (success body) ────────────────────────────
+
+// The server returns the freshly-pinned canonical TripDecision row.
+// Reuses the existing TripDecisionSchema (which already covers the Phase 56
+// placeId / lookupStatus / canonicalAddress / placeMetadata fields).
+export const PinDecisionResponseSchema = z.object({
+  decision: TripDecisionSchema,
+});
+export type PinDecisionResponse = z.infer<typeof PinDecisionResponseSchema>;
+
+// ─── Optimistic pin input (Plan 04's picker → useTrip mutation contract) ────
+
+// The picker hydrates these from the GET /place/:placeId preview before
+// calling onSave — useTrip then merges them into the optimistic decision
+// row so the map pin moves AND the off-map badge decrements in the SAME
+// React tick (CONTEXT D9). The server response then overwrites the
+// optimistic row with the canonical row.
+export interface PinOptimisticInput {
+  placeId: string;
+  canonicalAddress: string | null;
+  lat: number | null;   // REAL lat from preview (null only when preview itself returned null)
+  lng: number | null;   // REAL lng from preview (null only when preview itself returned null)
+  primaryType?: string | null;
+  rating?: number | null;
+  openNow?: boolean | null;
+  types?: string[];
+  displayName?: string | null;
+}
+
 // ─── TypeScript types ─────────────────────────────────────────────────────────
 
 export type TripBundle = z.infer<typeof TripBundleSchema>;
