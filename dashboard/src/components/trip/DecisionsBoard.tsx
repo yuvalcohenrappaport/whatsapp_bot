@@ -14,8 +14,9 @@
  * Scroll-to-row: rows have id="decision-{id}" — TripView handles the actual scroll.
  */
 import { useState } from 'react';
-import { Trash2, AlertTriangle, Undo2, MapPin } from 'lucide-react';
+import { Trash2, AlertTriangle, Undo2, MapPin, Star, Circle } from 'lucide-react';
 import type { TripDecision, DecisionOrigin } from '@/api/tripSchemas';
+import { parsePlaceMetadata } from '@/api/tripSchemas';
 import { cn } from '@/lib/utils';
 import { TRIP_CATEGORIES, categoryIcons, categoryLabels } from './categoryIcons';
 import { Button } from '@/components/ui/button';
@@ -209,6 +210,11 @@ export function DecisionsBoard({
                     ? `https://www.google.com/maps/?q=${d.lat},${d.lng}`
                     : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(d.value)}`;
 
+                  // Phase 56: parse place metadata for inline display
+                  const meta = parsePlaceMetadata(d.placeMetadata);
+                  const hasMetadata = d.lookupStatus === 'geocoded' && meta !== null;
+                  const isNoMatch = d.lookupStatus === 'no_match';
+
                   return (
                     <div
                       key={d.id}
@@ -220,7 +226,7 @@ export function DecisionsBoard({
                     >
                       {/* Main content */}
                       <div className="flex-1 min-w-0 space-y-1">
-                        <p className={cn('text-sm leading-snug flex items-center gap-1.5', isDeleted && 'line-through')}>
+                        <p className={cn('text-sm leading-snug flex items-center gap-1.5 flex-wrap', isDeleted && 'line-through')}>
                           {d.value}
                           {/* Google Maps link */}
                           <a
@@ -233,6 +239,42 @@ export function DecisionsBoard({
                           >
                             <MapPin size={13.5} />
                           </a>
+                          {/* Phase 56: inline metadata cluster for geocoded rows */}
+                          {hasMetadata && (
+                            <span className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0">
+                              {meta.rating != null && (
+                                <span className="flex items-center gap-0.5">
+                                  <Star size={11} className="fill-current opacity-80" />
+                                  {meta.rating.toFixed(1)}
+                                </span>
+                              )}
+                              {meta.openNow != null && (
+                                <>
+                                  <span aria-hidden>·</span>
+                                  <span className={cn('flex items-center gap-0.5', meta.openNow ? 'text-emerald-600 dark:text-emerald-400' : '')}>
+                                    <Circle size={6} className={cn('fill-current', meta.openNow ? 'text-emerald-500' : 'text-muted-foreground')} />
+                                    {meta.openNow ? 'Open' : 'Closed'}
+                                  </span>
+                                </>
+                              )}
+                              {meta.primaryType && (
+                                <>
+                                  <span aria-hidden>·</span>
+                                  <span className="capitalize">{meta.primaryType.replace(/_/g, ' ')}</span>
+                                </>
+                              )}
+                            </span>
+                          )}
+                          {/* Phase 56: muted no-match hint for no_match rows */}
+                          {isNoMatch && (
+                            <span
+                              className="shrink-0 text-muted-foreground/40 italic text-xs flex items-center gap-1"
+                              title="No place match — drop-a-pin coming in Phase 57"
+                            >
+                              <MapPin size={11} className="opacity-60" />
+                              no match
+                            </span>
+                          )}
                         </p>
                         <div className="flex flex-wrap items-center gap-1.5">
                           {/* Origin badge */}
