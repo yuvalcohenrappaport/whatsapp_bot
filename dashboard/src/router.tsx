@@ -16,6 +16,8 @@ import LinkedInQueue from '@/pages/LinkedInQueue';
 import LinkedInLessonSelection from '@/pages/LinkedInLessonSelection';
 import LinkedInVariantFinalization from '@/pages/LinkedInVariantFinalization';
 import Calendar from '@/pages/Calendar';
+import TripsList from '@/pages/TripsList';
+import TripView from '@/pages/TripView';
 
 export const router = createBrowserRouter([
   { path: '/login', element: <Login /> },
@@ -31,6 +33,8 @@ export const router = createBrowserRouter([
           { path: 'drafts', element: <Drafts /> },
           { path: 'events', element: <Events /> },
           { path: 'calendar', element: <Calendar /> },
+          { path: 'trips', element: <TripsList /> },
+          { path: 'trips/:groupJid', element: <TripView /> },
           { path: 'reminders', element: <Reminders /> },
           { path: 'tasks', element: <Tasks /> },
           { path: 'pending-tasks', element: <PendingTasks /> },
