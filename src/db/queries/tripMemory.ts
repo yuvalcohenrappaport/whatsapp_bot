@@ -1,4 +1,4 @@
-import { and, eq, desc, ne, sql, gte, lte, asc } from 'drizzle-orm';
+import { and, eq, desc, ne, sql, gte, lte, asc, inArray } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { db } from '../client.js';
 import { calendarEvents, tripArchive, tripContexts, tripDecisions } from '../schema.js';
@@ -385,6 +385,27 @@ export function updateDecisionGeocode(
     })
     .where(eq(tripDecisions.id, decisionId))
     .run();
+}
+
+/**
+ * Phase 56 Plan 03 — return rows eligible for the on-demand backfill geocoder.
+ * Eligible = (a) decision type is in GEOCODEABLE_TYPES, (b) row not archived,
+ * (c) lookup_status is 'pending' or 'error' (skip 'geocoded' / 'no_match' /
+ * 'skipped' — those outcomes are stable and re-running burns API quota).
+ */
+export function getDecisionsForBackfill(groupJid: string) {
+  return db
+    .select()
+    .from(tripDecisions)
+    .where(
+      and(
+        eq(tripDecisions.groupJid, groupJid),
+        eq(tripDecisions.archived, false),
+        inArray(tripDecisions.type, Array.from(GEOCODEABLE_TYPES)),
+        inArray(tripDecisions.lookupStatus, ['pending', 'error']),
+      ),
+    )
+    .all();
 }
 
 /**

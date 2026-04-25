@@ -46,6 +46,8 @@ import {
   restoreDecision,
   resolveOpenItem,
   updateBudgetByCategory,
+  updateDecisionGeocode,
+  getDecisionsForBackfill,
   TRIP_CATEGORIES,
   type TripBundle,
 } from '../../db/queries/tripMemory.js';
@@ -57,6 +59,8 @@ import {
   MissingDocsScopeError,
   type TripExportInput,
 } from '../../integrations/googleDocsExport.js';
+import { geocodeDecision } from '../../integrations/placesGeocode.js';
+import { config } from '../../config.js';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -429,6 +433,48 @@ export default async function tripsRoutes(
         fastify.log.error({ err, groupJid }, '[trips/export] failed');
         return reply.status(500).send({ error: 'Export failed', detail: String(err) });
       }
+    },
+  );
+
+  // ─── POST /api/trips/:groupJid/backfill-geocode ────────────────────────
+  fastify.post<{ Params: { groupJid: string } }>(
+    '/api/trips/:groupJid/backfill-geocode',
+    { onRequest: [fastify.authenticate] },
+    async (request, reply) => {
+      const { groupJid } = request.params;
+      const bundle = getTripBundle(groupJid);
+      if (!bundle) return reply.status(404).send({ error: 'Trip not found' });
+      if (bundle.readOnly) return reply.status(403).send({ error: 'Archived trip is read-only' });
+
+      // Fail fast if no API key is configured
+      if (!config.GOOGLE_PLACES_API_KEY) {
+        return reply.status(412).send({ error: 'GOOGLE_PLACES_API_KEY not configured' });
+      }
+
+      const eligible = getDecisionsForBackfill(groupJid);
+      const destination = bundle.context?.destination ?? null;
+
+      const summary = { geocoded: 0, no_match: 0, error: 0, skipped: 0, total: eligible.length };
+
+      for (const row of eligible) {
+        try {
+          const result = await geocodeDecision(row.value, destination);
+          if (result) {
+            updateDecisionGeocode(row.id, 'geocoded', result);
+            summary.geocoded++;
+          } else {
+            updateDecisionGeocode(row.id, 'no_match', null);
+            summary.no_match++;
+          }
+        } catch (err) {
+          fastify.log.warn({ err, decisionId: row.id, groupJid }, 'backfill-geocode row failed');
+          updateDecisionGeocode(row.id, 'error', null);
+          summary.error++;
+        }
+        await new Promise((r) => setTimeout(r, 200)); // 200ms pace per CONTEXT.md
+      }
+
+      return summary;
     },
   );
 }
