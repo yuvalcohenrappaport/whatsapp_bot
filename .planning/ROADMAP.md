@@ -13,6 +13,7 @@
 - [x] **v1.8 Task Approval & Context Enrichment** — Phases 39-43 (shipped 2026-04-20) — [archive](milestones/v1.8-ROADMAP.md)
 - [x] **v1.9 Dashboard Expansion** — Phases 44-49 (shipped 2026-04-23) — [archive](milestones/v1.9-ROADMAP.md)
 - [x] **v2.0 Dashboard UX Polish** — Phase 50+ (Phase 50 seeded 2026-04-20 as mobile UI polish) (completed 2026-04-20)
+- [ ] **v2.1 Travel Agent Upgrade** — Phases 51-55 (Phase 51 shipped 2026-04-24; Phases 52-55 pending) — design: `docs/superpowers/specs/2026-04-23-travel-agent-v2.1-design.md`
 
 ## Phases
 
@@ -121,6 +122,20 @@
 **Milestone Goal:** Lift the dashboard's UX quality across surfaces. Starts with a phone-first mobile pass (Calendar as showcase + global primitives + daily-driver polish), with room for follow-up polish phases (LinkedIn workflow mobile pass, theme refresh, perf) added as they surface.
 
 - [x] **Phase 50: Dashboard Mobile UI Polish** — Phone-first dashboard pass: global mobile primitives, Calendar mobile strategy (day-default + MonthDotsView + long-press action sheet), daily-driver page polish (Overview/PendingTasks/Drafts). Design: `docs/superpowers/specs/2026-04-20-dashboard-mobile-ui-design.md`.
+
+### v2.1 Travel Agent Upgrade (PLANNING 2026-04-23)
+
+**Milestone Goal:** Extend the v1.4 Travel Agent from reactive-search + basic-memory into a trip-aware concierge that ingests multimedia, remembers per-person context, detects conflicts, pushes day-of intelligence, and exposes a trip dashboard — validated against a real Italy trip 2+ months out.
+
+**Design:** `docs/superpowers/specs/2026-04-23-travel-agent-v2.1-design.md`
+**Requirements:** `.planning/milestones/v2.1-REQUIREMENTS.md` (15 requirements)
+**Validation group:** "איטליה עכשיו" (120363423910508974@g.us)
+
+- [x] **Phase 51: Richer Trip Memory** — Schema extension (per-person attribution, category, cost, conflicts_with, origin, budget_by_category, start/end dates, calendar_id, status), classifier upgrade, conflict detector, `!pref`/`!budget` self-report, auto-archive cron (completed 2026-04-24)
+- [x] **Phase 52: Multimodal Intake** — Gemini 2.5 Flash vision extracts bookings/tickets/reservations from group image/PDF drops, high-confidence extractions auto-file + trigger calendar suggest, discreet 📌 ack (completed 2026-04-24)
+- [x] **Phase 53: Smarter Search (Restaurants)** — New `queryType='restaurants'` branch, Gemini Maps enriched fields (photo, open_now, price, cuisine, reservation_url), compact formatter (completed 2026-04-24)
+- [x] **Phase 54: Proactive Day-Of Intelligence** — 15-min cron, 08:00 destination-tz briefing (day-before-travel through end_date), OpenWeather + Gemini grounded transit alerts + calendar + open questions + conflicts + budget burn, minimal fallback on failure (completed 2026-04-24)
+- [x] **Phase 55: Trip Dashboard View** — `/trips/:groupJid` with header/timeline/Leaflet map/decisions board/budget bar/open questions/conflicts, minimal-edit (delete decision, resolve question, edit budget), Google Doc export (completed 2026-04-25)
 
 ## Phase Details
 
@@ -431,6 +446,110 @@ Phases execute in numeric order: 27 → 28 → 29 → 30 → 31 → 32 → 33 �
 | 48. LinkedIn Post Composer (Dashboard) | v1.9 | 3/3 | Complete | 2026-04-23 |
 | 49. Deploy + Verify + Close v1.9 | v1.9 | 1/1 | Complete | 2026-04-23 |
 | 50. Dashboard Mobile UI Polish | v2.0 | Complete    | 2026-04-20 | 2026-04-20 |
+| 51. Richer Trip Memory | 5/5 | Complete    | 2026-04-24 | — |
+| 52. Multimodal Intake | 3/3 | Complete    | 2026-04-24 | — |
+| 53. Smarter Search (Restaurants) | 2/2 | Complete    | 2026-04-24 | — |
+| 54. Proactive Day-Of Intelligence | 5/5 | Complete    | 2026-04-24 | — |
+| 55. Trip Dashboard View | 5/5 | Complete    | 2026-04-25 | — |
+
+### Phase 51: Richer Trip Memory
+**Goal:** `trip_decisions` carries per-person attribution, category, cost, conflicts_with, origin, metadata; `trip_contexts` carries dates, per-category budget, calendar_id, status, briefing_time; classifier extracts the new fields; conflict detector runs after every decision insert; daily 02:00 cron auto-archives trips where `now > end_date + 3d`.
+**Depends on:** v1.4 Travel Agent (shipped)
+**Requirements:** MEM2-01, MEM2-02, MEM2-03, MEM2-04, MEM2-05
+**Design:** `docs/superpowers/specs/2026-04-23-travel-agent-v2.1-design.md` (§ Phase 51)
+**Success Criteria:**
+  1. Drizzle migration adds all new columns to `trip_decisions` + `trip_contexts` and creates `trip_archive` table; applies cleanly + idempotent on re-run
+  2. Classifier extracts `category`, `cost_amount`, `cost_currency`, `proposed_by` with ≥0.8 accuracy on a 10-fixture Hebrew dataset (test-driven)
+  3. `!pref` and `!budget` self-report commands parse correctly; `!budget food 500 EUR` updates `trip_contexts.budget_by_category.food`; malformed commands are silently ignored
+  4. `conflictDetector` hard-conflict case (two decisions same time block, confidence ≥0.9, within 7 days) posts a single discreet group alert within 30s and updates `conflicts_with` on both sides
+  5. `conflictDetector` soft-conflict case (gap <30min OR long transit) records `conflicts_with` silently — no group message
+  6. Daily 02:00 archival cron moves expired trips to `trip_archive`; decision-archival approach (FK, flag, or sibling table) is decided in the phase plan
+
+**Plans:** 5/5 plans complete
+- [x] 51-01-PLAN.md — Schema migration 0022 + query helpers (foundation) _(shipped 2026-04-23 — commits `a0a57e9` + `6bf1bbc`)_
+- [x] 51-02-PLAN.md — Classifier upgrade: extract proposed_by/category/cost with ≥0.8 accuracy on 10 Hebrew fixtures _(shipped 2026-04-23 — commits `ae78be6` + `19e60aa`)_
+- [x] 51-03-PLAN.md — Self-report commands: !pref, !budget, !dates _(shipped 2026-04-23 — commits `2b771b2` + `709e2c8`)_
+- [x] 51-04-PLAN.md — Conflict detector (hard/soft) with Hebrew alert _(shipped 2026-04-23 — commit `87f585e` core + `403b130` wiring)_
+- [x] 51-05-PLAN.md — Daily 02:00 archive-expired-trips cron _(shipped 2026-04-24 — commit `7ab3bd2`)_
+
+### Phase 52: Multimodal Intake
+**Goal:** Images and PDFs dropped into a `travelBotActive` group are parsed by Gemini 2.5 Flash vision; high-confidence extractions (≥0.8) auto-file as `trip_decisions` with `origin='multimodal'`, and dated extractions trigger the v1.4 `createSuggestion` calendar flow. Low-confidence results are silently discarded. Successful files produce a single-line "📌 noted" ack in the group.
+**Depends on:** Phase 51
+**Requirements:** MM-01, MM-02, MM-03
+**Design:** `docs/superpowers/specs/2026-04-23-travel-agent-v2.1-design.md` (§ Phase 52)
+**Success Criteria:**
+  1. Image + PDF attachments in `travelBotActive` groups are downloaded and passed to `geminiVision.extractTripFact` with the structured `TripFactExtraction` schema
+  2. Extractions with `confidence >= 0.8` insert as `trip_decisions` with `origin='multimodal'` and `source_message_id` preserved
+  3. Dated extractions (both `date` + `time` present) trigger `createSuggestion` → ✅/❌ calendar suggest-then-confirm runs identically to v1.4 flow
+  4. Success ack is a single 1-line message "📌 noted: {type} — {summary}" in the group's language; no multi-line dumps
+  5. Low-confidence extractions and vision API errors produce no group message, are logged
+  6. Stickers and <50KB images are pre-filtered and skipped before a vision call
+  7. vitest fixtures cover flight confirmation, hotel booking, restaurant reservation, museum ticket, and a menu-only image (negative case)
+
+**Plans:** 3/3 plans complete
+Plans:
+- [x] 52-01-PLAN.md — Gemini vision wrapper: `geminiVision.extractTripFact` + TripFactExtraction Zod schema + unit tests (schema / null on API error / null on schema violation)
+- [x] 52-02-PLAN.md — `multimodalIntake.ts` orchestrator (pre-filter + download + vision + insert `origin='multimodal'` + conditional `createSuggestion` + 1-line 📌 ack) wired into `messageHandler.ts` as a media branch before text dispatch; mocked-dependency integration tests
+- [x] 52-03-PLAN.md — Five real-media fixtures (flight / hotel / restaurant reservation / museum ticket / menu-only negative) + real-API accuracy harness + end-to-end pipeline assertion gated on GEMINI_API_KEY
+
+### Phase 53: Smarter Search (Restaurants)
+**Goal:** `@mention` restaurant queries return enriched compact one-liner results including photo, open-now, price tier, cuisine, rating, reservation URL. Hotels/activities/generic search paths from v1.4 are unchanged. Transit, attractions, shopping search expansion is explicitly deferred.
+**Depends on:** Phase 51 (no code dep; sequencing dep for Italy-trip validation)
+**Requirements:** SRCH2-01
+**Design:** `docs/superpowers/specs/2026-04-23-travel-agent-v2.1-design.md` (§ Phase 53)
+**Success Criteria:**
+  1. `travelParser.parseTravelQuery` classifier emits `queryType='restaurants'` for Hebrew and English restaurant keywords; fixture tests cover "מסעדה", "restaurant", "לאכול"
+  2. `travelSearch.geminiMapsSearch` requests restaurant-specific grounded fields: photo_url, open_now, price_level, cuisine, reservation_url
+  3. `travelFormatter` restaurant template is compact (one line per result) and includes: name, cuisine, price tier, open-now indicator, rating, URL
+  4. @mention "מסעדות ב..." returns ≤5 restaurant one-liners with all required fields; snapshot-tested
+
+**Plans:** 2/2 plans complete
+Plans:
+- [ ] 53-01-PLAN.md — `travelSearch.ts`: extend `SearchResult` with 5 optional nullable restaurant fields; add restaurants branch to `geminiMapsSearch` that requests photo_url/open_now/price_level/cuisine/reservation_url from Maps grounding; extend 5-result cap to restaurants; add CONTEXT observability logs; unit tests mock Gemini
+- [ ] 53-02-PLAN.md — `travelParser.ts`: strengthen classifier system-instruction with 6 locked Hebrew/English restaurant keywords (schema untouched). `travelFormatter.ts`: add `formatRestaurantOneLiner` + branch-dispatching `formatTravelResults` producing locked compact template `🍽️ {name} · {cuisine} · {price_tier} · {open_now_emoji} · {rating}⭐ · {url}` with photo URL as link-preview second line. Real-Gemini parser fixture tests + formatter snapshot tests (Hebrew + English, fields-null, regression-guard)
+
+### Phase 54: Proactive Day-Of Intelligence
+**Goal:** Every active-trip day, at `briefing_time` destination-tz (default 08:00), within the window `[start_date − 1d, end_date]`, a single enriched morning briefing is posted to the group: today's calendar events, weather, transit alerts, unresolved questions, today's conflicts, budget burn. On any enrichment failure, the bot falls back to a minimal calendar-only template — no day skipped.
+**Depends on:** Phases 51 + 52 (memory + multimodal live)
+**Requirements:** DAY-01, DAY-02, DAY-03
+**Design:** `docs/superpowers/specs/2026-04-23-travel-agent-v2.1-design.md` (§ Phase 54)
+**Success Criteria:**
+  1. 15-min cron (`briefingCron`) checks every active trip, computes destination-tz, and triggers exactly one briefing per trip per day when the window conditions match
+  2. `metadata.last_briefing_date` prevents duplicate posts if cron window boundary falls across ticks
+  3. Briefing gathers: today's Google Calendar events for `calendar_id`, OpenWeather forecast (coords cached in `metadata.coords`), Gemini grounded transit-alert query, unresolved open questions, today's conflicts, per-category budget burn
+  4. Gemini composes final Hebrew briefing from structured input; post to group
+  5. Any enrichment failure (OpenWeather 429, Gemini timeout, Calendar 500) → fallback posts minimal "🌅 בוקר טוב! היום ביומן: ..." with calendar events only; no crash, no skipped day
+  6. Archived trips are skipped; future trips (today < start_date − 1d) are skipped
+  7. vitest covers timezone math (Israel DST, destination-tz arithmetic, window boundaries)
+
+**Plans:** 5/5 plans complete
+Plans:
+- [x] 54-01-PLAN.md — OpenWeather client + cron skeleton + timezone helper + unit tests
+- [x] 54-02-PLAN.md — Gemini grounded search wrapper (transitAlerts) + unit tests
+- [x] 54-03-PLAN.md — dayOfBriefing orchestrator: enrichment pipeline + Gemini composition + fallback template _(shipped 2026-04-24 — commit `90ef3c2`)_
+- [x] 54-04-PLAN.md — Wire initBriefingCron into main() + integration test (dedup, window gates) _(shipped 2026-04-24 — commits `e0777b5` + `475aefe`)_
+
+### Phase 55: Trip Dashboard View
+**Goal:** New dashboard route `/trips/:groupJid` renders a full trip view: header with destination/dates/countdown/budget, timeline of confirmed calendar events, Leaflet/OpenStreetMap marker map of decisions, decisions board grouped by category with origin filter, open-questions list, conflict alerts. Minimal-edit (delete decision, resolve question, edit budget) is JWT-gated and SSE-live. Export-to-Google-Doc produces an owner-private shareable doc.
+**Depends on:** Phases 51, 52, 53, 54 (reads from all memory + search + briefing data)
+**Requirements:** DASH-TRIP-01, DASH-TRIP-02, DASH-TRIP-03
+**Design:** `docs/superpowers/specs/2026-04-23-travel-agent-v2.1-design.md` (§ Phase 55)
+**Success Criteria:**
+  1. `/trips` list page + `/trips/:groupJid` detail page render in the dashboard, navigable from sidebar; archived trips render read-only
+  2. Backend API routes under `/api/trips/*` JWT-gated, idempotent; SSE broadcasts propagate minimal-edit writes to every open session within ~3s
+  3. Timeline shows today-highlighted + chronological vertical events; Leaflet map shows markers for decisions with `lat`/`lng`
+  4. Decisions board groups by `category`, filter-by-origin control distinguishes multimodal/inferred/self_reported/dashboard; delete marks `status='deleted'` (soft)
+  5. Budget bar shows per-category progress vs target; overflow state visually distinct
+  6. Export button creates Google Doc via new `googleDocsExport` module using existing Google OAuth + added `documents` scope (one-time re-auth by owner during UAT); Google Doc contains trip header, timeline, decisions, open questions, budget summary; returns owner-private URL
+  7. Deploy gotcha: `pm2 restart whatsapp-bot` after `vite build` per project memory; fresh-hash assets confirmed served
+  8. Live walkthrough on desktop + mobile dashboard: open Italy trip view, delete a test decision, resolve a test question, edit budget, trigger export, verify Google Doc round-trip
+
+**Plans:** 5/5 plans complete
+- [ ] 55-01-PLAN.md — Schema delta (status/lat/lng) + tripMemory query helpers (softDelete, updateBudget, listTrips, getTripBundle)
+- [ ] 55-02-PLAN.md — Backend `/api/trips/*` routes + SSE stream (JWT-gated, idempotent, archived-trip 403)
+- [ ] 55-03-PLAN.md — Dashboard foundation: Leaflet deps + Zod schemas + useTrip hook + TripsList page + sidebar/router
+- [ ] 55-04-PLAN.md — TripView page composition: 6 components (Header, Timeline, Map, DecisionsBoard, OpenQuestions, BudgetBar) + UAT (autonomous: false)
+- [ ] 55-05-PLAN.md — Google Docs export module + scope add + ExportButton + final UAT walkthrough (autonomous: false)
 
 ### Phase 45: Dashboard Pending-Tasks Write Actions
 

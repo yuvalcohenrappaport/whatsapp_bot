@@ -32,6 +32,9 @@ const envSchema = z.object({
   MS_CLIENT_ID: z.string().optional(),
   MS_CLIENT_SECRET: z.string().optional(),
   MS_OAUTH_REDIRECT_URI: z.string().optional(),
+  // Phase 54 v2.1 — OpenWeather forecast/geo API. Optional because the day-of
+  // briefing gracefully falls back to calendar-only output when missing.
+  OPENWEATHER_API_KEY: z.string().optional(),
 });
 
 export type Config = z.infer<typeof envSchema>;

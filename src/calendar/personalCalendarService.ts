@@ -74,12 +74,15 @@ export function isPersonalCalendarConnected(): boolean {
 export function getAuthUrl(): string | null {
   if (!oauth2Client) return null;
 
+  // Phase 55 v2.1 — `documents` scope added; one-time owner re-auth required.
   return oauth2Client.generateAuthUrl({
     access_type: 'offline',
     prompt: 'consent',
     scope: [
       'https://www.googleapis.com/auth/calendar',
       'https://www.googleapis.com/auth/tasks',
+      'https://www.googleapis.com/auth/documents',
+      'https://www.googleapis.com/auth/drive.file', // needed to set the Doc's name + retrieve webViewLink via Drive API
     ],
   });
 }

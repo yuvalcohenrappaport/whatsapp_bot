@@ -22,6 +22,7 @@ import {
 import {
   useCreateKeywordRule,
   useUpdateKeywordRule,
+  type CreateKeywordRuleInput,
 } from '@/hooks/useKeywordRules';
 import type { KeywordRule } from '@/hooks/useKeywordRules';
 
@@ -102,7 +103,7 @@ export function KeywordRuleFormDialog({
         },
       );
     } else {
-      createRule.mutate(payload as Parameters<typeof createRule.mutate>[0], {
+      createRule.mutate(payload as unknown as CreateKeywordRuleInput, {
         onSuccess: () => {
           toast.success('Rule created');
           onOpenChange(false);

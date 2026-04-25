@@ -1,22 +1,19 @@
 import pino from 'pino';
 import { config } from '../config.js';
-import { getGroup, updateGroup } from '../db/queries/groups.js';
+import { getGroup } from '../db/queries/groups.js';
 import {
   getCalendarEventByConfirmationMsgId,
   deleteCalendarEvent as deleteCalendarEventRecord,
 } from '../db/queries/calendarEvents.js';
 import { calendarDetection } from '../calendar/CalendarDetectionService.js';
-import { getCalendarIdFromLink, buildConfirmationText, detectGroupLanguage } from './calendarHelpers.js';
-import {
-  createGroupCalendar,
-  shareCalendar,
-  deleteCalendarEvent as deleteCalendarEventApi,
-} from '../calendar/calendarService.js';
+import { ensureGroupCalendar, detectGroupLanguage } from './calendarHelpers.js';
+import { deleteCalendarEvent as deleteCalendarEventApi } from '../calendar/calendarService.js';
 import { getState } from '../api/state.js';
 import { setGroupMessageCallback } from '../pipeline/messageHandler.js';
 import { handleTravelMention } from './travelHandler.js';
 import { handleKeywordRules } from './keywordHandler.js';
 import { addToTripContextDebounce } from './tripContextManager.js';
+import { handleSelfReportCommand } from './tripPreferences.js';
 import { createSuggestion, handleConfirmReject, restorePendingSuggestions } from './suggestionTracker.js';
 import { processGroupMessage } from '../calendar/personalCalendarPipeline.js';
 
@@ -41,8 +38,10 @@ const debounceBuffers = new Map<
   { messages: GroupMsg[]; timer: NodeJS.Timeout }
 >();
 
-/** In-memory cache of groupJid -> calendarId (to avoid re-reading from calendarLink) */
-export const calendarIdCache = new Map<string, string>();
+// Re-export the shared calendarIdCache so any legacy importers of this module
+// keep working during the Phase 52-02 migration. The actual Map lives in
+// ./calendarIdCache.js (shared with calendarHelpers.ts).
+export { calendarIdCache } from './calendarIdCache.js';
 
 /** Debounce window in ms */
 const DEBOUNCE_MS = 10_000;
@@ -107,64 +106,14 @@ async function processGroupMessages(
         continue;
       }
 
-      // Ensure group has a calendar (lazy creation)
-      let calendarId = calendarIdCache.get(groupJid);
-      let calendarLink = group.calendarLink ?? null;
-
-      if (!calendarId || !calendarLink) {
-        // Try to get calendarId from existing calendarLink
-        if (calendarLink) {
-          const parsedId = getCalendarIdFromLink(calendarLink);
-          if (parsedId) {
-            calendarId = parsedId;
-            calendarIdCache.set(groupJid, calendarId);
-          }
-        }
-
-        // If still no calendarId, create a new calendar
-        if (!calendarId) {
-          logger.info({ groupJid }, 'Creating group calendar');
-          const calendarResult = await createGroupCalendar(
-            group.name ?? groupJid,
-          );
-
-          if (!calendarResult) {
-            logger.warn(
-              { groupJid },
-              'Failed to create group calendar — skipping event creation',
-            );
-            continue;
-          }
-
-          calendarId = calendarResult.calendarId;
-          calendarLink = calendarResult.calendarLink;
-          calendarIdCache.set(groupJid, calendarId);
-
-          // Persist calendarLink to DB
-          updateGroup(groupJid, { calendarLink });
-
-          // Share with member emails if any
-          const memberEmailsRaw = group.memberEmails;
-          if (memberEmailsRaw) {
-            try {
-              const emails: string[] = JSON.parse(memberEmailsRaw);
-              if (emails.length > 0) {
-                await shareCalendar(calendarId, emails);
-              }
-            } catch {
-              logger.warn(
-                { groupJid },
-                'Failed to parse memberEmails for calendar sharing',
-              );
-            }
-          }
-        }
-      }
-
-      if (!calendarId || !calendarLink) {
+      // Ensure group has a calendar (lazy creation) — delegated to the
+      // shared helper so multimodalIntake.ts (Phase 52) hits identical logic.
+      const calResult = await ensureGroupCalendar(groupJid, group);
+      if (!calResult) {
         logger.warn({ groupJid }, 'No calendarId available — skipping event creation');
         continue;
       }
+      const { calendarId, calendarLink } = calResult;
 
       // Send a suggestion for each extracted date (suggest-then-confirm replaces silent-add)
       for (const extracted of extractedDates) {
@@ -317,6 +266,13 @@ export function initGroupPipeline(): void {
           // Reply-to-delete -- runs immediately, terminal (before fromMe guard so owner can delete events)
           const wasDelete = await handleReplyToDelete(groupJid, msg, quotedMessageId);
           if (wasDelete) return;
+
+          // Self-report commands (!pref, !budget, !dates) -- terminal when matched.
+          // Placed BEFORE the fromMe guard so the owner can self-report too,
+          // and BEFORE addToTripContextDebounce so the literal command text
+          // never enters the classifier buffer (would confuse it).
+          const wasSelfReport = await handleSelfReportCommand(groupJid, msg);
+          if (wasSelfReport) return;
         }
 
         // Keyword auto-response -- runs for all messages including own

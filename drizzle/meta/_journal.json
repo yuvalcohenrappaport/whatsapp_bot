@@ -155,6 +155,27 @@
       "when": 1776830460000,
       "tag": "0021_actionables_backfill",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "6",
+      "when": 1776973675000,
+      "tag": "0022_v21_phase51_trip_memory",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1777665600000,
+      "tag": "0023_add_metadata_to_trip_contexts",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1777106157696,
+      "tag": "0024_trip_decisions_dashboard",
+      "breakpoints": true
     }
   ]
 }

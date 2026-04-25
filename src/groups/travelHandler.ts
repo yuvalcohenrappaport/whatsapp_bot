@@ -83,7 +83,7 @@ let detectGroupLanguageFn: ((groupJid: string) => Promise<'he' | 'en'>) | null =
 
 async function getDetectGroupLanguage(): Promise<(groupJid: string) => Promise<'he' | 'en'>> {
   if (!detectGroupLanguageFn) {
-    const mod = await import('./groupMessagePipeline.js');
+    const mod = await import('./calendarHelpers.js');
     detectGroupLanguageFn = mod.detectGroupLanguage;
   }
   return detectGroupLanguageFn;

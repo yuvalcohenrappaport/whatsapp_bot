@@ -12,6 +12,7 @@ import {
   getUnresolvedOpenItems,
   resolveOpenItem,
 } from '../db/queries/tripMemory.js';
+import { runAfterInsert } from './conflictDetector.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
 
@@ -208,7 +209,14 @@ async function sendProactiveSuggestion(
 
 // ─── Section 3: Zod schema for classifier output ─────────────────────────────
 
-const TripClassifierSchema = z.object({
+/**
+ * Exported for Phase 51-02 tests. The four new fields (category,
+ * cost_amount, cost_currency, proposed_by) feed directly into
+ * trip_decisions (v2.1 schema). All four are nullable — orthogonal
+ * decisions (e.g. destination choice, total-budget statement) legitimately
+ * carry no per-category price.
+ */
+export const TripClassifierSchema = z.object({
   decisions: z
     .array(
       z.object({
@@ -222,6 +230,35 @@ const TripClassifierSchema = z.object({
         ]),
         value: z.string().describe('The confirmed decision text'),
         confidence: z.enum(['high', 'medium', 'low']),
+        category: z
+          .enum([
+            'flights',
+            'lodging',
+            'food',
+            'activities',
+            'transit',
+            'shopping',
+            'other',
+          ])
+          .nullable()
+          .describe(
+            'Budget bucket for this decision, or null if orthogonal (e.g. destination choice, total-budget statement).',
+          ),
+        cost_amount: z
+          .number()
+          .nullable()
+          .describe('Explicit numeric price if mentioned, else null.'),
+        cost_currency: z
+          .string()
+          .length(3)
+          .nullable()
+          .describe('ISO-4217 currency code (EUR/USD/ILS/GBP). Null if no cost_amount.'),
+        proposed_by: z
+          .string()
+          .nullable()
+          .describe(
+            'Name of the group member who first proposed this decision in the batch. Null if unclear or collective.',
+          ),
       }),
     )
     .describe('Confirmed trip decisions found in the messages'),
@@ -258,7 +295,7 @@ type ClassifierOutput = z.infer<typeof TripClassifierSchema>;
 // ─── Section 4: Classifier prompt builder ────────────────────────────────────
 
 function buildClassifierPrompt(
-  existingContext: ReturnType<typeof getTripContext>,
+  existingContext: ReturnType<typeof getTripContext> | undefined,
   existingDecisions: ReturnType<typeof getDecisionsByGroup>,
   existingOpenItems: ReturnType<typeof getUnresolvedOpenItems>,
 ): string {
@@ -291,6 +328,29 @@ Confidence levels:
 
 Do NOT create a decision if it duplicates an existing one (same type and similar meaning).
 
+Field guide for each decision entry (v2.1 structured fields):
+- category: exactly one of flights, lodging, food, activities, transit, shopping, other — OR null when the decision is orthogonal to budget (destination choice, total-budget statement, dates). Rules:
+  - flights: airline tickets, plane fares.
+  - lodging: hotels, hostels, airbnbs, apartment rentals (anything you sleep in).
+  - food: restaurants, cafes, food tours, grocery runs.
+  - activities: attractions, museums, tours, experiences (anything you do, including shopping-as-experience ONLY if the item is a single attraction; otherwise use shopping).
+  - transit: ground transport between cities or within a city (trains, buses, taxis, car rentals, metro passes).
+  - shopping: buying physical goods (leather, clothes, souvenirs, electronics).
+  - other: legitimate spend that fits none of the above.
+  - null: decision type ∈ {destination, dates} OR the message is a TOTAL budget (not per-category).
+- cost_amount: numeric price if the message explicitly states one. For "X per person" or "per night", record the unit price as stated (do NOT multiply). Null if no number is mentioned.
+- cost_currency: ISO-4217 three-letter code. Infer from symbols: € / יורו / אירו / EUR → EUR; $ / USD → USD; ₪ / שקל / ILS → ILS; £ / GBP → GBP. Must be null whenever cost_amount is null.
+- proposed_by: the exact sender NAME (as seen at the start of each message line, before the colon) of the FIRST message in this batch that proposed the decision. If a later speaker merely confirms/seals ("סגרנו", "יאללה"), proposed_by still belongs to the original proposer. Null only if no single person proposed it (collective decision, or unclear).
+
+Worked examples:
+- "יוסי: סגרנו טיסה ל-EasyJet 450 יורו לאדם" → {type:'transport', value:'EasyJet 450 יורו לאדם', category:'flights', cost_amount:450, cost_currency:'EUR', proposed_by:'יוסי', confidence:'high'}
+- "מאיה: החלטנו ללכת לקולוסיאום" → {type:'activity', value:'קולוסיאום', category:'activities', cost_amount:null, cost_currency:null, proposed_by:'מאיה', confidence:'high'}
+- "טלי: אני הולכת לקנות עור ב-Florence, תקציב 200 יורו" → {type:'activity', value:'קניית עור ב-Florence', category:'shopping', cost_amount:200, cost_currency:'EUR', proposed_by:'טלי', confidence:'high'}
+- Two messages ["יוסי: אני מציע שנסגור Wizz", "דני: סגרנו"] → {type:'transport', value:'Wizz', category:'flights', cost_amount:null, cost_currency:null, proposed_by:'יוסי', confidence:'high'}
+- "דני: הוספנו מסעדה ב-$80 לאיש" → {type:'activity', value:'מסעדה $80 לאיש', category:'food', cost_amount:80, cost_currency:'USD', proposed_by:'דני', confidence:'high'}
+- "מאיה: סגרנו — טסים לאיטליה" → {type:'destination', value:'איטליה', category:null, cost_amount:null, cost_currency:null, proposed_by:'מאיה', confidence:'high'}
+- "יוסי: תקציב כולל 5000 אירו" → {type:'budget', value:'תקציב כולל 5000 אירו', category:null, cost_amount:5000, cost_currency:'EUR', proposed_by:'יוסי', confidence:'high'}
+
 Existing trip context:
 ${contextStr}
 
@@ -301,6 +361,43 @@ Open questions currently tracked:
 ${openQuestionsStr}`;
 }
 
+/**
+ * Pure classifier wrapper for tests and any future caller that wants the
+ * parsed result without touching the DB. Builds the prompt with empty
+ * existing-context / decisions / open-items (callers that already hold
+ * context should call the internal prompt builder + generateJson directly).
+ */
+export async function classifyBatch(
+  messages: GroupMsg[],
+): Promise<ClassifierOutput | null> {
+  const systemPrompt = buildClassifierPrompt(undefined, [], []);
+  const messagesText = messages
+    .map((m) => `${m.senderName ?? 'Unknown'}: ${m.body}`)
+    .join('\n');
+  return await generateJson<ClassifierOutput>({
+    systemPrompt,
+    userContent: messagesText,
+    jsonSchema: CLASSIFIER_JSON_SCHEMA as Record<string, unknown>,
+    schemaName: 'trip_context_classifier',
+  });
+}
+
+/**
+ * Map a proposer NAME (as returned by the classifier) back to the senderJid
+ * of the first message in the batch from that person. Substring-insensitive
+ * match so minor spelling/diacritic variation from the model doesn't drop
+ * the attribution.
+ */
+function resolveProposerJid(
+  name: string | null | undefined,
+  batch: GroupMsg[],
+): string | null {
+  if (!name) return null;
+  const lower = name.toLowerCase();
+  const hit = batch.find((m) => m.senderName?.toLowerCase().includes(lower));
+  return hit?.senderJid ?? null;
+}
+
 // ─── Section 5: processTripContext ────────────────────────────────────────────
 
 /**
@@ -308,7 +405,7 @@ ${openQuestionsStr}`;
  * Classifies batched messages with Gemini and persists results to tripContexts + tripDecisions.
  * All errors are caught — this runs fire-and-forget in a setTimeout callback.
  */
-async function processTripContext(
+export async function processTripContext(
   groupJid: string,
   messages: GroupMsg[],
 ): Promise<void> {
@@ -360,15 +457,23 @@ async function processTripContext(
     let decisionsInserted = 0;
     for (const decision of result.decisions) {
       if (decision.confidence === 'low') continue;
+      const decisionId = crypto.randomUUID();
       insertTripDecision({
-        id: crypto.randomUUID(),
+        id: decisionId,
         groupJid,
         type: decision.type,
         value: decision.value,
         confidence: decision.confidence,
         sourceMessageId: messages[0]?.id ?? null,
+        category: decision.category,
+        costAmount: decision.cost_amount,
+        costCurrency: decision.cost_currency,
+        proposedBy: resolveProposerJid(decision.proposed_by, messages),
+        origin: 'inferred',
       });
       decisionsInserted++;
+      // Fire-and-forget — conflict detector never throws.
+      runAfterInsert(groupJid, decisionId).catch(() => {});
     }
 
     // 7. Persist open questions

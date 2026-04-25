@@ -15,10 +15,9 @@
  *
  * Plan 44-04 (base), extended in Plan 44-05 (drag/drop + overflow popover).
  */
-import { useState } from 'react';
 import { CalendarPill } from './CalendarPill';
 import { DayOverflowPopover } from './DayOverflowPopover';
-import { startOfIstWeek, addIstDays, sameIstDay, formatIstDateShort, istDayStartMs } from '@/lib/ist';
+import { startOfIstWeek, addIstDays, sameIstDay, istDayStartMs } from '@/lib/ist';
 import type { CalendarItem } from '@/api/calendarSchemas';
 import type { CalendarDragGhostControls } from './CalendarDragGhost';
 import type { RescheduleMutationOpts } from '@/hooks/useCalendarMutations';
