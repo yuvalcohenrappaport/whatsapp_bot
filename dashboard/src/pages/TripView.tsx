@@ -89,6 +89,7 @@ export default function TripView() {
           filteredOrigins={filteredOrigins}
           onFilteredOriginsChange={setFilteredOrigins}
           onDeleteDecision={mutations.deleteDecision}
+          onRestoreDecision={mutations.restoreDecision}
           readOnly={bundle.readOnly}
         />
 

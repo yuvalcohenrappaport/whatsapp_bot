@@ -14,7 +14,7 @@
  * Scroll-to-row: rows have id="decision-{id}" — TripView handles the actual scroll.
  */
 import { useState } from 'react';
-import { Trash2, AlertTriangle } from 'lucide-react';
+import { Trash2, AlertTriangle, Undo2, MapPin } from 'lucide-react';
 import type { TripDecision, DecisionOrigin } from '@/api/tripSchemas';
 import { cn } from '@/lib/utils';
 import { TRIP_CATEGORIES, categoryIcons, categoryLabels } from './categoryIcons';
@@ -47,6 +47,7 @@ interface DecisionsBoardProps {
   filteredOrigins: Set<DecisionOrigin>;
   onFilteredOriginsChange: (next: Set<DecisionOrigin>) => void;
   onDeleteDecision: (id: string) => void;
+  onRestoreDecision: (id: string) => void;
   readOnly: boolean;
 }
 
@@ -68,6 +69,7 @@ export function DecisionsBoard({
   filteredOrigins,
   onFilteredOriginsChange,
   onDeleteDecision,
+  onRestoreDecision,
   readOnly,
 }: DecisionsBoardProps) {
   const [showDeleted, setShowDeleted] = useState(false);
@@ -202,6 +204,11 @@ export function DecisionsBoard({
                   const conflicts = parseConflicts(d.conflictsWith);
                   const isDeleted = d.status === 'deleted';
 
+                  // Google Maps URL: prefer coords, fallback to text search
+                  const mapsUrl = (d.lat != null && d.lng != null)
+                    ? `https://www.google.com/maps/?q=${d.lat},${d.lng}`
+                    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(d.value)}`;
+
                   return (
                     <div
                       key={d.id}
@@ -213,8 +220,19 @@ export function DecisionsBoard({
                     >
                       {/* Main content */}
                       <div className="flex-1 min-w-0 space-y-1">
-                        <p className={cn('text-sm leading-snug', isDeleted && 'line-through')}>
+                        <p className={cn('text-sm leading-snug flex items-center gap-1.5', isDeleted && 'line-through')}>
                           {d.value}
+                          {/* Google Maps link */}
+                          <a
+                            href={mapsUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Open in Google Maps"
+                            className="shrink-0 text-muted-foreground opacity-60 hover:opacity-100 transition-opacity"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <MapPin size={13.5} />
+                          </a>
                         </p>
                         <div className="flex flex-wrap items-center gap-1.5">
                           {/* Origin badge */}
@@ -249,19 +267,35 @@ export function DecisionsBoard({
                         </div>
                       </div>
 
-                      {/* Delete button */}
-                      {!readOnly && (
-                        <Button
-                          variant="ghost"
-                          size="icon-xs"
-                          disabled={isDeleted}
-                          onClick={() => setConfirmId(d.id)}
-                          className="shrink-0 text-muted-foreground hover:text-destructive"
-                          title="Delete decision"
-                        >
-                          <Trash2 size={14} />
-                        </Button>
-                      )}
+                      {/* Action buttons */}
+                      <div className="flex items-center gap-1 shrink-0">
+                        {/* Restore button — only for deleted rows when showDeleted is on and not readOnly */}
+                        {!readOnly && isDeleted && showDeleted && (
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            onClick={() => onRestoreDecision(d.id)}
+                            className="text-muted-foreground hover:text-emerald-600"
+                            title="Restore decision"
+                          >
+                            <Undo2 size={14} />
+                          </Button>
+                        )}
+
+                        {/* Delete button */}
+                        {!readOnly && (
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            disabled={isDeleted}
+                            onClick={() => setConfirmId(d.id)}
+                            className="text-muted-foreground hover:text-destructive"
+                            title="Delete decision"
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   );
                 })}

@@ -144,6 +144,9 @@ export function TripMap({ decisions, filteredOrigins, onMarkerClick }: TripMapPr
             const note = extractNote(d.metadata);
             const categoryLabel = d.category ? categoryLabels[d.category] : 'Other';
 
+            // Google Maps URL: prefer coords, fallback to text search
+            const mapsUrl = `https://www.google.com/maps/?q=${d.lat},${d.lng}`;
+
             return (
               <Marker key={d.id} position={[d.lat, d.lng]} icon={icon}>
                 <Popup>
@@ -157,6 +160,14 @@ export function TripMap({ decisions, filteredOrigins, onMarkerClick }: TripMapPr
                     >
                       Show on board
                     </button>
+                    <a
+                      href={mapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block mt-1 text-xs text-primary underline underline-offset-2 hover:no-underline"
+                    >
+                      Open in Google Maps
+                    </a>
                   </div>
                 </Popup>
               </Marker>

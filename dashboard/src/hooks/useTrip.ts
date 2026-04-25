@@ -41,6 +41,7 @@ export interface UseTripResult {
   sseStatus: SseStatus;
   mutations: {
     deleteDecision: (id: string) => Promise<void>;
+    restoreDecision: (id: string) => Promise<void>;
     resolveQuestion: (id: string) => Promise<void>;
     updateBudget: (patch: Partial<Record<TripCategory, number>>) => Promise<void>;
   };
@@ -220,6 +221,37 @@ export function useTrip(groupJid: string | undefined): UseTripResult {
     [groupJid, bundle],
   );
 
+  // Optimistically flip a deleted decision back to active. Reverts on failure.
+  const restoreDecision = useCallback(
+    async (id: string): Promise<void> => {
+      if (!groupJid || !bundle) return;
+      const snapshot = bundle;
+
+      // Optimistic update: flip status back to 'active'.
+      setBundle({
+        ...bundle,
+        decisions: bundle.decisions.map((d) =>
+          d.id === id ? { ...d, status: 'active' as const } : d,
+        ),
+      });
+
+      try {
+        await apiFetch(`/api/trips/${groupJid}/decisions/${id}/restore`, {
+          method: 'POST',
+        });
+        toast.success('Restored', TOAST_OPTS);
+      } catch (err: unknown) {
+        setBundle(snapshot);
+        const msg = err instanceof Error ? err.message : String(err);
+        const displayMsg = msg.includes('403')
+          ? 'Read-only trip — cannot edit'
+          : 'Restore failed';
+        toast.error(displayMsg, TOAST_ERROR_OPTS);
+      }
+    },
+    [groupJid, bundle],
+  );
+
   // Optimistically flip resolved=true on an open question. Reverts on failure.
   const resolveQuestion = useCallback(
     async (id: string): Promise<void> => {
@@ -328,6 +360,7 @@ export function useTrip(groupJid: string | undefined): UseTripResult {
     sseStatus,
     mutations: {
       deleteDecision,
+      restoreDecision,
       resolveQuestion,
       updateBudget,
     },
