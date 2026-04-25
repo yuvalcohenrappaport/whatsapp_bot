@@ -24,10 +24,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { apiFetch, sseUrl } from '@/api/client';
+import { pinDecision as apiPinDecision } from '@/api/trips';
 import {
   TripBundleSchema,
   type TripBundle,
   type TripCategory,
+  type TripDecision,
+  type PinOptimisticInput,
 } from '@/api/tripSchemas';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -44,6 +47,11 @@ export interface UseTripResult {
     restoreDecision: (id: string) => Promise<void>;
     resolveQuestion: (id: string) => Promise<void>;
     updateBudget: (patch: Partial<Record<TripCategory, number>>) => Promise<void>;
+    pinDecision: (
+      decisionId: string,
+      optimistic: PinOptimisticInput,
+      body: { placeId: string; sessionToken: string; languageCode?: 'iw' | 'en' },
+    ) => Promise<boolean>;
   };
 }
 
@@ -252,6 +260,95 @@ export function useTrip(groupJid: string | undefined): UseTripResult {
     [groupJid, bundle],
   );
 
+  // Optimistically pin (or re-pin) a decision's location. Reverts on failure.
+  //
+  // Three-step flow:
+  //   1. Snapshot bundle.
+  //   2. Optimistic mutate: replace target decision row with a merge of
+  //      itself + optimistic.{placeId, lat, lng, canonicalAddress, primaryType,
+  //      rating, openNow, types, displayName} and lookup_status='geocoded'.
+  //      Because optimistic.lat/lng are populated from Plan 04's preview
+  //      fetch, this makes the map pin move + off-map badge decrement in
+  //      the SAME React tick (D9 lock).
+  //   3. Await server (PATCH /pin):
+  //      - On success: replace the optimistic row with the canonical row from
+  //        the server response (this fills any metadata fields the optimistic
+  //        input didn't have — e.g. userRatingCount). Return true.
+  //      - On failure: setBundle(snapshot), show typed error toast, return
+  //        false. The picker (Plan 04) reads the boolean and shows
+  //        "Pin failed — try again" inline (D11 dual-surface error).
+  const pinDecision = useCallback(
+    async (
+      decisionId: string,
+      optimistic: PinOptimisticInput,
+      body: { placeId: string; sessionToken: string; languageCode?: 'iw' | 'en' },
+    ): Promise<boolean> => {
+      if (!groupJid || !bundle) return false;
+      const snapshot = bundle;
+
+      // Build the optimistic placeMetadata JSON blob to mirror the DB column shape.
+      const optimisticPlaceMetadata = JSON.stringify({
+        rating: optimistic.rating ?? null,
+        userRatingCount: null, // unknown until canonical fetch
+        openNow: optimistic.openNow ?? null,
+        types: optimistic.types ?? [],
+        primaryType: optimistic.primaryType ?? null,
+        displayName: optimistic.displayName ?? null,
+      });
+
+      setBundle({
+        ...bundle,
+        decisions: bundle.decisions.map((d): TripDecision =>
+          d.id === decisionId
+            ? {
+                ...d,
+                placeId: optimistic.placeId,
+                canonicalAddress: optimistic.canonicalAddress,
+                lat: optimistic.lat,
+                lng: optimistic.lng,
+                lookupStatus: 'geocoded' as const,
+                placeMetadata: optimisticPlaceMetadata,
+              }
+            : d,
+        ),
+      });
+
+      try {
+        const res = await apiPinDecision(groupJid, decisionId, body);
+        // Replace the optimistic row with the canonical server row.
+        if (!cancelledRef.current) {
+          setBundle((current) =>
+            current
+              ? {
+                  ...current,
+                  decisions: current.decisions.map((d) =>
+                    d.id === decisionId ? res.decision : d,
+                  ),
+                }
+              : current,
+          );
+        }
+        toast.success('Pinned', TOAST_OPTS);
+        return true;
+      } catch (err: unknown) {
+        // Revert
+        if (cancelledRef.current) return false;
+        setBundle(snapshot);
+        const msg = err instanceof Error ? err.message : String(err);
+        let displayMsg: string;
+        // D14: 403 covers both archived-trip and archived-decision
+        if (msg.includes('403')) displayMsg = 'Trip or decision is archived';
+        else if (msg.includes('404')) displayMsg = 'Decision not found';
+        else if (msg.includes('412')) displayMsg = 'Places API not configured — see GOOGLE_PLACES_API_KEY';
+        else if (msg.includes('502')) displayMsg = 'Places search failed — try again';
+        else displayMsg = 'Pin failed — try again';
+        toast.error(displayMsg, TOAST_ERROR_OPTS);
+        return false;
+      }
+    },
+    [groupJid, bundle],
+  );
+
   // Optimistically flip resolved=true on an open question. Reverts on failure.
   const resolveQuestion = useCallback(
     async (id: string): Promise<void> => {
@@ -363,6 +460,7 @@ export function useTrip(groupJid: string | undefined): UseTripResult {
       restoreDecision,
       resolveQuestion,
       updateBudget,
+      pinDecision,
     },
   };
 }
