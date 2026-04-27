@@ -449,7 +449,7 @@ Legacy decisions from v1.6 (see phase 27-32 archive):
 
 ### Pending Todos
 
-(None)
+- 2026-04-27 — Scoped trip-dashboard share links for non-owner trip members (`.planning/todos/pending/2026-04-27-scoped-trip-dashboard-share-links-for-non-owner-members.md`) — companion read/comment access to a single trip without admin JWT. Likely Phase 60+ in v2.2.
 
 ### Blockers/Concerns
 
