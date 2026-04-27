@@ -16,6 +16,7 @@ import { addToTripContextDebounce } from './tripContextManager.js';
 import { handleSelfReportCommand } from './tripPreferences.js';
 import { createSuggestion, handleConfirmReject, restorePendingSuggestions } from './suggestionTracker.js';
 import { processGroupMessage } from '../calendar/personalCalendarPipeline.js';
+import { isBotSent } from '../whatsapp/sentMessageTracker.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
 
@@ -280,8 +281,11 @@ export function initGroupPipeline(): void {
           await handleKeywordRules(groupJid, msg);
         }
 
-        // Skip date extraction for own messages (bot confirmations etc.)
-        if (msg.fromMe) return;
+        // Skip date extraction for the BOT'S OWN outgoing messages (confirmations,
+        // travel-handler replies, briefings) — but NOT for the owner typing in
+        // their own group, even though both are fromMe=true. isBotSent flags
+        // msgIds that originated from sock.sendMessage in this process.
+        if (msg.fromMe && isBotSent(msg.id)) return;
 
         if (group.travelBotActive) {
           // Trip context accumulation -- non-terminal (pre-filter inside)

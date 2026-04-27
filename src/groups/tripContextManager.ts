@@ -34,9 +34,14 @@ const MIN_CLASSIFY_LENGTH = 15;
 /**
  * Travel signal keywords (English as word boundaries, Hebrew without since prefix
  * letters attach: e.g. "במלון" contains "מלון").
+ *
+ * Covers all in-dashboard categories: flights, lodging, food, activities,
+ * transit, shopping. Restaurants/museums/cafés are first-class trip decisions
+ * just like flights and hotels — leaving them out of the pre-filter blocks
+ * the most common day-of trip planning messages from ever reaching Gemini.
  */
 const TRAVEL_SIGNALS =
-  /\b(hotel|hostel|airbnb|flight|fly|airport|book|reserve|booked|decided|destination|budget|itinerary|trip|travel|vacation|rent|car rental)\b|מלון|טיסה|הזמנ|טיול|תקציב|יעד|נופש|השכר|רכב|החלטנו|הזמנו|סגרנו|נסגר/i;
+  /\b(hotel|hostel|airbnb|flight|fly|airport|book|reserve|booked|decided|destination|budget|itinerary|trip|travel|vacation|rent|car rental|restaurant|dinner|lunch|breakfast|brunch|cafe|café|bistro|bar|pub|eat|dine|meal|table|museum|gallery|tour|visit|ticket|show|concert|beach|park|train|metro|subway|bus|taxi|uber|ferry|shop|market|store|mall|boutique|meet|plan)\b|מלון|טיסה|הזמנ|טיול|תקציב|יעד|נופש|השכר|רכב|החלטנו|הזמנו|סגרנו|נסגר|מסעדה|מסעדת|ארוחה|ארוחת|קפה|ביסטרו|פאב|מוזיאון|גלריה|סיור|כרטיס|מופע|חוף|פארק|רכבת|מטרו|אוטובוס|מונית|אובר|קניון|חנות|שוק|ניפגש|נפגש|מתכנן|מתוכנן|נאכל|אוכל|נשתה/i;
 
 /**
  * Short ack patterns to skip before travel-signal check.

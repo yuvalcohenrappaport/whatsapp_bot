@@ -33,6 +33,7 @@ import { initScheduledMessageScheduler } from './scheduler/scheduledMessageServi
 import { initArchiveTripsCron } from './scheduler/archiveTripsCron.js';
 import { initBriefingCron } from './cron/briefingCron.js';
 import { initApprovalSystem } from './approval/approvalInit.js';
+import { markBotSent } from './whatsapp/sentMessageTracker.js';
 
 const logger = pino({
   level: config.LOG_LEVEL,
@@ -95,6 +96,17 @@ async function startSocket(): Promise<void> {
   }
 
   const { sock } = await createSocket();
+
+  // Track every bot-originated msgId so fromMe filters can distinguish
+  // "bot wrote this" from "owner wrote this" (both share the WA account).
+  const origSendMessage = sock.sendMessage.bind(sock);
+  sock.sendMessage = (async (...args: Parameters<typeof origSendMessage>) => {
+    const result = await origSendMessage(...args);
+    const id = result?.key?.id;
+    if (id) markBotSent(id);
+    return result;
+  }) as typeof sock.sendMessage;
+
   updateState({ sock });
 
   const callbacks: ConnectionCallbacks = {
