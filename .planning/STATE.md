@@ -442,6 +442,10 @@ Legacy decisions from v1.6 (see phase 27-32 archive):
 - [Phase 56-google-places-geocoding]: GEOCODEABLE_TYPES includes hotel+lodging+accommodation to cover all schema enum variants for restaurant/hotel type decisions
 - [Phase 56-google-places-geocoding]: geocodeDecision throws PlacesGeocodeError for HTTP non-2xx; warnedNoKey flag leaves lookup_status=pending for backfill (not skipped)
 - [Phase 56]: apiFetch used in dashboard trips.ts client — JWT auto-injected from localStorage, matching ExportButton pattern
+- [Phase 57-drop-a-pin-dashboard-editing]: Plan 05 single-row-edit invariant: activePinPickerId lifted to TripView so opening a second row's picker closes the first one's. Both DecisionsBoard inline pin button AND TripMap badge click route through the same setActivePinPickerId state — keeps the invariant unconditional regardless of trigger surface.
+- [Phase 57-drop-a-pin-dashboard-editing]: Plan 05 D13 enforcement: TripMap.onBadgeClick is (() => void) | null. TripView passes null when bundle.readOnly so the badge renders as the unchanged informational <div> variant on archived dashboards (no scroll, no picker). When non-null AND offMapCount>0, badge becomes a <button> with hover styling.
+- [Phase 57-drop-a-pin-dashboard-editing]: Plan 05 row-wrapper restructure: existing decision row is now wrapped under a key={d.id} parent <div className='relative'> together with the conditional PinDecisionPicker mount. Keyed parent contains both surfaces so React's reconciliation treats them as a unit per row — picker mounts/unmounts cleanly when activePinPickerId flips.
+- [Phase 57-drop-a-pin-dashboard-editing]: Plan 05 useTrip.ts UNTOUCHED: Promise<boolean> contract set in Plan 03 stayed exactly as-is. handleSavePin in TripView is a thin pass-through wrapper that returns mutations.pinDecision's boolean unchanged so the picker can drive its own inline 'Pin failed — try again' UI on D11 dual-surface.
 
 ### Pending Todos
 
