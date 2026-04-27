@@ -76,6 +76,20 @@ type PickerError =
   | 'Pin failed — try again'
   | null;
 
+// crypto.randomUUID is unavailable on insecure HTTP origins (LAN/Tailscale IPs).
+// Token is a Places billing-grouping ID, not a security boundary, so a Math.random
+// RFC 4122 v4 fallback is fine.
+function generateSessionToken(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function PinDecisionPicker({
@@ -104,7 +118,10 @@ export function PinDecisionPicker({
   // ─── Refs ──────────────────────────────────────────────────────────────
   // Single sessionToken per picker open — reused for autocomplete + preview
   // + final pin. Phase 56 RESEARCH.md billing lock.
-  const sessionTokenRef = useRef<string>(crypto.randomUUID());
+  // Falls back to RFC 4122 v4 via Math.random when crypto.randomUUID is
+  // unavailable (insecure contexts: HTTP over LAN/Tailscale). Token is a
+  // Places billing-grouping ID, not a security boundary.
+  const sessionTokenRef = useRef<string>(generateSessionToken());
   // Race protection — last-write-wins for both autocomplete and preview.
   const reqIdRef = useRef(0);
   const previewReqIdRef = useRef(0);
