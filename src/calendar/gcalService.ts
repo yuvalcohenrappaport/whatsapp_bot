@@ -1,7 +1,10 @@
 import { google, type calendar_v3 } from 'googleapis';
 import pino from 'pino';
 import { config } from '../config.js';
-import { getOAuth2Client } from './personalCalendarService.js';
+import {
+  getOAuth2Client,
+  clearStoredRefreshTokenIfAuthError,
+} from './personalCalendarService.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
 
@@ -65,11 +68,17 @@ export async function listOwnerCalendars(): Promise<GcalCalendarMeta[]> {
     return [];
   }
 
-  const res = await client.calendarList.list({
-    maxResults: 250,
-    showDeleted: false,
-    showHidden: false,
-  });
+  let res;
+  try {
+    res = await client.calendarList.list({
+      maxResults: 250,
+      showDeleted: false,
+      showHidden: false,
+    });
+  } catch (err) {
+    clearStoredRefreshTokenIfAuthError(err);
+    throw err;
+  }
   const items = res.data.items ?? [];
 
   return items
@@ -177,15 +186,26 @@ export async function listEventsInWindow(
   );
 
   const out: GcalCalendarItem[] = [];
+  let authError: unknown = null;
   perCalendar.forEach((r, idx) => {
     if (r.status === 'fulfilled') {
       out.push(...r.value);
     } else {
+      const msg = String(r.reason);
+      if (msg.includes('invalid_grant') || msg.includes('401')) {
+        authError = r.reason;
+      }
       logger.warn(
         { err: r.reason, calendarId: calendars[idx]?.id },
         'gcal per-calendar fetch failed; continuing with other calendars',
       );
     }
   });
+  // Auth failure affects every calendar — propagate so the aggregator marks gcal=error
+  // and the dashboard surfaces "unavailable" instead of silently showing zero events.
+  if (authError) {
+    clearStoredRefreshTokenIfAuthError(authError);
+    throw authError;
+  }
   return out;
 }

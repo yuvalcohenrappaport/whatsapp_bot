@@ -63,9 +63,24 @@ export function initPersonalCalendarAuth(): void {
 
 /**
  * Whether the personal calendar is connected (refresh token exists and client configured).
+ * Empty-string token counts as disconnected — clearStoredRefreshTokenIfAuthError writes "" on invalid_grant.
  */
 export function isPersonalCalendarConnected(): boolean {
-  return oauth2Client !== null && getSetting(REFRESH_TOKEN_KEY) !== null;
+  return oauth2Client !== null && !!getSetting(REFRESH_TOKEN_KEY);
+}
+
+/**
+ * Detect Google auth-expired error and clear stored credentials so the next request forces re-auth
+ * instead of silently looping invalid_grant. Returns true if the error matched.
+ */
+export function clearStoredRefreshTokenIfAuthError(err: unknown): boolean {
+  const msg = String(err);
+  if (!msg.includes('invalid_grant') && !msg.includes('401')) return false;
+  logger.warn('Personal calendar auth expired — clearing stored token');
+  setSetting(REFRESH_TOKEN_KEY, '');
+  calendarClient = null;
+  oauth2Client?.setCredentials({});
+  return true;
 }
 
 /**
@@ -189,14 +204,7 @@ export async function createPersonalCalendarEvent(params: {
     );
     return eventId;
   } catch (err: unknown) {
-    // Graceful degradation: clear token on auth errors
-    const errMsg = String(err);
-    if (errMsg.includes('invalid_grant') || errMsg.includes('401')) {
-      logger.warn('Personal calendar auth expired — clearing stored token');
-      setSetting(REFRESH_TOKEN_KEY, '');
-      calendarClient = null;
-    }
-
+    clearStoredRefreshTokenIfAuthError(err);
     logger.error(
       { err, calendarId: params.calendarId, title: params.title },
       'Failed to create personal calendar event',
