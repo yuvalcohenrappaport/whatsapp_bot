@@ -9,12 +9,12 @@ for (const method of ['info', 'warn', 'error', 'log'] as const) {
   };
 }
 
-import fs from 'node:fs/promises';
 import pino from 'pino';
 import qrcode from 'qrcode-terminal';
 import { config } from './config.js';
 import { initDb } from './db/client.js';
 import { createSocket } from './whatsapp/connection.js';
+import { backupAndClearAuth } from './whatsapp/authBackup.js';
 import {
   handleConnectionUpdate,
   type ConnectionCallbacks,
@@ -151,12 +151,15 @@ async function startSocket(): Promise<void> {
 
     async onLoggedOut() {
       logger.error(
-        'Session expired or invalidated — deleting auth state and exiting',
+        'Session expired or invalidated — backing up auth state and exiting',
       );
       updateState({ connection: 'disconnected', qr: null, sock: null });
-      await fs.rm(config.AUTH_DIR, { recursive: true, force: true });
+      const backup = await backupAndClearAuth(config.AUTH_DIR);
       logger.info(
-        'Auth state deleted. Restart the bot to scan a new QR code.',
+        { backup },
+        backup
+          ? `Auth state moved to ${backup}. Restart the bot to scan a new QR code.`
+          : 'Auth state cleared. Restart the bot to scan a new QR code.',
       );
       process.exit(1); // PM2 will restart; user re-scans QR
     },
