@@ -34,6 +34,7 @@ import { handleTaskCancel } from '../todo/todoPipeline.js';
 import { handleScheduledMessageCancel } from '../scheduler/scheduledMessageService.js';
 import { tryHandleApprovalReply } from '../approval/approvalHandler.js';
 import { handleMultimodalIntake } from '../groups/multimodalIntake.js';
+import { isBotSent } from '../whatsapp/sentMessageTracker.js';
 
 const logger = pino({ level: config.LOG_LEVEL });
 
@@ -397,6 +398,14 @@ async function processMessage(sock: WASocket, msg: WAMessage): Promise<void> {
     (contactJid === config.USER_JID ||
       (config.USER_LID !== undefined && contactJid === config.USER_LID));
   if (isSelfChat) {
+    // The bot runs on the owner's account, so its own outgoing messages echo
+    // back through messages.upsert as fromMe self-chat (legacy USER_JID form).
+    // Never re-process our own echoes as owner commands: a confirmation whose
+    // text contains a command keyword (e.g. a reminder whose task is literally
+    // "Payment Reminder" → "⏰ Payment Reminder — <time>") would otherwise be
+    // re-parsed as a new `set` command, inserting a fresh reminder and sending
+    // another confirmation — an infinite self-amplifying loop.
+    if (isBotSent(msg.key.id!)) return;
     const handled = await handleOwnerCommand(sock, msg);
     // Only route USER_LID-form self-chat to detection. User-typed self-chat arrives
     // as USER_LID (baileys 7); the bot's own outgoing messages to USER_JID get echoed
