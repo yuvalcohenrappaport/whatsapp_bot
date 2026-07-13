@@ -2,7 +2,7 @@ import type { Command } from 'commander';
 import React from 'react';
 import { render } from 'ink';
 import pm2 from 'pm2';
-import { sql, eq } from 'drizzle-orm';
+import { sql, eq, or } from 'drizzle-orm';
 import { db } from '../db.js';
 import { contacts, groups, drafts } from '../../src/db/schema.js';
 import { StatusView } from '../ui/StatusView.js';
@@ -51,10 +51,13 @@ export function addStatusCommand(program: Command): void {
         .get();
       const contactCount = contactResult?.count ?? 0;
 
+      // A group counts as tracked while at least one automation still gates on it.
       const groupResult = db
         .select({ count: sql<number>`count(*)` })
         .from(groups)
-        .where(eq(groups.active, true))
+        .where(
+          or(eq(groups.travelBotActive, true), eq(groups.keywordRulesActive, true)),
+        )
         .get();
       const groupCount = groupResult?.count ?? 0;
 
