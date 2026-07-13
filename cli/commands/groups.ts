@@ -37,7 +37,9 @@ export function addGroupsCommand(program: Command): void {
       const allGroups = db.select().from(groups).all();
 
       const rows = allGroups.map((g) => {
-        const activeText = g.active
+        // Active while at least one automation still gates on the group.
+        const isActive = g.travelBotActive || g.keywordRulesActive;
+        const activeText = isActive
           ? renderToString(React.createElement(Text, { color: 'green' }, 'yes'))
           : renderToString(React.createElement(Text, { color: 'red' }, 'no'));
 
