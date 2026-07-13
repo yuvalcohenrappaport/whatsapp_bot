@@ -28,7 +28,9 @@ const testDb = drizzle(sqlite, { schema });
 vi.mock('../../db/client.js', () => ({ db: testDb }));
 
 // Mock state so sendMessage can be spied on.
-const sendMessage = vi.fn(async () => undefined);
+const sendMessage = vi.fn<(jid: string, content: unknown) => Promise<undefined>>(
+  async () => undefined,
+);
 vi.mock('../../api/state.js', () => ({
   getState: () => ({ sock: { sendMessage } }),
 }));

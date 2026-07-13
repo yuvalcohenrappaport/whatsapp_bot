@@ -189,7 +189,7 @@ describe('geocodeDecision', () => {
 
     const err = await geocodeDecision('Some Place', 'City').catch((e: unknown) => e);
     expect(err).toBeInstanceOf(PlacesGeocodeError);
-    expect((err as PlacesGeocodeError).status).toBe(429);
+    expect((err as InstanceType<typeof PlacesGeocodeError>).status).toBe(429);
   });
 
   it('10. FieldMask includes correct fields and uses places.googleapis.com', async () => {

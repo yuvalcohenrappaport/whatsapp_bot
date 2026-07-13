@@ -31,7 +31,7 @@ import type { Actionable } from '../../db/queries/actionables.js';
 
 // Mock DB queries
 const mockGetCalendarActionables = vi.fn<(fromMs: number, toMs: number) => Actionable[]>(() => []);
-const mockGetApprovedEventsBetween = vi.fn(() => []);
+const mockGetApprovedEventsBetween = vi.fn<(fromMs: number, toMs: number) => unknown[]>(() => []);
 
 vi.mock('../../db/queries/actionables.js', () => ({
   getCalendarActionables: (fromMs: number, toMs: number) =>
@@ -44,7 +44,7 @@ vi.mock('../../db/queries/personalPendingEvents.js', () => ({
 }));
 
 // Mock LinkedIn upstream client
-const mockCallUpstream = vi.fn<() => Promise<{ status: number; data: unknown[] }>>();
+const mockCallUpstream = vi.fn<(...args: unknown[]) => Promise<{ status: number; data: unknown[] }>>();
 
 vi.mock('../../api/linkedin/client.js', () => ({
   callUpstream: (...args: unknown[]) => mockCallUpstream(...args),

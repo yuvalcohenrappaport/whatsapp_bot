@@ -80,7 +80,7 @@ const sockStub = {
 describe('tryHandleReminder — user_command dual-write (Phase 41 DETC-03)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (sockStub as { sendMessage: ReturnType<typeof vi.fn> }).sendMessage =
+    (sockStub as unknown as { sendMessage: ReturnType<typeof vi.fn> }).sendMessage =
       vi.fn().mockResolvedValue({ key: { id: 'OUT-1' } });
   });
 

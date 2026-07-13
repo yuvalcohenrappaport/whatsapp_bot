@@ -1,4 +1,6 @@
 import { sqliteTable, text, integer, real, index } from 'drizzle-orm/sqlite-core';
+// Type-only: erased at runtime, so this cannot create a circular import.
+import type { TripCategory } from './queries/tripMemory.js';
 
 export const messages = sqliteTable(
   'messages',
@@ -178,7 +180,7 @@ export const tripDecisions = sqliteTable(
     // Phase 51 v2.1 — structured columns (drizzle/0022_v21_phase51_trip_memory.sql).
     // Enums enforced in app layer (matches existing `type` column convention).
     proposedBy: text('proposed_by'), // phone/JID of group member, nullable
-    category: text('category'), // 'flights' | 'lodging' | 'food' | 'activities' | 'transit' | 'shopping' | 'other'
+    category: text('category').$type<TripCategory>(), // enforced in app layer; $type only annotates
     costAmount: real('cost_amount'), // numeric cost, nullable
     costCurrency: text('cost_currency'), // ISO-4217, nullable
     conflictsWith: text('conflicts_with').notNull().default('[]'), // JSON array of decision IDs
@@ -186,7 +188,7 @@ export const tripDecisions = sqliteTable(
     metadata: text('metadata'), // JSON blob for edge-case fields
     archived: integer('archived', { mode: 'boolean' }).notNull().default(false), // flipped by auto-archive cron
     // Phase 55 v2.1 — dashboard schema delta (drizzle/0024_trip_decisions_dashboard.sql)
-    status: text('status').notNull().default('active'), // 'active' | 'deleted' (soft-delete from dashboard)
+    status: text('status').$type<'active' | 'deleted'>().notNull().default('active'), // soft-delete from dashboard
     lat: real('lat'), // nullable; populated by Phase 52/55 when decision has a location
     lng: real('lng'), // nullable
     // Phase 56 v2.2 — Google Places geocoding (drizzle/0025_places_geocoding.sql).

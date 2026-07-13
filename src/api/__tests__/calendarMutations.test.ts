@@ -20,11 +20,11 @@ import type { Actionable } from '../../db/queries/actionables.js';
 // ─── Mocks ─────────────────────────────────────────────────────────────
 
 const mockGetActionableById = vi.fn<(id: string) => Actionable | undefined>();
-const mockUpdateActionableTask = vi.fn();
-const mockUpdateActionableFireAt = vi.fn();
-const mockUpdateActionableTodoIds = vi.fn();
-const mockCreateApprovedActionable = vi.fn<() => Actionable>();
-const mockDeleteActionable = vi.fn();
+const mockUpdateActionableTask = vi.fn<(...args: unknown[]) => unknown>();
+const mockUpdateActionableFireAt = vi.fn<(...args: unknown[]) => unknown>();
+const mockUpdateActionableTodoIds = vi.fn<(...args: unknown[]) => unknown>();
+const mockCreateApprovedActionable = vi.fn<(...args: unknown[]) => Actionable>();
+const mockDeleteActionable = vi.fn<(...args: unknown[]) => unknown>();
 const mockGetPendingActionables = vi.fn<() => Actionable[]>(() => []);
 const mockGetRecentTerminalActionables = vi.fn<() => Actionable[]>(() => []);
 
@@ -45,9 +45,9 @@ vi.mock('../../db/queries/settings.js', () => ({
   setSetting: vi.fn(),
 }));
 
-const mockCreateTodoTask = vi.fn<() => Promise<{ taskId: string; listId: string }>>();
-const mockUpdateTodoTask = vi.fn<() => Promise<boolean>>(() => Promise.resolve(true));
-const mockDeleteTodoTask = vi.fn<() => Promise<void>>(() => Promise.resolve());
+const mockCreateTodoTask = vi.fn<(...args: unknown[]) => Promise<{ taskId: string; listId: string }>>();
+const mockUpdateTodoTask = vi.fn<(...args: unknown[]) => Promise<boolean>>(() => Promise.resolve(true));
+const mockDeleteTodoTask = vi.fn<(...args: unknown[]) => Promise<void>>(() => Promise.resolve());
 vi.mock('../../todo/todoService.js', () => ({
   createTodoTask: (...args: unknown[]) => mockCreateTodoTask(...args),
   updateTodoTask: (...args: unknown[]) => mockUpdateTodoTask(...args),
@@ -62,9 +62,9 @@ vi.mock('../../config.js', () => ({
 }));
 
 // Personal calendar service mocks
-const mockCreatePersonalCalendarEvent = vi.fn<() => Promise<string | null>>(() => Promise.resolve('google-event-id-123'));
-const mockUpdatePersonalCalendarEvent = vi.fn<() => Promise<boolean>>(() => Promise.resolve(true));
-const mockDeletePersonalCalendarEvent = vi.fn<() => Promise<boolean>>(() => Promise.resolve(true));
+const mockCreatePersonalCalendarEvent = vi.fn<(...args: unknown[]) => Promise<string | null>>(() => Promise.resolve('google-event-id-123'));
+const mockUpdatePersonalCalendarEvent = vi.fn<(...args: unknown[]) => Promise<boolean>>(() => Promise.resolve(true));
+const mockDeletePersonalCalendarEvent = vi.fn<(...args: unknown[]) => Promise<boolean>>(() => Promise.resolve(true));
 const mockGetSelectedCalendarId = vi.fn<() => string | null>(() => 'primary');
 vi.mock('../../calendar/personalCalendarService.js', () => ({
   isPersonalCalendarConnected: vi.fn(() => true),
@@ -80,7 +80,7 @@ vi.mock('../../calendar/personalCalendarService.js', () => ({
 const mockGetPersonalPendingEvent = vi.fn<(id: string) => ReturnType<() => typeof personalEventFixture | undefined>>();
 const mockUpdatePersonalPendingEventFields = vi.fn();
 const mockLinkCalendarEventId = vi.fn();
-const mockInsertApprovedPersonalEvent = vi.fn<() => ReturnType<() => typeof personalEventFixture | undefined>>();
+const mockInsertApprovedPersonalEvent = vi.fn<(...args: unknown[]) => ReturnType<() => typeof personalEventFixture | undefined>>();
 const mockDeletePersonalPendingEvent = vi.fn();
 const mockGetPendingPersonalEvents = vi.fn(() => []);
 const mockGetPersonalEventsByStatus = vi.fn(() => []);
@@ -103,7 +103,7 @@ const personalEventFixture = {
   notificationMsgId: null,
   contentHash: null,
   isAllDay: false,
-  calendarEventId: null,
+  calendarEventId: null as string | null,
   createdAt: 1_750_000_000_000,
 };
 
@@ -162,12 +162,13 @@ async function buildTestServer(authPasses = true): Promise<FastifyInstance> {
       }
     },
   );
+  // Partial test double — only verify() is exercised, so cast past the full JWT type.
   fastify.decorate('jwt', {
     verify: (_token: string) => {
       if (!authPasses) throw new Error('unauthorized');
       return { sub: 'test' };
     },
-  });
+  } as never);
   await fastify.register(actionablesRoutes);
   await fastify.register(personalCalendarRoutes);
   await fastify.ready();

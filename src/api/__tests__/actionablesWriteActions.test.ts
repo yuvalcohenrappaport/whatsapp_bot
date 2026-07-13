@@ -22,13 +22,13 @@ import type { Actionable } from '../../db/queries/actionables.js';
 // ─── Mocks ─────────────────────────────────────────────────────────────
 
 const mockGetActionableById = vi.fn<(id: string) => Actionable | undefined>();
-const mockUpdateActionableTask = vi.fn();
+const mockUpdateActionableTask = vi.fn<(...args: unknown[]) => unknown>();
 const mockGetPendingActionables = vi.fn<() => Actionable[]>(() => []);
 const mockGetRecentTerminalActionables = vi.fn<() => Actionable[]>(() => []);
-const mockUpdateActionableFireAt = vi.fn();
-const mockUpdateActionableTodoIds = vi.fn();
-const mockCreateApprovedActionable = vi.fn<() => Actionable>();
-const mockDeleteActionable = vi.fn();
+const mockUpdateActionableFireAt = vi.fn<(...args: unknown[]) => unknown>();
+const mockUpdateActionableTodoIds = vi.fn<(...args: unknown[]) => unknown>();
+const mockCreateApprovedActionable = vi.fn<(...args: unknown[]) => Actionable>();
+const mockDeleteActionable = vi.fn<(...args: unknown[]) => unknown>();
 
 vi.mock('../../db/queries/actionables.js', () => ({
   getPendingActionables: () => mockGetPendingActionables(),

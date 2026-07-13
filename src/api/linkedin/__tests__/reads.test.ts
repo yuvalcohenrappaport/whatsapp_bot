@@ -69,7 +69,7 @@ function fixtureJob(overrides: Record<string, unknown> = {}): Record<string, unk
  * an authenticate decorator that rejects.
  */
 async function buildTestServer(
-  authenticate: () => Promise<void> = async () => {
+  authenticate: (req?: unknown, reply?: unknown) => Promise<void> = async () => {
     /* always pass */
   },
   jwtVerifyPasses = true,

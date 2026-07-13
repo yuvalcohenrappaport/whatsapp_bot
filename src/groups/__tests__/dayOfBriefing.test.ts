@@ -120,7 +120,7 @@ beforeEach(() => {
     },
   });
   vi.mocked(tm.getDecisionsByGroup).mockReturnValue([]);
-  vi.mocked(tm.getTripContext).mockReturnValue(null);
+  vi.mocked(tm.getTripContext).mockReturnValue(undefined);
 });
 
 describe('runDayOfBriefing', () => {

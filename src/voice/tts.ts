@@ -21,10 +21,13 @@ function transcodeToOgg(
   mp3Buffer: Buffer,
   logger: pino.Logger,
 ): Promise<Buffer> {
-  if (!ffmpegPath) throw new Error('ffmpeg-static binary not found');
+  // Capture in a local so the null-check narrowing survives into the closure —
+  // otherwise spawn() sees `string | null`, matches no overload, and infers never.
+  const ffmpegBin = ffmpegPath;
+  if (!ffmpegBin) throw new Error('ffmpeg-static binary not found');
 
   return new Promise<Buffer>((resolve, reject) => {
-    const proc = spawn(ffmpegPath, [
+    const proc = spawn(ffmpegBin, [
       '-i',
       'pipe:0',
       '-c:a',

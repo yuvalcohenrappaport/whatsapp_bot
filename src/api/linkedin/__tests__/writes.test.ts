@@ -64,7 +64,7 @@ function fixturePost(overrides: Record<string, unknown> = {}): Record<string, un
 }
 
 async function buildTestServer(
-  authenticate: () => Promise<void> = async () => {
+  authenticate: (req?: unknown, reply?: unknown) => Promise<void> = async () => {
     /* always pass */
   },
 ): Promise<FastifyInstance> {

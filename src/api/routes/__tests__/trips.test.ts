@@ -138,7 +138,7 @@ vi.mock('drizzle-orm', () => ({
 
 // Mock googleDocsExport so route tests don't call the real Google API
 const mockExportTripToGoogleDoc = vi.fn<
-  () => Promise<{ url: string; documentId: string }>
+  (...args: unknown[]) => Promise<{ url: string; documentId: string }>
 >(async () => ({ url: 'https://docs.google.com/d/doc-x/edit', documentId: 'doc-x' }));
 
 vi.mock('../../../integrations/googleDocsExport.js', () => ({
@@ -176,8 +176,45 @@ function emptyBudget(): BudgetRollup {
   return { targets: zero(), spent: zero(), remaining: zero() };
 }
 
-function fixtureBundle(overrides: Partial<TripBundle> = {}): TripBundle {
+/** A full trip_decisions row. Fixtures below supply only the fields they care about. */
+type TripDecisionRow = TripBundle['decisions'][number];
+
+function fixtureDecision(overrides: Partial<TripDecisionRow> = {}): TripDecisionRow {
   return {
+    id: 'dec-1',
+    groupJid: 'grp-1@g.us',
+    type: 'accommodation',
+    value: 'Hotel Roma',
+    confidence: 'high',
+    sourceMessageId: null,
+    resolved: false,
+    createdAt: Date.now(),
+    proposedBy: null,
+    category: null,
+    costAmount: null,
+    costCurrency: null,
+    conflictsWith: '[]',
+    origin: 'self_reported',
+    metadata: null,
+    archived: false,
+    status: 'active',
+    lat: null,
+    lng: null,
+    placeId: null,
+    canonicalAddress: null,
+    lookupStatus: 'pending',
+    placeMetadata: null,
+    ...overrides,
+  };
+}
+
+type BundleOverrides = Omit<Partial<TripBundle>, 'decisions'> & {
+  decisions?: Partial<TripDecisionRow>[];
+};
+
+function fixtureBundle(overrides: BundleOverrides = {}): TripBundle {
+  const { decisions, ...rest } = overrides;
+  const base: TripBundle = {
     context: {
       groupJid: 'grp-1@g.us',
       destination: 'Rome',
@@ -198,7 +235,11 @@ function fixtureBundle(overrides: Partial<TripBundle> = {}): TripBundle {
     openQuestions: [],
     calendarEvents: [],
     budget: emptyBudget(),
-    ...overrides,
+  };
+  return {
+    ...base,
+    ...rest,
+    ...(decisions ? { decisions: decisions.map(fixtureDecision) } : {}),
   };
 }
 

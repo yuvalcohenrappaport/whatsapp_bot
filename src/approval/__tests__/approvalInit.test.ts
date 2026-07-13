@@ -24,7 +24,7 @@ const sockMock = {
 const getStateMock = vi.fn(() => ({
   connection: 'connected',
   qr: null,
-  sock: sockMock,
+  sock: sockMock as typeof sockMock | null, // disconnected state has no sock
   botJid: null,
   botDisplayName: null,
   isShuttingDown: false,

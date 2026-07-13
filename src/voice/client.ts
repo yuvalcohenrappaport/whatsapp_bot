@@ -16,10 +16,13 @@ export async function validateElevenLabsConnection(
   logger: pino.Logger,
 ): Promise<boolean> {
   try {
-    await elevenLabsClient.voices.get(config.ELEVENLABS_DEFAULT_VOICE_ID, {
-      timeoutInSeconds: 5,
-      maxRetries: 0,
-    });
+    // timeoutInSeconds/maxRetries are RequestOptions (3rd arg), not the request
+    // body (2nd) — passing them as the body meant they were silently ignored.
+    await elevenLabsClient.voices.get(
+      config.ELEVENLABS_DEFAULT_VOICE_ID,
+      {},
+      { timeoutInSeconds: 5, maxRetries: 0 },
+    );
     logger.info('ElevenLabs connection validated — voice replies available');
     return true;
   } catch (err) {

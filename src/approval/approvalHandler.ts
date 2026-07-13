@@ -100,18 +100,21 @@ export async function tryHandleApprovalReply(
 
 // ─── Directive expansion + dedupe ────────────────────────────────────────────
 
+/** A directive after expansion: 'all' has been resolved, so itemIndex is numeric. */
+type ExpandedDirective = Omit<ApprovalDirective, 'itemIndex'> & { itemIndex: number };
+
 function expandAllDirectives(
   directives: ApprovalDirective[],
   itemCount: number,
-): ApprovalDirective[] {
-  const out: ApprovalDirective[] = [];
+): ExpandedDirective[] {
+  const out: ExpandedDirective[] = [];
   for (const d of directives) {
     if (d.itemIndex === 'all') {
       for (let i = 1; i <= itemCount; i++) {
         out.push({ ...d, itemIndex: i });
       }
     } else {
-      out.push(d);
+      out.push({ ...d, itemIndex: d.itemIndex });
     }
   }
   return out;
@@ -119,8 +122,8 @@ function expandAllDirectives(
 
 /** Last-wins dedupe by itemIndex — preserves the order of the last occurrence. */
 function dedupeLastWins(
-  directives: ApprovalDirective[],
-): ApprovalDirective[] {
+  directives: ExpandedDirective[],
+): ExpandedDirective[] {
   const lastIndexFor = new Map<number, number>();
   directives.forEach((d, i) => {
     if (typeof d.itemIndex === 'number') lastIndexFor.set(d.itemIndex, i);

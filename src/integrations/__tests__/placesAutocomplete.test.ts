@@ -176,7 +176,7 @@ describe('autocompletePlaces', () => {
       (e: unknown) => e,
     );
     expect(err).toBeInstanceOf(PlacesAutocompleteError);
-    expect((err as PlacesAutocompleteError).status).toBe(429);
+    expect((err as InstanceType<typeof PlacesAutocompleteError>).status).toBe(429);
   });
 
   it('5. schema drift throws PlacesAutocompleteError with status 0', async () => {
@@ -191,7 +191,7 @@ describe('autocompletePlaces', () => {
       (e: unknown) => e,
     );
     expect(err).toBeInstanceOf(PlacesAutocompleteError);
-    expect((err as PlacesAutocompleteError).status).toBe(0);
+    expect((err as InstanceType<typeof PlacesAutocompleteError>).status).toBe(0);
   });
 
   it('6. missing GOOGLE_PLACES_API_KEY throws with status 412', async () => {
@@ -201,7 +201,7 @@ describe('autocompletePlaces', () => {
       (e: unknown) => e,
     );
     expect(err).toBeInstanceOf(PlacesAutocompleteError);
-    expect((err as PlacesAutocompleteError).status).toBe(412);
+    expect((err as InstanceType<typeof PlacesAutocompleteError>).status).toBe(412);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -321,7 +321,7 @@ describe('fetchPlaceDetails', () => {
       (e: unknown) => e,
     );
     expect(err).toBeInstanceOf(PlacesAutocompleteError);
-    expect((err as PlacesAutocompleteError).status).toBe(412);
+    expect((err as InstanceType<typeof PlacesAutocompleteError>).status).toBe(412);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -359,7 +359,7 @@ describe('fetchPlaceDetails', () => {
       (e: unknown) => e,
     );
     expect(err).toBeInstanceOf(PlacesAutocompleteError);
-    expect((err as PlacesAutocompleteError).status).toBe(404);
+    expect((err as InstanceType<typeof PlacesAutocompleteError>).status).toBe(404);
   });
 
   it('schema drift on details throws PlacesAutocompleteError with status 0', async () => {
@@ -374,7 +374,7 @@ describe('fetchPlaceDetails', () => {
       (e: unknown) => e,
     );
     expect(err).toBeInstanceOf(PlacesAutocompleteError);
-    expect((err as PlacesAutocompleteError).status).toBe(0);
+    expect((err as InstanceType<typeof PlacesAutocompleteError>).status).toBe(0);
   });
 
   it('URL-encodes the placeId path segment', async () => {

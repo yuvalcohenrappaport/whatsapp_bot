@@ -53,6 +53,8 @@ interface ActionableOverrides {
   sourceContactName?: string | null;
   sourceContactJid?: string;
   sourceMessageText?: string;
+  /** actionables.updated_at — used by the unreject grace-window tests. */
+  updatedAt?: number;
 }
 
 function actionable(overrides: ActionableOverrides = {}): Record<string, unknown> {
@@ -82,7 +84,9 @@ function actionable(overrides: ActionableOverrides = {}): Record<string, unknown
 
 function sockMock() {
   return {
-    sendMessage: vi.fn().mockResolvedValue({ key: { id: 'REPLY-OK' } }),
+    sendMessage: vi
+      .fn<(jid: string, content: { text: string }) => Promise<unknown>>()
+      .mockResolvedValue({ key: { id: 'REPLY-OK' } }),
   };
 }
 
