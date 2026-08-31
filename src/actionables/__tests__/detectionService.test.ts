@@ -84,16 +84,16 @@ describe('detectionService.processDetection', () => {
       expect(createActionableMock).not.toHaveBeenCalled();
     });
 
-    it('skips self-chat (contactJid === config.USER_JID)', async () => {
+    it('processes self-chat text (command-gating happens upstream in messageHandler)', async () => {
+      extractCommitmentsMock.mockResolvedValue([]);
       await processDetection({ ...baseParams, contactJid: 'self@s.whatsapp.net' });
-      expect(extractCommitmentsMock).not.toHaveBeenCalled();
-      expect(createActionableMock).not.toHaveBeenCalled();
+      expect(extractCommitmentsMock).toHaveBeenCalled();
     });
 
-    it('skips incoming message from non-allowlisted contact', async () => {
-      defaultSettings({ commitment_incoming_allowlist: null });
+    it('processes incoming message from non-blocklisted contact by default', async () => {
+      extractCommitmentsMock.mockResolvedValue([]);
       await processDetection({ ...baseParams, fromMe: false });
-      expect(extractCommitmentsMock).not.toHaveBeenCalled();
+      expect(extractCommitmentsMock).toHaveBeenCalled();
     });
 
     it('allows incoming message from allowlisted contact', async () => {

@@ -92,12 +92,14 @@ describe('CommitmentDetectionService', () => {
             dateTime: '2026-03-17T10:00:00',
             confidence: 'high',
             originalText: "I'll send you the report tomorrow morning",
+            type: 'commitment',
           },
           {
             task: 'Check the budget numbers',
             dateTime: null,
             confidence: 'medium',
             originalText: "let me check the budget numbers",
+            type: 'task',
           },
         ],
       });
@@ -124,12 +126,14 @@ describe('CommitmentDetectionService', () => {
             dateTime: '2026-03-17T10:00:00',
             confidence: 'high',
             originalText: "I'll send it",
+            type: 'commitment',
           },
           {
             task: 'Maybe meet up sometime',
             dateTime: null,
             confidence: 'low',
             originalText: 'we should hang out',
+            type: 'commitment',
           },
         ],
       });
@@ -173,6 +177,7 @@ describe('CommitmentDetectionService', () => {
             dateTime: null,
             confidence: 'medium',
             originalText: "I'll look into it",
+            type: 'task',
           },
         ],
       });
@@ -194,6 +199,7 @@ describe('CommitmentDetectionService', () => {
             dateTime: 'not-a-date',
             confidence: 'high',
             originalText: 'I will do it',
+            type: 'commitment',
           },
         ],
       });
